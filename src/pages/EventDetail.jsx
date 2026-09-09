@@ -20,7 +20,8 @@ export default function EventDetail() {
           address: "12 Quai de Valmy, 75010 Paris",
           phone: "06 12 34 56 78",
           description: "Apéritif italien classique au bord du canal.",
-          price: 12,
+          price_member: 8,
+          price_nonmember: 12,
           seats: 40,
           taken: 27
         });
@@ -71,8 +72,15 @@ export default function EventDetail() {
           marginBottom: 10
         }}
       >
-        {full ? "Complet" : `S'inscrire — ${event.price} €`}
+        {full
+          ? "Complet"
+          : `S'inscrire — dès ${Math.min(event.price_member, event.price_nonmember)} €`}
       </button>
+      {!full && (
+        <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: -4, marginBottom: 16 }}>
+          {event.price_member} € membres · {event.price_nonmember} € non-membres
+        </p>
+      )}
 
       <button
         onClick={() => navigate(`/event/${id}/chat`)}

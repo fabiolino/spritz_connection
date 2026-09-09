@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, User, Shield } from "lucide-react";
+import { Calendar, User, Shield, Heart, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -20,6 +20,7 @@ export default function Feed() {
   const navigate = useNavigate();
   const [events, setEvents] = useState(DEMO_EVENTS);
   const [loading, setLoading] = useState(true);
+  const [showJoinBanner, setShowJoinBanner] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -39,12 +40,61 @@ export default function Feed() {
 
   return (
     <div style={{ padding: "24px 20px 100px" }}>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px" }}>Spritz Connection</h1>
-      <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 20px" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+        <img
+          src="/logo.jpg"
+          alt="Spritz Connection"
+          style={{ width: 84, height: 84, borderRadius: "50%", border: `2px solid ${colors.orange}` }}
+        />
+      </div>
+      <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px", textAlign: "center" }}>Spritz Connection</h1>
+      <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 20px", textAlign: "center" }}>
         Les prochaines soirées italiennes à Paris.
       </p>
 
+      {showJoinBanner && (
+        <div
+          onClick={() => navigate("/join")}
+          style={{
+            background: "rgba(242,118,46,0.08)",
+            border: `1px solid ${colors.orange}`,
+            borderRadius: 16,
+            padding: "14px 16px",
+            marginBottom: 20,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            position: "relative"
+          }}
+        >
+          <Heart size={18} color={colors.orange} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 3 }}>Envie de rejoindre l'association ?</div>
+            <div style={{ fontSize: 12.5, color: colors.muted, lineHeight: 1.4 }}>
+              Devenir membre te donne un tarif préférentiel sur chaque soirée — jamais obligatoire pour participer.
+            </div>
+          </div>
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              setShowJoinBanner(false);
+            }}
+            aria-label="Fermer"
+            style={{ background: "none", border: "none", color: colors.muted, cursor: "pointer", padding: 2, flexShrink: 0 }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {loading && <p style={{ color: colors.muted, fontSize: 13 }}>Chargement…</p>}
+
+      {!loading && events.length === 0 && (
+        <p style={{ color: colors.muted, fontSize: 13, marginBottom: 20 }}>
+          Aucun événement programmé pour le moment — reviens bientôt !
+        </p>
+      )}
 
       {events.map((e) => (
         <div

@@ -44,6 +44,7 @@ export default async function handler(req, res) {
         merchant_code: process.env.SUMUP_MERCHANT_CODE,
         description: `Spritz Connection — ${option}`,
         redirect_url: `${process.env.PUBLIC_APP_URL}/event/${eventId}?paid=1`,
+        return_url: `${process.env.PUBLIC_APP_URL}/api/sumup-webhook`,
         ...(userEmail ? { customer_id: userEmail } : {})
       })
     });

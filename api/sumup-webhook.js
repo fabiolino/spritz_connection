@@ -20,8 +20,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  // SumUp envoie généralement { id, event_type, payload: { id: "<checkout_id>" } }
-  const checkoutId = req.body?.payload?.id || req.body?.id;
+  // Format réel confirmé par la doc SumUp : { "event_type": "CHECKOUT_STATUS_CHANGED", "id": "..." }
+  const checkoutId = req.body?.id;
 
   if (!checkoutId) {
     // On répond 200 quand même pour éviter que SumUp ne re-tente indéfiniment

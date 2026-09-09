@@ -45,6 +45,7 @@ export default async function handler(req, res) {
         description: `Spritz Connection — ${option}`,
         redirect_url: `${process.env.PUBLIC_APP_URL}/event/${eventId}?paid=1`,
         return_url: `${process.env.PUBLIC_APP_URL}/api/sumup-webhook`,
+        hosted_checkout: { enabled: true },
         ...(userEmail ? { customer_id: userEmail } : {})
       })
     });
@@ -73,7 +74,12 @@ export default async function handler(req, res) {
       console.error("Erreur insertion registration:", dbError);
     }
 
-    const hostedCheckoutUrl = `https://pay.sumup.com/b2c/${data.id}`;
+    const hostedCheckoutUrl = data.hosted_checkout_url;
+
+    if (!hostedCheckoutUrl) {
+      console.error("Pas de hosted_checkout_url dans la réponse SumUp:", data);
+      return res.status(502).json({ error: "SumUp n'a pas renvoyé d'URL de paiement" });
+    }
 
     return res.status(200).json({
       url: hostedCheckoutUrl,

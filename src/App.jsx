@@ -6,6 +6,8 @@ import EventDetail from "./pages/EventDetail.jsx";
 import Register from "./pages/Register.jsx";
 import Chat from "./pages/Chat.jsx";
 import Admin from "./pages/Admin.jsx";
+import CreateEvent from "./pages/CreateEvent.jsx";
+import ProposeEvent from "./pages/ProposeEvent.jsx";
 import Join from "./pages/Join.jsx";
 
 export default function App() {
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="/event/:id/register" element={<Register />} />
         <Route path="/event/:id/chat" element={<Chat />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/create-event" element={<CreateEvent />} />
+        <Route path="/propose-event" element={<ProposeEvent />} />
         <Route path="/join" element={<Join />} />
       </Routes>
     </div>

@@ -31,6 +31,7 @@ export default function Feed() {
       const { data, error } = await supabase
         .from("events")
         .select("*")
+        .eq("approved", true)
         .order("event_date", { ascending: true });
       if (!error && data) setEvents(data);
       setLoading(false);
@@ -109,7 +110,14 @@ export default function Feed() {
             cursor: "pointer"
           }}
         >
-          <h2 style={{ fontFamily: fonts.display, fontSize: 18, margin: "0 0 8px" }}>{e.title}</h2>
+          <h2 style={{ fontFamily: fonts.display, fontSize: 18, margin: "0 0 8px", display: "flex", alignItems: "center", gap: 8 }}>
+            {e.title}
+            {e.is_free && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: colors.olive, border: `1px solid ${colors.olive}`, borderRadius: 20, padding: "2px 8px" }}>
+                GRATUIT
+              </span>
+            )}
+          </h2>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: colors.muted, marginBottom: 4 }}>
             <Calendar size={14} /> {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
           </div>
@@ -118,6 +126,28 @@ export default function Feed() {
           </div>
         </div>
       ))}
+
+      <button
+        onClick={() => navigate("/propose-event")}
+        style={{
+          width: "100%",
+          background: "none",
+          border: `1px solid ${colors.olive}`,
+          color: colors.olive,
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 13,
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          marginBottom: 10
+        }}
+      >
+        Organiser une soirée gratuite
+      </button>
 
       <button
         onClick={() => navigate("/admin")}

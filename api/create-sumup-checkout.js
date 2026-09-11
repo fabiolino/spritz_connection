@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { eventId, option, amount, userEmail } = req.body;
+  const { eventId, option, amount, userEmail, userId } = req.body;
 
   if (!eventId || !option || !amount) {
     return res.status(400).json({ error: "Paramètres manquants (eventId, option, amount)" });
@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     // Le webhook (api/sumup-webhook.js) passera "paid" à true une fois le paiement confirmé.
     const { error: dbError } = await supabaseAdmin.from("registrations").insert({
       event_id: eventId === "membership" ? null : eventId,
+      user_id: userId || null,
       option,
       amount: amount / 100,
       sumup_checkout_id: data.id,

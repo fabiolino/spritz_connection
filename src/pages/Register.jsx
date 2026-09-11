@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock } from "lucide-react";
+import { ChevronLeft, Lock, Star } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { startCheckout } from "../lib/sumupClient";
+import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
@@ -10,10 +11,11 @@ const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
 export default function Register() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
   const [event, setEvent] = useState(null);
-  const [isMember, setIsMember] = useState(false);
   const [addMembership, setAddMembership] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -31,18 +33,42 @@ export default function Register() {
     load();
   }, [id]);
 
-  if (!event) return null;
+  if (authLoading || !event) return null;
 
+  if (!user) {
+    return (
+      <div style={{ padding: "0 20px 40px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
+          <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
+            <ChevronLeft size={22} />
+          </button>
+          <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Inscription</h1>
+        </div>
+        <p style={{ fontSize: 13, color: colors.muted, marginBottom: 16, lineHeight: 1.5 }}>
+          Connecte-toi pour t'inscrire — ça permet d'appliquer automatiquement ton tarif si tu es déjà membre.
+        </p>
+        <button
+          onClick={() => navigate("/login")}
+          style={{ width: "100%", background: colors.orange, color: colors.ink, border: "none", borderRadius: 14, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+        >
+          Se connecter
+        </button>
+      </div>
+    );
+  }
+
+  const isMember = !!profile?.is_member;
   const ticketPrice = isMember ? event.price_member : event.price_nonmember;
   const total = ticketPrice + (addMembership ? MEMBERSHIP_PRICE : 0);
   const option = addMembership ? "both" : "billet";
 
   async function handlePay() {
     setLoading(true);
+    setError("");
     try {
-      await startCheckout({ eventId: id, option, amount: total * 100 });
+      await startCheckout({ eventId: id, option, amount: total * 100, userId: user.id, userEmail: user.email });
     } catch (err) {
-      alert("Le paiement n'a pas pu démarrer — vérifie que le backend SumUp est configuré (voir README).");
+      setError("Le paiement n'a pas pu démarrer — vérifie que le backend SumUp est configuré.");
       setLoading(false);
     }
   }
@@ -50,16 +76,32 @@ export default function Register() {
   return (
     <div style={{ padding: "0 20px 40px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
-        <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.cream, cursor: "pointer" }}>
+        <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
         <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Inscription</h1>
       </div>
 
-      <p style={{ fontSize: 12, color: colors.muted, marginBottom: 8 }}>Es-tu déjà membre de Spritz Connection ?</p>
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <ToggleCard active={!isMember} onClick={() => setIsMember(false)} label="Non-membre" price={event.price_nonmember} />
-        <ToggleCard active={isMember} onClick={() => setIsMember(true)} label="Membre" price={event.price_member} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: colors.surface,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 14,
+          padding: "12px 14px",
+          marginBottom: 20
+        }}
+      >
+        {isMember && <Star size={15} color={colors.gold} />}
+        <div style={{ fontSize: 13 }}>
+          {isMember ? (
+            <>Tarif membre appliqué — <strong>{event.price_member} €</strong></>
+          ) : (
+            <>Tarif non-membre — <strong>{event.price_nonmember} €</strong></>
+          )}
+        </div>
       </div>
 
       {!isMember && (
@@ -101,6 +143,8 @@ export default function Register() {
         <span>{total} €</span>
       </div>
 
+      {error && <p style={{ color: colors.red, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+
       <button
         onClick={handlePay}
         disabled={loading}
@@ -122,26 +166,6 @@ export default function Register() {
       >
         <Lock size={15} /> {loading ? "Redirection vers le paiement…" : "Payer en ligne"}
       </button>
-    </div>
-  );
-}
-
-function ToggleCard({ active, onClick, label, price }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        flex: 1,
-        border: `1.5px solid ${active ? colors.orange : colors.border}`,
-        background: active ? "rgba(242,118,46,0.08)" : colors.surface,
-        borderRadius: 14,
-        padding: "12px 14px",
-        cursor: "pointer",
-        textAlign: "center"
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 12, color: colors.muted }}>{price} €</div>
     </div>
   );
 }

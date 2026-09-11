@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, User, Shield, Heart, X } from "lucide-react";
+import { Calendar, User, Shield, Heart, X, LogIn } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
 
 const DEMO_EVENTS = [
@@ -18,6 +19,7 @@ const DEMO_EVENTS = [
 
 export default function Feed() {
   const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
   const [events, setEvents] = useState(DEMO_EVENTS);
   const [loading, setLoading] = useState(true);
   const [showJoinBanner, setShowJoinBanner] = useState(true);
@@ -49,9 +51,54 @@ export default function Feed() {
         />
       </div>
       <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px", textAlign: "center" }}>Spritz Connection</h1>
-      <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 20px", textAlign: "center" }}>
+      <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 16px", textAlign: "center" }}>
         Les prochaines soirées italiennes à Paris.
       </p>
+
+      {!authLoading && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+          {user ? (
+            <button
+              onClick={() => navigate("/account")}
+              style={{
+                background: "none",
+                border: `1px solid ${colors.border}`,
+                color: colors.ink,
+                borderRadius: 20,
+                padding: "6px 14px",
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}
+            >
+              {profile?.is_member && "⭐ "}
+              {profile?.name || user.email}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("/login")}
+              style={{
+                background: "none",
+                border: `1px solid ${colors.border}`,
+                color: colors.muted,
+                borderRadius: 20,
+                padding: "6px 14px",
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}
+            >
+              <LogIn size={13} /> Se connecter
+            </button>
+          )}
+        </div>
+      )}
 
       {showJoinBanner && (
         <div

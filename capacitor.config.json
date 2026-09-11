@@ -1,0 +1,12 @@
+{
+  "appId": "com.spritzconnection.app",
+  "appName": "Spritz Connection",
+  "webDir": "dist",
+  "server": {
+    "url": "https://spritz-connection.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#FBF3E0"
+  }
+}

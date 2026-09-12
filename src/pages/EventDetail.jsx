@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
+import { getCategory } from "../lib/categories";
 
 export default function EventDetail() {
   const { id } = useParams();
@@ -71,6 +72,29 @@ export default function EventDetail() {
         </button>
         <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>{event.title}</h1>
       </div>
+
+      {(() => {
+        const cat = getCategory(event.category);
+        const CatIcon = cat.icon;
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 700,
+              color: colors.orange,
+              border: `1px solid ${colors.orange}`,
+              borderRadius: 20,
+              padding: "3px 10px",
+              marginBottom: 14
+            }}
+          >
+            <CatIcon size={12} /> {cat.label}
+          </span>
+        );
+      })()}
 
       <p style={{ fontSize: 14, lineHeight: 1.6, color: colors.muted, marginBottom: 20 }}>{event.description}</p>
 

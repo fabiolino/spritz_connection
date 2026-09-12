@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Check } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
+import { CATEGORIES } from "../lib/categories";
 
 const inputStyle = {
   width: "100%",
@@ -28,7 +29,8 @@ export default function ProposeEvent() {
     event_date: "",
     address: "",
     phone: "",
-    seats: ""
+    seats: "",
+    category: "autre"
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -106,6 +108,38 @@ export default function ProposeEvent() {
         <div>
           <label style={labelStyle}>Ton email ou téléphone (pour te recontacter)</label>
           <input required style={inputStyle} value={form.organizer_contact} onChange={(e) => update("organizer_contact", e.target.value)} />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Type d'événement</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon;
+              const active = form.category === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => update("category", c.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    border: `1.5px solid ${active ? colors.orange : colors.border}`,
+                    background: active ? "rgba(242,118,46,0.1)" : colors.surface,
+                    color: colors.ink,
+                    borderRadius: 20,
+                    padding: "7px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  <Icon size={14} color={active ? colors.orange : colors.muted} /> {c.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div>

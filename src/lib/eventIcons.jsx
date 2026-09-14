@@ -1,6 +1,8 @@
 // Icônes illustrées sur mesure pour les catégories d'événements —
 // badges circulaires dans l'esprit du logo Spritz Connection
-// (cercle crème, confettis, accents orange/bleu/rouge).
+// (cercle crème, confettis, accents orange/bleu/rouge) pour les grands
+// affichages, et une version simplifiée (juste le glyphe) pour les petits
+// badges en ligne où le cercle décoratif deviendrait illisible.
 
 import { colors } from "./theme";
 
@@ -13,7 +15,6 @@ function Badge({ children, size = 40 }) {
   );
 }
 
-// Petits confettis réutilisés sur chaque badge, comme sur le logo
 function Confetti() {
   return (
     <>
@@ -23,6 +24,93 @@ function Confetti() {
     </>
   );
 }
+
+// --- Glyphes seuls (sans cercle), pour les petits badges en ligne ---
+
+function ConcertGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M8 18V6l10-2v10" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="6" cy="18" r="2.4" fill={colors.orange} />
+      <circle cx="16" cy="14" r="2.4" fill={colors.orange} />
+    </svg>
+  );
+}
+
+function KaraokeGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="9" y="2" width="6" height="11" rx="3" fill={colors.orange} />
+      <path d="M5 11a7 7 0 0 0 14 0" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <line x1="12" y1="18" x2="12" y2="22" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AperoGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M5 3h14l-6 8v10" stroke={colors.orange} strokeWidth="2" strokeLinejoin="round" fill="none" />
+      <path d="M8 19h8" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DinerGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M6 2v8m3-8v8M6 6h3M7.5 6v14" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M18 2c-2 0-3 2.5-3 5.5S16 12 18 12v10" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+function TheatreGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" fill={colors.orange} opacity="0.15" />
+      <circle cx="9" cy="10" r="1.4" fill={colors.orange} />
+      <circle cx="15" cy="10" r="1.4" fill={colors.orange} />
+      <path d="M8 15c1.5 1.5 6.5 1.5 8 0" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+function DanseGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="4" r="2.2" fill={colors.orange} />
+      <path
+        d="M12 7v6m0 0-4 6m4-6 4 5m-4-8-3-2.5m3 2.5 3.5-1.5"
+        stroke={colors.orange}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+function AutreGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4L12 2z" fill={colors.orange} />
+    </svg>
+  );
+}
+
+const GLYPHS = {
+  concert: ConcertGlyph,
+  karaoke: KaraokeGlyph,
+  apero: AperoGlyph,
+  diner: DinerGlyph,
+  theatre: TheatreGlyph,
+  danse: DanseGlyph,
+  autre: AutreGlyph
+};
+
+// --- Versions "badge" (avec cercle + confettis), pour les grands affichages ---
 
 export function ConcertIcon({ size }) {
   return (
@@ -63,9 +151,7 @@ export function DinerIcon({ size }) {
   return (
     <Badge size={size}>
       <Confetti />
-      {/* fourchette */}
       <path d="M14 9v8m3-8v8m-3-4h3m-1.5 4v11" stroke={colors.blue} strokeWidth="1.6" strokeLinecap="round" fill="none" />
-      {/* couteau */}
       <path d="M26 9c-2 0-3 2-3 5s1 4 3 4v11" stroke={colors.red} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </Badge>
   );
@@ -104,10 +190,7 @@ export function AutreIcon({ size }) {
   return (
     <Badge size={size}>
       <Confetti />
-      <path
-        d="M20 11l1.8 5.4L27 18l-5.2 1.6L20 25l-1.8-5.4L13 18l5.2-1.6L20 11z"
-        fill={colors.gold}
-      />
+      <path d="M20 11l1.8 5.4L27 18l-5.2 1.6L20 25l-1.8-5.4L13 18l5.2-1.6L20 11z" fill={colors.gold} />
     </Badge>
   );
 }
@@ -122,16 +205,22 @@ export const ICON_COMPONENTS = {
   autre: AutreIcon
 };
 
-// Rendu générique : icône illustrée si on en a une, sinon l'emoji fourni par la catégorie,
-// sinon l'icône "Autre" par défaut. Utilisé partout dans l'app à la place d'un <Icon /> direct.
+// Rendu générique : en dessous de 24px, on affiche le glyphe seul (lisible en petit) ;
+// au-dessus, le badge circulaire complet. Repli sur l'emoji si la catégorie n'a pas
+// d'icône dessinée (cas des catégories ajoutées plus tard sans code).
 export function CategoryIcon({ category, size = 20 }) {
-  if (!category) return <AutreIcon size={size} />;
-  const Comp = ICON_COMPONENTS[category.icon_key];
-  if (Comp) return <Comp size={size} />;
-  if (category.emoji) {
-    return (
-      <span style={{ fontSize: size * 0.75, lineHeight: 1, display: "inline-block" }}>{category.emoji}</span>
-    );
+  if (!category) return <AutreGlyph size={size} />;
+
+  const key = category.icon_key;
+  const small = size < 24;
+
+  if (key && GLYPHS[key]) {
+    const Glyph = GLYPHS[key];
+    const Full = ICON_COMPONENTS[key];
+    return small ? <Glyph size={size} /> : <Full size={size} />;
   }
-  return <AutreIcon size={size} />;
+  if (category.emoji) {
+    return <span style={{ fontSize: size * 0.85, lineHeight: 1, display: "inline-block" }}>{category.emoji}</span>;
+  }
+  return small ? <AutreGlyph size={size} /> : <AutreIcon size={size} />;
 }

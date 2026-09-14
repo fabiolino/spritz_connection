@@ -5,15 +5,18 @@ import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import { useAuth } from "../lib/AuthContext";
 
 export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getCategory } = useCategories();
+  const { user } = useAuth();
   const [event, setEvent] = useState(null);
   const [registering, setRegistering] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState("");
+  const [attendees, setAttendees] = useState([]);
 
   useEffect(() => {
     async function load() {
@@ -36,6 +39,16 @@ export default function EventDetail() {
       }
       const { data } = await supabase.from("events").select("*").eq("id", id).single();
       setEvent(data);
+
+      const res = await fetch("/api/event-attendees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: id })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setAttendees(json.attendees || []);
+      }
     }
     load();
   }, [id]);
@@ -51,7 +64,7 @@ export default function EventDetail() {
       const res = await fetch("/api/register-free", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: id })
+        body: JSON.stringify({ eventId: id, userId: user?.id || null })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -128,6 +141,59 @@ export default function EventDetail() {
           <Field icon={<MapPin size={15} color={colors.orange} />}>{event.address}</Field>
           <Field icon={<Phone size={15} color={colors.orange} />}>{event.phone}</Field>
         </div>
+
+        {attendees.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 12.5, color: colors.muted, marginBottom: 8 }}>
+              {attendees.length} participant{attendees.length > 1 ? "s" : ""}
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: -6 }}>
+              {attendees.slice(0, 12).map((a, i) => (
+                <div
+                  key={i}
+                  title={a.name}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    background: a.photo_url ? `url(${a.photo_url}) center/cover` : colors.border,
+                    border: `2px solid ${colors.bg}`,
+                    marginLeft: i === 0 ? 0 : -10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: colors.muted,
+                    flexShrink: 0
+                  }}
+                >
+                  {!a.photo_url && a.name?.[0]?.toUpperCase()}
+                </div>
+              ))}
+              {attendees.length > 12 && (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    background: colors.surface,
+                    border: `2px solid ${colors.bg}`,
+                    marginLeft: -10,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: colors.muted
+                  }}
+                >
+                  +{attendees.length - 12}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {event.is_free ? (
           registered ? (

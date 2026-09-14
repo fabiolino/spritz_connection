@@ -87,27 +87,44 @@ export default function Feed() {
       </p>
 
       {!authLoading && (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 20 }}>
           {user ? (
-            <button
-              onClick={() => navigate("/account")}
-              style={{
-                background: "none",
-                border: `1px solid ${colors.border}`,
-                color: colors.ink,
-                borderRadius: 20,
-                padding: "6px 14px",
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6
-              }}
-            >
-              {profile?.is_member && "⭐ "}
-              {profile?.name || user.email}
-            </button>
+            <>
+              <button
+                onClick={() => navigate("/account")}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.ink,
+                  borderRadius: 20,
+                  padding: "6px 14px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                {profile?.is_member && "⭐ "}
+                {profile?.name || user.email}
+              </button>
+              <button
+                onClick={() => navigate("/friends")}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.ink,
+                  borderRadius: 20,
+                  padding: "6px 14px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                👥 Amis
+              </button>
+            </>
           ) : (
             <button
               onClick={() => navigate("/login")}

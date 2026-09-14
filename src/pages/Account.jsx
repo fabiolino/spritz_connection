@@ -184,13 +184,13 @@ export default function Account() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              background: "rgba(240,180,41,0.15)",
-              color: colors.gold,
-              border: `1px solid ${colors.gold}`,
+              background: colors.gold,
+              color: "#fff",
               borderRadius: 20,
               padding: "4px 12px",
               fontSize: 12,
-              fontWeight: 700
+              fontWeight: 700,
+              boxShadow: "0 3px 10px rgba(240,180,41,0.35)"
             }}
           >
             <Star size={13} /> Membre Spritz Connection
@@ -231,14 +231,15 @@ export default function Account() {
         style={{
           width: "100%",
           background: colors.orange,
-          color: colors.ink,
+          color: "#fff",
           border: "none",
           borderRadius: 14,
           padding: 13,
           fontWeight: 700,
           fontSize: 14,
           cursor: "pointer",
-          marginBottom: 24
+          marginBottom: 24,
+          boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
         }}
       >
         {saving ? "Enregistrement…" : "Enregistrer"}

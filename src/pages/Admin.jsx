@@ -115,7 +115,7 @@ export default function Admin() {
         style={{
           width: "100%",
           background: colors.orange,
-          color: colors.ink,
+          color: "#fff",
           border: "none",
           borderRadius: 14,
           padding: 13,
@@ -126,7 +126,8 @@ export default function Admin() {
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
-          marginBottom: 20
+          marginBottom: 20,
+          boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
         }}
       >
         <CalendarPlus size={16} /> Créer un événement payant

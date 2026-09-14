@@ -67,7 +67,7 @@ export default function Join() {
           </p>
           <button
             onClick={() => navigate("/login")}
-            style={{ width: "100%", background: colors.orange, color: colors.ink, border: "none", borderRadius: 14, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+            style={{ width: "100%", background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(232,95,38,0.3)" }}
           >
             Se connecter
           </button>
@@ -79,7 +79,7 @@ export default function Join() {
           style={{
             width: "100%",
             background: colors.orange,
-            color: colors.ink,
+            color: "#fff",
             border: "none",
             borderRadius: 14,
             padding: 14,
@@ -89,7 +89,8 @@ export default function Join() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 8
+            gap: 8,
+            boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
           }}
         >
           <Lock size={15} /> {loading ? "Redirection vers le paiement…" : `Adhérer — ${MEMBERSHIP_PRICE} € / an`}

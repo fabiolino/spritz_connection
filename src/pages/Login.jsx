@@ -83,13 +83,14 @@ export default function Login() {
           style={{
             width: "100%",
             background: colors.orange,
-            color: colors.ink,
+            color: "#fff",
             border: "none",
             borderRadius: 14,
             padding: 14,
             fontWeight: 700,
             fontSize: 15,
-            cursor: "pointer"
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
           }}
         >
           {loading ? "Envoi…" : "Recevoir le lien de connexion"}

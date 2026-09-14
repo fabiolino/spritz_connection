@@ -81,16 +81,44 @@ export default function Feed() {
         style={{
           position: "relative",
           overflow: "hidden",
-          background: "linear-gradient(160deg, #F7E7C4, #FBF3E0)",
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-          padding: "28px 20px 24px"
+          background: "linear-gradient(165deg, #FADFA0 0%, #F6CE87 45%, #FBF3E0 100%)",
+          borderBottomLeftRadius: 40,
+          borderBottomRightRadius: 40,
+          padding: "30px 20px 28px"
         }}
       >
-        <span style={{ position: "absolute", top: 18, left: 28, width: 6, height: 6, borderRadius: "50%", background: colors.gold, opacity: 0.8 }} />
-        <span style={{ position: "absolute", top: 34, right: 40, width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
-        <span style={{ position: "absolute", bottom: 20, left: 48, width: 4, height: 4, borderRadius: "50%", background: colors.blue, opacity: 0.6 }} />
-        <span style={{ position: "absolute", top: 60, right: 24, width: 4, height: 4, borderRadius: "50%", background: colors.orange, opacity: 0.6 }} />
+        <span style={{ position: "absolute", top: 14, left: 22, width: 10, height: 10, borderRadius: "50%", background: colors.red, opacity: 0.9 }} />
+        <span style={{ position: "absolute", top: 30, left: 56, width: 6, height: 6, borderRadius: "50%", background: colors.blue, opacity: 0.8 }} />
+        <span style={{ position: "absolute", top: 22, right: 30, width: 9, height: 9, borderRadius: "50%", background: colors.blue, opacity: 0.85 }} />
+        <span style={{ position: "absolute", top: 52, right: 60, width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.75 }} />
+        <span style={{ position: "absolute", bottom: 60, left: 20, width: 5, height: 5, borderRadius: "50%", background: colors.olive, opacity: 0.7 }} />
+        <span style={{ position: "absolute", bottom: 46, right: 22, width: 7, height: 7, borderRadius: "50%", background: colors.red, opacity: 0.75 }} />
+        <span
+          style={{
+            position: "absolute",
+            top: 40,
+            left: "50%",
+            transform: "translateX(-108px) rotate(-18deg)",
+            width: 14,
+            height: 3,
+            borderRadius: 2,
+            background: colors.gold,
+            opacity: 0.9
+          }}
+        />
+        <span
+          style={{
+            position: "absolute",
+            top: 46,
+            left: "50%",
+            transform: "translateX(96px) rotate(20deg)",
+            width: 14,
+            height: 3,
+            borderRadius: 2,
+            background: colors.gold,
+            opacity: 0.9
+          }}
+        />
 
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
           <img
@@ -293,7 +321,7 @@ export default function Feed() {
               style={{
                 width: 84,
                 flexShrink: 0,
-                background: "linear-gradient(160deg, rgba(242,118,46,0.16), rgba(240,180,41,0.14))",
+                background: "linear-gradient(160deg, rgba(242,118,46,0.32), rgba(240,180,41,0.28))",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center"
@@ -307,9 +335,9 @@ export default function Feed() {
                 <span
                   style={{
                     fontSize: 10.5,
-                    fontWeight: 600,
-                    color: colors.orange,
-                    background: "rgba(232,95,38,0.1)",
+                    fontWeight: 700,
+                    color: "#fff",
+                    background: colors.orange,
                     borderRadius: 20,
                     padding: "3px 9px"
                   }}
@@ -317,12 +345,12 @@ export default function Feed() {
                   {cat.label}
                 </span>
                 {e.is_free && (
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: colors.olive, background: "rgba(107,124,79,0.12)", borderRadius: 20, padding: "3px 9px" }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 9px" }}>
                     Gratuit
                   </span>
                 )}
                 {e.visibility === "private" && (
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: colors.blue, background: "rgba(44,79,140,0.1)", borderRadius: 20, padding: "3px 9px" }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.blue, borderRadius: 20, padding: "3px 9px" }}>
                     🔒 Privé
                   </span>
                 )}

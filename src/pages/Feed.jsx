@@ -260,50 +260,64 @@ export default function Feed() {
             key={e.id}
             onClick={() => navigate(`/event/${e.id}`)}
             style={{
+              display: "flex",
+              alignItems: "stretch",
               background: colors.surface,
               border: `1px solid ${colors.border}`,
               borderRadius: 18,
-              padding: 16,
+              overflow: "hidden",
               marginBottom: 14,
               cursor: "pointer"
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: colors.orange,
-                  border: `1px solid ${colors.orange}`,
-                  borderRadius: 20,
-                  padding: "2px 8px"
-                }}
-              >
-                <CategoryIcon category={cat} size={13} /> {cat.label}
-              </span>
-              {e.is_free && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: colors.olive, border: `1px solid ${colors.olive}`, borderRadius: 20, padding: "2px 8px" }}>
-                  GRATUIT
-                </span>
-              )}
-              {e.visibility === "private" && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: colors.blue, border: `1px solid ${colors.blue}`, borderRadius: 20, padding: "2px 8px" }}>
-                  🔒 PRIVÉ
-                </span>
-              )}
-              {d !== null && (
-                <span style={{ fontSize: 10.5, color: colors.muted, marginLeft: "auto" }}>{d.toFixed(1)} km</span>
-              )}
+            <div
+              style={{
+                width: 84,
+                flexShrink: 0,
+                background: "linear-gradient(160deg, rgba(242,118,46,0.16), rgba(240,180,41,0.14))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <CategoryIcon category={cat} size={56} />
             </div>
-            <h2 style={{ fontFamily: fonts.display, fontSize: 18, margin: "0 0 8px" }}>{e.title}</h2>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: colors.muted, marginBottom: 4 }}>
-              <Calendar size={14} /> {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: colors.muted }}>
-              <User size={14} /> Organisé par {e.organizer}
+
+            <div style={{ flex: 1, minWidth: 0, padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: colors.orange,
+                    border: `1px solid ${colors.orange}`,
+                    borderRadius: 20,
+                    padding: "2px 8px"
+                  }}
+                >
+                  {cat.label}
+                </span>
+                {e.is_free && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: colors.olive, border: `1px solid ${colors.olive}`, borderRadius: 20, padding: "2px 8px" }}>
+                    GRATUIT
+                  </span>
+                )}
+                {e.visibility === "private" && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: colors.blue, border: `1px solid ${colors.blue}`, borderRadius: 20, padding: "2px 8px" }}>
+                    🔒 PRIVÉ
+                  </span>
+                )}
+                {d !== null && (
+                  <span style={{ fontSize: 10.5, color: colors.muted, marginLeft: "auto" }}>{d.toFixed(1)} km</span>
+                )}
+              </div>
+              <h2 style={{ fontFamily: fonts.display, fontSize: 17, margin: "0 0 8px" }}>{e.title}</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: colors.muted, marginBottom: 4 }}>
+                <Calendar size={13} /> {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: colors.muted }}>
+                <User size={13} /> Organisé par {e.organizer}
+              </div>
             </div>
           </div>
         );

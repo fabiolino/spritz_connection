@@ -6,6 +6,7 @@
 //                    dans le formulaire de création d'événement de l'app.
 
 import { createClient } from "@supabase/supabase-js";
+import { geocodeAddress } from "./_geocode.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -27,7 +28,8 @@ export default async function handler(req, res) {
     phone,
     price_member,
     price_nonmember,
-    seats
+    seats,
+    category
   } = req.body;
 
   if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
@@ -39,6 +41,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { latitude, longitude } = await geocodeAddress(address);
+
     const { data, error } = await supabaseAdmin
       .from("events")
       .insert({
@@ -51,7 +55,10 @@ export default async function handler(req, res) {
         price_member: Number(price_member) || 0,
         price_nonmember: Number(price_nonmember) || 0,
         seats: Number(seats) || 0,
-        taken: 0
+        taken: 0,
+        category: category || "autre",
+        latitude,
+        longitude
       })
       .select()
       .single();

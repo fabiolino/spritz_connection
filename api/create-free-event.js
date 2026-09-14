@@ -4,6 +4,7 @@
 // et n'apparaissent pas sur le feed tant qu'un administrateur ne les a pas approuvés.
 
 import { createClient } from "@supabase/supabase-js";
+import { geocodeAddress } from "./_geocode.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -15,13 +16,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { title, organizer, organizer_contact, description, event_date, address, phone, seats } = req.body;
+  const { title, organizer, organizer_contact, description, event_date, address, phone, seats, category } = req.body;
 
   if (!title || !organizer || !organizer_contact || !event_date || !address || !phone) {
     return res.status(400).json({ error: "Champs obligatoires manquants" });
   }
 
   try {
+    const { latitude, longitude } = await geocodeAddress(address);
+
     const { data, error } = await supabaseAdmin
       .from("events")
       .insert({
@@ -37,7 +40,10 @@ export default async function handler(req, res) {
         seats: Number(seats) || 0,
         taken: 0,
         is_free: true,
-        approved: false
+        approved: false,
+        category: category || "autre",
+        latitude,
+        longitude
       })
       .select()
       .single();

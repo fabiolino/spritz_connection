@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { eventId } = req.body;
+  const { eventId, userId } = req.body;
   if (!eventId) {
     return res.status(400).json({ error: "eventId manquant" });
   }
@@ -34,6 +34,7 @@ export default async function handler(req, res) {
 
     const { error: insertError } = await supabaseAdmin.from("registrations").insert({
       event_id: eventId,
+      user_id: userId || null,
       option: "gratuit",
       amount: 0,
       paid: true

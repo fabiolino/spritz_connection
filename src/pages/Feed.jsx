@@ -287,6 +287,11 @@ export default function Feed() {
                   GRATUIT
                 </span>
               )}
+              {e.visibility === "private" && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: colors.blue, border: `1px solid ${colors.blue}`, borderRadius: 20, padding: "2px 8px" }}>
+                  🔒 PRIVÉ
+                </span>
+              )}
               {d !== null && (
                 <span style={{ fontSize: 10.5, color: colors.muted, marginLeft: "auto" }}>{d.toFixed(1)} km</span>
               )}

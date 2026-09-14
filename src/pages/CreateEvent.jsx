@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check } from "lucide-react";
+import { ChevronLeft, Check, Lock, Globe } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
 import { CATEGORIES } from "../lib/categories";
 
@@ -21,6 +23,7 @@ const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 5, display
 
 export default function CreateEvent() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [form, setForm] = useState({
     adminSecret: "",
     title: "",
@@ -32,14 +35,31 @@ export default function CreateEvent() {
     price_member: "",
     price_nonmember: "",
     seats: "",
-    category: "autre"
+    category: "autre",
+    visibility: "public"
   });
+  const [profiles, setProfiles] = useState([]);
+  const [invitedIds, setInvitedIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  useEffect(() => {
+    if (form.visibility === "private" && user) {
+      supabase
+        .from("profiles")
+        .select("id, name, email")
+        .neq("id", user.id)
+        .then(({ data }) => setProfiles(data || []));
+    }
+  }, [form.visibility, user]);
+
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function toggleInvite(id) {
+    setInvitedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   async function handleSubmit(e) {
@@ -50,7 +70,11 @@ export default function CreateEvent() {
       const res = await fetch("/api/create-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          organizerId: user?.id || null,
+          invitedUserIds: form.visibility === "private" ? invitedIds : []
+        })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -132,6 +156,84 @@ export default function CreateEvent() {
             })}
           </div>
         </div>
+
+        <div>
+          <label style={labelStyle}>Visibilité</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => update("visibility", "public")}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: `1.5px solid ${form.visibility === "public" ? colors.orange : colors.border}`,
+                background: form.visibility === "public" ? "rgba(242,118,46,0.1)" : colors.surface,
+                color: colors.ink,
+                borderRadius: 12,
+                padding: "9px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Globe size={14} /> Public
+            </button>
+            <button
+              type="button"
+              onClick={() => update("visibility", "private")}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: `1.5px solid ${form.visibility === "private" ? colors.orange : colors.border}`,
+                background: form.visibility === "private" ? "rgba(242,118,46,0.1)" : colors.surface,
+                color: colors.ink,
+                borderRadius: 12,
+                padding: "9px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Lock size={14} /> Privé (invitation)
+            </button>
+          </div>
+          {form.visibility === "private" && !user && (
+            <p style={{ fontSize: 11.5, color: colors.red, marginTop: 6 }}>
+              Connecte-toi (bouton en haut de l'accueil) pour pouvoir choisir des invités.
+            </p>
+          )}
+        </div>
+
+        {form.visibility === "private" && user && (
+          <div>
+            <label style={labelStyle}>Inviter ({invitedIds.length} sélectionné{invitedIds.length > 1 ? "s" : ""})</label>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${colors.border}`, borderRadius: 12, padding: 8 }}>
+              {profiles.length === 0 && <p style={{ fontSize: 12, color: colors.muted, padding: 6 }}>Aucun autre compte trouvé pour l'instant.</p>}
+              {profiles.map((p) => (
+                <label
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 6px",
+                    fontSize: 13,
+                    cursor: "pointer"
+                  }}
+                >
+                  <input type="checkbox" checked={invitedIds.includes(p.id)} onChange={() => toggleInvite(p.id)} />
+                  {p.name || p.email}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label style={labelStyle}>Description</label>

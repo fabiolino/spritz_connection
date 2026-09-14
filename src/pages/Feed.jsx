@@ -76,29 +76,80 @@ export default function Feed() {
   }, [events, radius, userLocation]);
 
   return (
-    <div style={{ padding: "24px 20px 100px" }}>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-        <img
-          src="/logo.jpg"
-          alt="Spritz Connection"
-          style={{ width: 84, height: 84, borderRadius: "50%", border: `2px solid ${colors.orange}` }}
-        />
-      </div>
-      <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px", textAlign: "center" }}>Spritz Connection</h1>
-      <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 16px", textAlign: "center" }}>
-        Les prochaines soirées italiennes à Paris.
-      </p>
+    <div style={{ paddingBottom: 100 }}>
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          background: "linear-gradient(160deg, #F7E7C4, #FBF3E0)",
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
+          padding: "28px 20px 24px"
+        }}
+      >
+        <span style={{ position: "absolute", top: 18, left: 28, width: 6, height: 6, borderRadius: "50%", background: colors.gold, opacity: 0.8 }} />
+        <span style={{ position: "absolute", top: 34, right: 40, width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
+        <span style={{ position: "absolute", bottom: 20, left: 48, width: 4, height: 4, borderRadius: "50%", background: colors.blue, opacity: 0.6 }} />
+        <span style={{ position: "absolute", top: 60, right: 24, width: 4, height: 4, borderRadius: "50%", background: colors.orange, opacity: 0.6 }} />
 
-      {!authLoading && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 20 }}>
-          {user ? (
-            <>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <img
+            src="/logo.jpg"
+            alt="Spritz Connection"
+            style={{ width: 84, height: 84, borderRadius: "50%", border: `2px solid ${colors.orange}`, boxShadow: "0 6px 16px rgba(232,95,38,0.18)" }}
+          />
+        </div>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px", textAlign: "center" }}>Spritz Connection</h1>
+        <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 16px", textAlign: "center" }}>
+          Les prochaines soirées italiennes à Paris.
+        </p>
+
+        {!authLoading && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate("/account")}
+                  style={{
+                    background: colors.surface,
+                    border: `1px solid ${colors.border}`,
+                    color: colors.ink,
+                    borderRadius: 20,
+                    padding: "6px 14px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  {profile?.is_member && "⭐ "}
+                  {profile?.name || user.email}
+                </button>
+                <button
+                  onClick={() => navigate("/friends")}
+                  style={{
+                    background: colors.surface,
+                    border: `1px solid ${colors.border}`,
+                    color: colors.ink,
+                    borderRadius: 20,
+                    padding: "6px 14px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  👥 Amis
+                </button>
+              </>
+            ) : (
               <button
-                onClick={() => navigate("/account")}
+                onClick={() => navigate("/login")}
                 style={{
-                  background: "none",
+                  background: colors.surface,
                   border: `1px solid ${colors.border}`,
-                  color: colors.ink,
+                  color: colors.muted,
                   borderRadius: 20,
                   padding: "6px 14px",
                   fontSize: 12.5,
@@ -109,47 +160,14 @@ export default function Feed() {
                   gap: 6
                 }}
               >
-                {profile?.is_member && "⭐ "}
-                {profile?.name || user.email}
+                <LogIn size={13} /> Se connecter
               </button>
-              <button
-                onClick={() => navigate("/friends")}
-                style={{
-                  background: "none",
-                  border: `1px solid ${colors.border}`,
-                  color: colors.ink,
-                  borderRadius: 20,
-                  padding: "6px 14px",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                👥 Amis
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => navigate("/login")}
-              style={{
-                background: "none",
-                border: `1px solid ${colors.border}`,
-                color: colors.muted,
-                borderRadius: 20,
-                padding: "6px 14px",
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6
-              }}
-            >
-              <LogIn size={13} /> Se connecter
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "20px 20px 0" }}>
 
       {showJoinBanner && (
         <div
@@ -267,7 +285,8 @@ export default function Feed() {
               borderRadius: 18,
               overflow: "hidden",
               marginBottom: 14,
-              cursor: "pointer"
+              cursor: "pointer",
+              boxShadow: "0 3px 10px rgba(43,36,25,0.06)"
             }}
           >
             <div
@@ -288,23 +307,23 @@ export default function Feed() {
                 <span
                   style={{
                     fontSize: 10.5,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: colors.orange,
-                    border: `1px solid ${colors.orange}`,
+                    background: "rgba(232,95,38,0.1)",
                     borderRadius: 20,
-                    padding: "2px 8px"
+                    padding: "3px 9px"
                   }}
                 >
                   {cat.label}
                 </span>
                 {e.is_free && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: colors.olive, border: `1px solid ${colors.olive}`, borderRadius: 20, padding: "2px 8px" }}>
-                    GRATUIT
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: colors.olive, background: "rgba(107,124,79,0.12)", borderRadius: 20, padding: "3px 9px" }}>
+                    Gratuit
                   </span>
                 )}
                 {e.visibility === "private" && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: colors.blue, border: `1px solid ${colors.blue}`, borderRadius: 20, padding: "2px 8px" }}>
-                    🔒 PRIVÉ
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: colors.blue, background: "rgba(44,79,140,0.1)", borderRadius: 20, padding: "3px 9px" }}>
+                    🔒 Privé
                   </span>
                 )}
                 {d !== null && (
@@ -364,6 +383,7 @@ export default function Feed() {
       >
         <Shield size={15} /> Espace administrateur
       </button>
+      </div>
     </div>
   );
 }

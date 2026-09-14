@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { colors, fonts } from "./lib/theme";
 import { AuthProvider } from "./lib/AuthContext";
+import { CategoriesProvider } from "./lib/CategoriesContext";
 import Feed from "./pages/Feed.jsx";
 import EventDetail from "./pages/EventDetail.jsx";
 import Register from "./pages/Register.jsx";
@@ -17,6 +18,7 @@ import Friends from "./pages/Friends.jsx";
 export default function App() {
   return (
     <AuthProvider>
+      <CategoriesProvider>
       <div
         style={{
           minHeight: "100vh",
@@ -41,6 +43,7 @@ export default function App() {
           <Route path="/friends" element={<Friends />} />
         </Routes>
       </div>
+      </CategoriesProvider>
     </AuthProvider>
   );
 }

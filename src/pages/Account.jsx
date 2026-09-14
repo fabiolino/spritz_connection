@@ -1,14 +1,89 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, LogOut, Star } from "lucide-react";
+import { ChevronLeft, LogOut, Star, Camera } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
+import { CATEGORIES } from "../lib/categories";
+
+const GENDERS = [
+  { id: "femme", label: "Femme" },
+  { id: "homme", label: "Homme" },
+  { id: "autre", label: "Autre" },
+  { id: "non_precise", label: "Je ne précise pas" }
+];
+
+const STATUSES = [
+  { id: "celibataire", label: "Célibataire" },
+  { id: "en_couple", label: "En couple" },
+  { id: "non_precise", label: "Je ne précise pas" }
+];
+
+const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 6, display: "block" };
+const inputStyle = {
+  width: "100%",
+  background: colors.surface,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 12,
+  padding: "10px 12px",
+  color: colors.ink,
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box"
+};
+
+function ChipPicker({ options, value, onChange, multi }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {options.map((o) => {
+        const id = o.id;
+        const label = o.label;
+        const Icon = o.icon;
+        const active = multi ? value.includes(id) : value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              if (multi) {
+                onChange(active ? value.filter((v) => v !== id) : [...value, id]);
+              } else {
+                onChange(active ? "" : id);
+              }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: `1.5px solid ${active ? colors.orange : colors.border}`,
+              background: active ? "rgba(242,118,46,0.1)" : colors.surface,
+              color: colors.ink,
+              borderRadius: 20,
+              padding: "7px 12px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            {Icon && <Icon size={14} color={active ? colors.orange : colors.muted} />} {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Account() {
   const navigate = useNavigate();
   const { user, profile, signOut, refreshProfile } = useAuth();
+
   const [name, setName] = useState(profile?.name || "");
+  const [age, setAge] = useState(profile?.age || "");
+  const [gender, setGender] = useState(profile?.gender || "");
+  const [relationshipStatus, setRelationshipStatus] = useState(profile?.relationship_status || "");
+  const [tastes, setTastes] = useState(profile?.tastes || []);
+  const [photoUrl, setPhotoUrl] = useState(profile?.photo_url || "");
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   if (!user) {
@@ -16,9 +91,33 @@ export default function Account() {
     return null;
   }
 
+  async function handlePhotoChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      setPhotoUrl(`${data.publicUrl}?t=${Date.now()}`); // cache-bust pour voir la nouvelle photo tout de suite
+    }
+    setUploading(false);
+  }
+
   async function handleSave() {
     setSaving(true);
-    await supabase.from("profiles").update({ name }).eq("id", user.id);
+    await supabase
+      .from("profiles")
+      .update({
+        name,
+        age: age ? Number(age) : null,
+        gender: gender || null,
+        relationship_status: relationshipStatus || null,
+        tastes,
+        photo_url: photoUrl || null
+      })
+      .eq("id", user.id);
     await refreshProfile();
     setSaving(false);
   }
@@ -37,48 +136,93 @@ export default function Account() {
         <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Mon compte</h1>
       </div>
 
-      <p style={{ fontSize: 13, color: colors.muted, marginBottom: 6 }}>{user.email}</p>
+      {/* Photo de profil */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+        <label style={{ position: "relative", cursor: "pointer" }}>
+          <div
+            style={{
+              width: 92,
+              height: 92,
+              borderRadius: "50%",
+              background: photoUrl ? `url(${photoUrl}) center/cover` : colors.surface,
+              border: `2px solid ${colors.orange}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            {!photoUrl && <Camera size={26} color={colors.muted} />}
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              background: colors.orange,
+              borderRadius: "50%",
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <Camera size={14} color={colors.ink} />
+          </div>
+          <input type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+        </label>
+      </div>
+      {uploading && <p style={{ textAlign: "center", fontSize: 12, color: colors.muted, marginBottom: 10 }}>Envoi de la photo…</p>}
+
+      <p style={{ fontSize: 13, color: colors.muted, marginBottom: 6, textAlign: "center" }}>{user.email}</p>
 
       {profile?.is_member && (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "rgba(240,180,41,0.15)",
-            color: colors.gold,
-            border: `1px solid ${colors.gold}`,
-            borderRadius: 20,
-            padding: "4px 12px",
-            fontSize: 12,
-            fontWeight: 700,
-            marginBottom: 20
-          }}
-        >
-          <Star size={13} /> Membre Spritz Connection
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "rgba(240,180,41,0.15)",
+              color: colors.gold,
+              border: `1px solid ${colors.gold}`,
+              borderRadius: 20,
+              padding: "4px 12px",
+              fontSize: 12,
+              fontWeight: 700
+            }}
+          >
+            <Star size={13} /> Membre Spritz Connection
+          </div>
         </div>
       )}
 
-      <label style={{ fontSize: 12, color: colors.muted, marginBottom: 5, display: "block" }}>
-        Nom affiché (dans le chat des événements)
-      </label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Ton prénom"
-        style={{
-          width: "100%",
-          background: colors.surface,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 12,
-          padding: "10px 12px",
-          color: colors.ink,
-          fontSize: 14,
-          outline: "none",
-          boxSizing: "border-box",
-          marginBottom: 14
-        }}
-      />
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Nom affiché (dans le chat des événements)</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ton prénom" style={inputStyle} />
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>Âge</label>
+          <input type="number" min="1" max="120" value={age} onChange={(e) => setAge(e.target.value)} style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Genre</label>
+        <ChipPicker options={GENDERS} value={gender} onChange={setGender} />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Statut</label>
+        <ChipPicker options={STATUSES} value={relationshipStatus} onChange={setRelationshipStatus} />
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={labelStyle}>Ce que tu aimes comme sorties</label>
+        <ChipPicker options={CATEGORIES} value={tastes} onChange={setTastes} multi />
+      </div>
 
       <button
         onClick={handleSave}

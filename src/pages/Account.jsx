@@ -4,7 +4,8 @@ import { ChevronLeft, LogOut, Star, Camera } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { CATEGORIES } from "../lib/categories";
+import { useCategories } from "../lib/CategoriesContext";
+import { CategoryIcon } from "../lib/eventIcons";
 
 const GENDERS = [
   { id: "femme", label: "Femme" },
@@ -32,13 +33,12 @@ const inputStyle = {
   boxSizing: "border-box"
 };
 
-function ChipPicker({ options, value, onChange, multi }) {
+function ChipPicker({ options, value, onChange, multi, renderIcon }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
       {options.map((o) => {
         const id = o.id;
         const label = o.label;
-        const Icon = o.icon;
         const active = multi ? value.includes(id) : value === id;
         return (
           <button
@@ -65,7 +65,7 @@ function ChipPicker({ options, value, onChange, multi }) {
               cursor: "pointer"
             }}
           >
-            {Icon && <Icon size={14} color={active ? colors.orange : colors.muted} />} {label}
+            {renderIcon && renderIcon(o)} {label}
           </button>
         );
       })}
@@ -76,6 +76,7 @@ function ChipPicker({ options, value, onChange, multi }) {
 export default function Account() {
   const navigate = useNavigate();
   const { user, profile, signOut, refreshProfile } = useAuth();
+  const { categories } = useCategories();
 
   const [name, setName] = useState(profile?.name || "");
   const [age, setAge] = useState(profile?.age || "");
@@ -221,7 +222,7 @@ export default function Account() {
 
       <div style={{ marginBottom: 20 }}>
         <label style={labelStyle}>Ce que tu aimes comme sorties</label>
-        <ChipPicker options={CATEGORIES} value={tastes} onChange={setTastes} multi />
+        <ChipPicker options={categories} value={tastes} onChange={setTastes} multi renderIcon={(c) => <CategoryIcon category={c} size={14} />} />
       </div>
 
       <button

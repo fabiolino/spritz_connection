@@ -3,11 +3,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
-import { getCategory } from "../lib/categories";
+import { useCategories } from "../lib/CategoriesContext";
+import { CategoryIcon } from "../lib/eventIcons";
 
 export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { getCategory } = useCategories();
   const [event, setEvent] = useState(null);
   const [registering, setRegistering] = useState(false);
   const [registered, setRegistered] = useState(false);
@@ -75,7 +77,6 @@ export default function EventDetail() {
 
       {(() => {
         const cat = getCategory(event.category);
-        const CatIcon = cat.icon;
         return (
           <span
             style={{
@@ -91,7 +92,7 @@ export default function EventDetail() {
               marginBottom: 14
             }}
           >
-            <CatIcon size={12} /> {cat.label}
+            <CategoryIcon category={cat} size={15} /> {cat.label}
           </span>
         );
       })()}

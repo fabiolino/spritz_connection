@@ -4,7 +4,9 @@ import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation } from "luc
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { getCategory, distanceKm } from "../lib/categories";
+import { distanceKm } from "../lib/categories";
+import { useCategories } from "../lib/CategoriesContext";
+import { CategoryIcon } from "../lib/eventIcons";
 
 const DEMO_EVENTS = [
   {
@@ -26,6 +28,7 @@ const RADII = [5, 10, 20];
 export default function Feed() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
+  const { getCategory } = useCategories();
   const [events, setEvents] = useState(DEMO_EVENTS);
   const [loading, setLoading] = useState(true);
   const [showJoinBanner, setShowJoinBanner] = useState(true);
@@ -251,7 +254,6 @@ export default function Feed() {
 
       {visibleEvents.map((e) => {
         const cat = getCategory(e.category);
-        const CatIcon = cat.icon;
         const d = userLocation ? distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude) : null;
         return (
           <div
@@ -280,7 +282,7 @@ export default function Feed() {
                   padding: "2px 8px"
                 }}
               >
-                <CatIcon size={11} /> {cat.label}
+                <CategoryIcon category={cat} size={13} /> {cat.label}
               </span>
               {e.is_free && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: colors.olive, border: `1px solid ${colors.olive}`, borderRadius: 20, padding: "2px 8px" }}>

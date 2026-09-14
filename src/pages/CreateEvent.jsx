@@ -4,7 +4,8 @@ import { ChevronLeft, Check, Lock, Globe } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { CATEGORIES } from "../lib/categories";
+import { useCategories } from "../lib/CategoriesContext";
+import { CategoryIcon } from "../lib/eventIcons";
 
 const inputStyle = {
   width: "100%",
@@ -24,6 +25,7 @@ const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 5, display
 export default function CreateEvent() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { categories } = useCategories();
   const [form, setForm] = useState({
     adminSecret: "",
     title: "",
@@ -128,8 +130,7 @@ export default function CreateEvent() {
         <div>
           <label style={labelStyle}>Type d'événement</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {CATEGORIES.map((c) => {
-              const Icon = c.icon;
+            {categories.map((c) => {
               const active = form.category === c.id;
               return (
                 <button
@@ -150,7 +151,7 @@ export default function CreateEvent() {
                     cursor: "pointer"
                   }}
                 >
-                  <Icon size={14} color={active ? colors.orange : colors.muted} /> {c.label}
+                  <CategoryIcon category={c} size={16} /> {c.label}
                 </button>
               );
             })}

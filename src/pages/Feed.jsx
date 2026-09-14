@@ -81,44 +81,16 @@ export default function Feed() {
         style={{
           position: "relative",
           overflow: "hidden",
-          background: "linear-gradient(165deg, #FADFA0 0%, #F6CE87 45%, #FBF3E0 100%)",
-          borderBottomLeftRadius: 40,
-          borderBottomRightRadius: 40,
+          background: "linear-gradient(to bottom, #F0C468 0%, #F6D98E 45%, #FBF3E0 100%)",
           padding: "30px 20px 28px"
         }}
       >
-        <span style={{ position: "absolute", top: 14, left: 22, width: 10, height: 10, borderRadius: "50%", background: colors.red, opacity: 0.9 }} />
-        <span style={{ position: "absolute", top: 30, left: 56, width: 6, height: 6, borderRadius: "50%", background: colors.blue, opacity: 0.8 }} />
-        <span style={{ position: "absolute", top: 22, right: 30, width: 9, height: 9, borderRadius: "50%", background: colors.blue, opacity: 0.85 }} />
-        <span style={{ position: "absolute", top: 52, right: 60, width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.75 }} />
-        <span style={{ position: "absolute", bottom: 60, left: 20, width: 5, height: 5, borderRadius: "50%", background: colors.olive, opacity: 0.7 }} />
-        <span style={{ position: "absolute", bottom: 46, right: 22, width: 7, height: 7, borderRadius: "50%", background: colors.red, opacity: 0.75 }} />
-        <span
-          style={{
-            position: "absolute",
-            top: 40,
-            left: "50%",
-            transform: "translateX(-108px) rotate(-18deg)",
-            width: 14,
-            height: 3,
-            borderRadius: 2,
-            background: colors.gold,
-            opacity: 0.9
-          }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            top: 46,
-            left: "50%",
-            transform: "translateX(96px) rotate(20deg)",
-            width: 14,
-            height: 3,
-            borderRadius: 2,
-            background: colors.gold,
-            opacity: 0.9
-          }}
-        />
+        <span style={{ position: "absolute", top: "8%", left: "8%", width: 10, height: 10, borderRadius: "50%", background: colors.red, opacity: 0.85 }} />
+        <span style={{ position: "absolute", top: "18%", left: "18%", width: 6, height: 6, borderRadius: "50%", background: colors.blue, opacity: 0.75 }} />
+        <span style={{ position: "absolute", top: "12%", right: "10%", width: 9, height: 9, borderRadius: "50%", background: colors.blue, opacity: 0.8 }} />
+        <span style={{ position: "absolute", top: "30%", right: "18%", width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
+        <span style={{ position: "absolute", bottom: "22%", left: "6%", width: 5, height: 5, borderRadius: "50%", background: colors.olive, opacity: 0.65 }} />
+        <span style={{ position: "absolute", bottom: "16%", right: "7%", width: 7, height: 7, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
 
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
           <img

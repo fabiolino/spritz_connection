@@ -12,6 +12,7 @@ import ProposeEvent from "./pages/ProposeEvent.jsx";
 import Join from "./pages/Join.jsx";
 import Login from "./pages/Login.jsx";
 import Account from "./pages/Account.jsx";
+import Friends from "./pages/Friends.jsx";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/join" element={<Join />} />
           <Route path="/login" element={<Login />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/friends" element={<Friends />} />
         </Routes>
       </div>
     </AuthProvider>

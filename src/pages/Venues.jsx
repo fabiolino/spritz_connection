@@ -111,7 +111,7 @@ export default function Venues() {
                 </a>
               )}
               {v.contact_email && (
-                
+<a                
                   href={`mailto:${v.contact_email}`}
                   style={{
                     flex: 1,

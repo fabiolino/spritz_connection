@@ -41,7 +41,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/account" element={<Account />} />
           <Route path="/friends" element={<Friends />} />
-        </Routes><Route path="/venues" element={<Venues />} />
+               <Route path="/venues" element={<Venues />} />
+      </Routes>
       </div>
       </CategoriesProvider>
     </AuthProvider>

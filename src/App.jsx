@@ -14,7 +14,7 @@ import Join from "./pages/Join.jsx";
 import Login from "./pages/Login.jsx";
 import Account from "./pages/Account.jsx";
 import Friends from "./pages/Friends.jsx";
-
+import Venues from "./pages/Venues.jsx";
 export default function App() {
   return (
     <AuthProvider>
@@ -41,7 +41,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/account" element={<Account />} />
           <Route path="/friends" element={<Friends />} />
-        </Routes>
+        </Routes><Route path="/venues" element={<Venues />} />
       </div>
       </CategoriesProvider>
     </AuthProvider>

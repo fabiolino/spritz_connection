@@ -363,7 +363,27 @@ export default function Feed() {
       >
         Organiser une soirée gratuite
       </button>
-
+<button
+  onClick={() => navigate("/venues")}
+  style={{
+    width: "100%",
+    background: "none",
+    border: `1px solid ${colors.blue}`,
+    color: colors.blue,
+    borderRadius: 14,
+    padding: 12,
+    fontSize: 13,
+    fontWeight: 700,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    cursor: "pointer",
+    marginBottom: 10
+  }}
+>
+  🏛️ Lieux partenaires
+</button>
       <button
         onClick={() => navigate("/admin")}
         style={{

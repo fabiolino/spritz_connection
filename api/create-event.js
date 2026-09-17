@@ -1,9 +1,5 @@
 // Déploiement Vercel : POST /api/create-event
 // Endpoint protégé par un mot de passe admin simple (pas d'auth utilisateur pour l'instant).
-//
-// Variable d'environnement nécessaire en plus des existantes :
-//   ADMIN_SECRET  -> mot de passe de ton choix, à définir dans Vercel ET à saisir
-//                    dans le formulaire de création d'événement de l'app.
 
 import { createClient } from "@supabase/supabase-js";
 import { geocodeAddress } from "./_geocode.js";
@@ -29,7 +25,9 @@ export default async function handler(req, res) {
     price_member,
     price_nonmember,
     seats,
-    category
+    category,
+    visibility,
+    invitedUserIds
   } = req.body;
 
   if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
@@ -53,24 +51,4 @@ export default async function handler(req, res) {
         address,
         phone,
         price_member: Number(price_member) || 0,
-        price_nonmember: Number(price_nonmember) || 0,
-        seats: Number(seats) || 0,
-        taken: 0,
-        category: category || "autre",
-        latitude,
-        longitude
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erreur insertion événement:", error);
-      return res.status(500).json({ error: "Erreur lors de la création de l'événement" });
-    }
-
-    return res.status(200).json({ event: data });
-  } catch (err) {
-    console.error("Erreur serveur:", err);
-    return res.status(500).json({ error: "Erreur serveur" });
-  }
-}
+        price_nonmember:

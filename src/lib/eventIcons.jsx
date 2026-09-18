@@ -1,19 +1,10 @@
-// Icônes illustrées sur mesure pour les catégories d'événements —
-// badges circulaires dans l'esprit du logo Spritz Connection
-// (cercle crème, confettis, accents orange/bleu/rouge) pour les grands
-// affichages, et une version simplifiée (juste le glyphe) pour les petits
-// badges en ligne où le cercle décoratif deviendrait illisible.
+// Icônes des catégories d'événements —
+// version "grand format" : vraies illustrations façon BD (photos statiques
+// dans /public/categories/), utilisées dès 24px et au-delà.
+// version "petit format" : glyphe simple à une couleur, pour les badges
+// en ligne où l'illustration détaillée deviendrait illisible.
 
 import { colors } from "./theme";
-
-function Badge({ children, size = 40 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <circle cx="20" cy="20" r="19" fill={colors.bg} stroke={colors.orange} strokeWidth="1.4" />
-      {children}
-    </svg>
-  );
-}
 
 function Confetti() {
   return (
@@ -110,89 +101,52 @@ const GLYPHS = {
   autre: AutreGlyph
 };
 
-// --- Versions "badge" (avec cercle + confettis), pour les grands affichages ---
+// --- Versions "grand format" : illustration réelle dans un cercle, pour les grands affichages ---
+
+function PhotoBadge({ src, size }) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
+        border: `2px solid ${colors.orange}`,
+        flexShrink: 0,
+        boxShadow: "0 2px 6px rgba(43,36,25,0.15)"
+      }}
+    >
+      <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+    </div>
+  );
+}
 
 export function ConcertIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <path d="M17 27V15l10-2v10" stroke={colors.blue} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <circle cx="15" cy="27" r="2.6" fill={colors.orange} />
-      <circle cx="25" cy="23" r="2.6" fill={colors.orange} />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/concert.png" size={size} />;
 }
 
 export function KaraokeIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <rect x="17" y="9" width="6" height="11" rx="3" fill={colors.red} />
-      <path d="M13 18a7 7 0 0 0 14 0" stroke={colors.blue} strokeWidth="1.8" strokeLinecap="round" fill="none" />
-      <line x1="20" y1="25" x2="20" y2="30" stroke={colors.blue} strokeWidth="1.8" strokeLinecap="round" />
-      <line x1="15" y1="30" x2="25" y2="30" stroke={colors.blue} strokeWidth="1.8" strokeLinecap="round" />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/karaoke.png" size={size} />;
 }
 
 export function AperoIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <path d="M13 10h14l-6 8v8" stroke={colors.red} strokeWidth="1.8" strokeLinejoin="round" fill="none" />
-      <path d="M14.5 12h11" stroke={colors.red} strokeWidth="1.4" />
-      <path d="M15 26h10" stroke={colors.blue} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M15.5 11.5c2 2.6 7 2.6 9 0" stroke={colors.orange} strokeWidth="1.6" fill="none" strokeLinecap="round" />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/apero.png" size={size} />;
 }
 
 export function DinerIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <path d="M14 9v8m3-8v8m-3-4h3m-1.5 4v11" stroke={colors.blue} strokeWidth="1.6" strokeLinecap="round" fill="none" />
-      <path d="M26 9c-2 0-3 2-3 5s1 4 3 4v11" stroke={colors.red} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/diner.png" size={size} />;
 }
 
 export function TheatreIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <ellipse cx="20" cy="20" rx="9" ry="10" fill={colors.blue} opacity="0.12" />
-      <circle cx="16" cy="18" r="1.4" fill={colors.blue} />
-      <circle cx="24" cy="18" r="1.4" fill={colors.blue} />
-      <path d="M15 24c2 2 8 2 10 0" stroke={colors.red} strokeWidth="1.8" strokeLinecap="round" fill="none" />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/theatre.png" size={size} />;
 }
 
 export function DanseIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <circle cx="20" cy="12" r="2.6" fill={colors.orange} />
-      <path
-        d="M20 15v8m0 0-5 6m5-6 6 4m-6-10-4-3m4 3 5-2"
-        stroke={colors.blue}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/danse.png" size={size} />;
 }
 
 export function AutreIcon({ size }) {
-  return (
-    <Badge size={size}>
-      <Confetti />
-      <path d="M20 11l1.8 5.4L27 18l-5.2 1.6L20 25l-1.8-5.4L13 18l5.2-1.6L20 11z" fill={colors.gold} />
-    </Badge>
-  );
+  return <PhotoBadge src="/categories/autre.png" size={size} />;
 }
 
 export const ICON_COMPONENTS = {
@@ -206,7 +160,7 @@ export const ICON_COMPONENTS = {
 };
 
 // Rendu générique : en dessous de 24px, on affiche le glyphe seul (lisible en petit) ;
-// au-dessus, le badge circulaire complet. Repli sur l'emoji si la catégorie n'a pas
+// au-dessus, la vraie illustration. Repli sur l'emoji si la catégorie n'a pas
 // d'icône dessinée (cas des catégories ajoutées plus tard sans code).
 export function CategoryIcon({ category, size = 20 }) {
   if (!category) return <AutreGlyph size={size} />;

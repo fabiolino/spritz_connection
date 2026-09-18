@@ -90,33 +90,15 @@ export default function Feed() {
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      <div
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          background: "linear-gradient(to bottom, #F0C468 0%, #F6D98E 45%, #FBF3E0 100%)",
-          padding: "30px 20px 28px"
-        }}
-      >
-        <span style={{ position: "absolute", top: "8%", left: "8%", width: 10, height: 10, borderRadius: "50%", background: colors.red, opacity: 0.85 }} />
-        <span style={{ position: "absolute", top: "18%", left: "18%", width: 6, height: 6, borderRadius: "50%", background: colors.blue, opacity: 0.75 }} />
-        <span style={{ position: "absolute", top: "12%", right: "10%", width: 9, height: 9, borderRadius: "50%", background: colors.blue, opacity: 0.8 }} />
-        <span style={{ position: "absolute", top: "30%", right: "18%", width: 5, height: 5, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
-        <span style={{ position: "absolute", bottom: "22%", left: "6%", width: 5, height: 5, borderRadius: "50%", background: colors.olive, opacity: 0.65 }} />
-        <span style={{ position: "absolute", bottom: "16%", right: "7%", width: 7, height: 7, borderRadius: "50%", background: colors.red, opacity: 0.7 }} />
+      <div style={{ position: "relative" }}>
+        <img
+          src="/header.png"
+          alt="Spritz Connection — Aperitivo, Events, Culture & More"
+          style={{ width: "100%", display: "block" }}
+        />
+      </div>
 
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-          <img
-            src="/logo.jpg"
-            alt="Spritz Connection"
-            style={{ width: 84, height: 84, borderRadius: "50%", border: `2px solid ${colors.orange}`, boxShadow: "0 6px 16px rgba(232,95,38,0.18)" }}
-          />
-        </div>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 24, margin: "0 0 6px", textAlign: "center" }}>Spritz Connection</h1>
-        <p style={{ fontSize: 14, color: colors.muted, margin: "0 0 16px", textAlign: "center" }}>
-          Les prochaines soirées italiennes à Paris.
-        </p>
-
+      <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
         {!authLoading && (
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
             {user ? (

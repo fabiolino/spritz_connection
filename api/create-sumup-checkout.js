@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { eventId, option, amount, userEmail, userId } = req.body;
+  const { eventId, option, amount, userEmail, userId, selectedOptions } = req.body;
 
   if (!eventId || !option || !amount) {
     return res.status(400).json({ error: "Paramètres manquants (eventId, option, amount)" });
@@ -69,17 +69,33 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: data.message || "Échec de création du paiement SumUp" });
     }
 
-    const { error: dbError } = await supabaseAdmin.from("registrations").insert({
-      event_id: eventId === "membership" ? null : eventId,
-      user_id: userId || null,
-      option,
-      amount: amount / 100,
-      sumup_checkout_id: data.id,
-      paid: false
-    });
+    const { data: reg, error: dbError } = await supabaseAdmin
+      .from("registrations")
+      .insert({
+        event_id: eventId === "membership" ? null : eventId,
+        user_id: userId || null,
+        option,
+        amount: amount / 100,
+        sumup_checkout_id: data.id,
+        paid: false
+      })
+      .select()
+      .single();
 
     if (dbError) {
       console.error("Erreur insertion registration:", dbError);
+    }
+
+    if (reg && Array.isArray(selectedOptions) && selectedOptions.length > 0) {
+      const optionRows = selectedOptions.map((o) => ({
+        registration_id: reg.id,
+        label: o.label,
+        price: Number(o.price) || 0
+      }));
+      const { error: optionsError } = await supabaseAdmin.from("registration_options").insert(optionRows);
+      if (optionsError) {
+        console.error("Erreur insertion registration_options:", optionsError);
+      }
     }
 
     const hostedCheckoutUrl = data.hosted_checkout_url;

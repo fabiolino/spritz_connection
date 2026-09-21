@@ -40,6 +40,9 @@ export default function Admin() {
   const [loadingVenueStats, setLoadingVenueStats] = useState(false);
   const [venueStatsError, setVenueStatsError] = useState("");
 
+  const [adminVerified, setAdminVerified] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+
   useEffect(() => {
     async function loadPending() {
       if (!import.meta.env.VITE_SUPABASE_URL) return;
@@ -55,6 +58,35 @@ export default function Admin() {
     }
     loadAllEvents();
   }, []);
+
+  async function handleVerifyAdmin(e) {
+    if (e) e.preventDefault();
+    if (!adminSecret) {
+      setAdminVerified(false);
+      return;
+    }
+    setVerifying(true);
+    setAdminVerified(null);
+    try {
+      const res = await fetch("/api/list-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdminVerified(false);
+        setVerifying(false);
+        return;
+      }
+      setMembers(data.profiles);
+      setAdminVerified(true);
+      setVerifying(false);
+    } catch (err) {
+      setAdminVerified(false);
+      setVerifying(false);
+    }
+  }
 
   async function moderate(eventId, action) {
     if (!adminSecret) {
@@ -317,23 +349,57 @@ export default function Admin() {
       <label style={{ fontSize: 12, color: colors.muted, marginBottom: 5, display: "block" }}>
         Mot de passe administrateur (pour les actions ci-dessous)
       </label>
-      <input
-        type="password"
-        placeholder="Mot de passe administrateur"
-        value={adminSecret}
-        onChange={(e) => setAdminSecret(e.target.value)}
-        style={{
-          width: "100%",
-          background: colors.surface,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 12,
-          padding: "10px 12px",
-          color: colors.ink,
-          fontSize: 13.5,
-          marginBottom: 28,
-          boxSizing: "border-box"
-        }}
-      />
+      <form onSubmit={handleVerifyAdmin} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <input
+          type="password"
+          placeholder="Mot de passe administrateur"
+          value={adminSecret}
+          onChange={(e) => {
+            setAdminSecret(e.target.value);
+            setAdminVerified(null);
+          }}
+          style={{
+            flex: 1,
+            background: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 12,
+            padding: "10px 12px",
+            color: colors.ink,
+            fontSize: 13.5,
+            boxSizing: "border-box"
+          }}
+        />
+        <button
+          type="submit"
+          disabled={verifying}
+          style={{
+            background: colors.orange,
+            border: "none",
+            color: "#fff",
+            borderRadius: 12,
+            padding: "0 16px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap"
+          }}
+        >
+          {verifying ? "…" : "Valider"}
+        </button>
+      </form>
+      {adminVerified === true && (
+        <p style={{ fontSize: 12, color: colors.olive, marginBottom: 28, fontWeight: 600 }}>
+          <Check size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
+          Mot de passe correct — tu peux utiliser les actions ci-dessous.
+        </p>
+      )}
+      {adminVerified === false && (
+        <p style={{ fontSize: 12, color: colors.red, marginBottom: 28, fontWeight: 600 }}>
+          <X size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
+          Mot de passe incorrect.
+        </p>
+      )}
+      {adminVerified === null && <div style={{ marginBottom: 20 }} />}
 
       {pendingEvents.length > 0 && (
         <div style={{ marginBottom: 28 }}>

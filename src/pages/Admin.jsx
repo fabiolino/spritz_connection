@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3 } from "lucide-react";
+import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -355,6 +355,30 @@ export default function Admin() {
             </option>
           ))}
         </select>
+
+        {selectedEventId && (
+          <button
+            onClick={() => navigate(`/admin/edit-event/${selectedEventId}`)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              background: "none",
+              border: `1px solid ${colors.blue}`,
+              color: colors.blue,
+              borderRadius: 12,
+              padding: 10,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginBottom: 14
+            }}
+          >
+            <Pencil size={13} /> Modifier cet événement (corriger une erreur)
+          </button>
+        )}
 
         {selectedEventId && (
           <div

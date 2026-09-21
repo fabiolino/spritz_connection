@@ -45,10 +45,14 @@ export default function Feed() {
         setLoading(false);
         return;
       }
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
       const { data, error } = await supabase
         .from("events")
         .select("*")
         .eq("approved", true)
+        .gte("event_date", sevenDaysAgo.toISOString())
         .order("event_date", { ascending: true });
       if (!error && data) setEvents(data);
       setLoading(false);

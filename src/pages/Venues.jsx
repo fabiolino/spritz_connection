@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, MapPin, Users, Phone, Mail, Building2 } from "lucide-react";
+import { ChevronLeft, MapPin, Users, Phone, Mail, Building2, CreditCard } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -83,14 +83,20 @@ export default function Venues() {
             </div>
 
             {v.capacity && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: colors.muted, marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: colors.muted, marginBottom: 4 }}>
                 <Users size={13} /> Jusqu'à {v.capacity} personnes
+              </div>
+            )}
+
+            {v.payment_info && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12.5, color: colors.muted, marginBottom: 10 }}>
+                <CreditCard size={13} style={{ marginTop: 1, flexShrink: 0 }} /> {v.payment_info}
               </div>
             )}
 
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               {v.contact_phone && (
-              <a  
+                <a
                   href={`tel:${v.contact_phone}`}
                   style={{
                     flex: 1,
@@ -111,7 +117,7 @@ export default function Venues() {
                 </a>
               )}
               {v.contact_email && (
-<a                
+                <a
                   href={`mailto:${v.contact_email}`}
                   style={{
                     flex: 1,

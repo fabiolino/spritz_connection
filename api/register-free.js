@@ -31,4 +31,37 @@ export default async function handler(req, res) {
       }
     }
 
-    const { data: event, error:
+    const { data: event, error: fetchError } = await supabaseAdmin
+      .from("events")
+      .select("seats, taken")
+      .eq("id", eventId)
+      .single();
+
+    if (fetchError || !event) {
+      return res.status(404).json({ error: "Événement introuvable" });
+    }
+    if (event.taken >= event.seats) {
+      return res.status(409).json({ error: "Événement complet" });
+    }
+
+    const { error: insertError } = await supabaseAdmin.from("registrations").insert({
+      event_id: eventId,
+      user_id: userId || null,
+      option: "gratuit",
+      amount: 0,
+      paid: true
+    });
+    if (insertError) throw insertError;
+
+    const { error: updateError } = await supabaseAdmin
+      .from("events")
+      .update({ taken: event.taken + 1 })
+      .eq("id", eventId);
+    if (updateError) throw updateError;
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Erreur inscription gratuite:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+}

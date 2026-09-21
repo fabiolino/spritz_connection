@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images } from "lucide-react";
+import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
@@ -255,7 +255,34 @@ export default function EventDetail() {
           </div>
         )}
 
-        {event.is_free ? (
+        {event.sumup_link ? (
+          <a
+            href={event.sumup_link}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: colors.orange,
+              color: "#fff",
+              border: "none",
+              borderRadius: 14,
+              padding: 14,
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: "pointer",
+              marginBottom: 16,
+              boxShadow: "0 4px 12px rgba(232,95,38,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              textDecoration: "none"
+            }}
+          >
+            <ExternalLink size={15} /> Payer via SumUp
+          </a>
+        ) : event.is_free ? (
           registered ? (
             <div
               style={{

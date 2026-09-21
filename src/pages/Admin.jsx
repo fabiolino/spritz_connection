@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban } from "lucide-react";
+import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -27,6 +27,14 @@ export default function Admin() {
   const [loadingGuests, setLoadingGuests] = useState(false);
   const [guestsError, setGuestsError] = useState("");
   const [guestToggling, setGuestToggling] = useState(null);
+
+  const [duplicateDate, setDuplicateDate] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateMsg, setDuplicateMsg] = useState("");
+
+  const [venueStats, setVenueStats] = useState(null);
+  const [loadingVenueStats, setLoadingVenueStats] = useState(false);
+  const [venueStatsError, setVenueStatsError] = useState("");
 
   useEffect(() => {
     async function loadPending() {
@@ -119,6 +127,8 @@ export default function Admin() {
     setSelectedEventId(eventId);
     setGuestState(null);
     setGuestsError("");
+    setDuplicateMsg("");
+    setDuplicateDate("");
     if (!eventId) return;
     if (!adminSecret) {
       setGuestsError("Renseigne le mot de passe administrateur d'abord");
@@ -167,6 +177,65 @@ export default function Admin() {
       setGuestToggling(null);
     } catch (err) {
       setGuestToggling(null);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!adminSecret) {
+      setDuplicateMsg("Renseigne le mot de passe administrateur d'abord");
+      return;
+    }
+    if (!duplicateDate) {
+      setDuplicateMsg("Choisis une date pour la copie");
+      return;
+    }
+    setDuplicating(true);
+    setDuplicateMsg("");
+    try {
+      const res = await fetch("/api/duplicate-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, eventId: selectedEventId, newDate: duplicateDate })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDuplicateMsg(data.error || "Erreur lors de la duplication");
+        setDuplicating(false);
+        return;
+      }
+      setDuplicateMsg("Événement dupliqué avec succès !");
+      setDuplicateDate("");
+      setDuplicating(false);
+    } catch (err) {
+      setDuplicateMsg("Impossible de contacter le serveur");
+      setDuplicating(false);
+    }
+  }
+
+  async function loadVenueStats() {
+    if (!adminSecret) {
+      setVenueStatsError("Renseigne le mot de passe administrateur d'abord");
+      return;
+    }
+    setLoadingVenueStats(true);
+    setVenueStatsError("");
+    try {
+      const res = await fetch("/api/venue-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVenueStatsError(data.error || "Erreur");
+        setLoadingVenueStats(false);
+        return;
+      }
+      setVenueStats(data.stats);
+      setLoadingVenueStats(false);
+    } catch (err) {
+      setVenueStatsError("Impossible de contacter le serveur");
+      setLoadingVenueStats(false);
     }
   }
 
@@ -262,7 +331,7 @@ export default function Admin() {
 
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
-          <UserCheck size={16} color={colors.orange} /> Invités &amp; exclusions par événement
+          <UserCheck size={16} color={colors.orange} /> Invités, exclusions &amp; duplication
         </h2>
         <select
           value={selectedEventId}
@@ -286,6 +355,57 @@ export default function Admin() {
             </option>
           ))}
         </select>
+
+        {selectedEventId && (
+          <div
+            style={{
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 14
+            }}
+          >
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <Copy size={13} /> Dupliquer cet événement à une nouvelle date
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="datetime-local"
+                value={duplicateDate}
+                onChange={(e) => setDuplicateDate(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: colors.bg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                  fontSize: 12.5,
+                  color: colors.ink,
+                  boxSizing: "border-box"
+                }}
+              />
+              <button
+                onClick={handleDuplicate}
+                disabled={duplicating}
+                style={{
+                  background: colors.blue,
+                  border: "none",
+                  color: "#fff",
+                  borderRadius: 10,
+                  padding: "0 14px",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {duplicating ? "…" : "Dupliquer"}
+              </button>
+            </div>
+            {duplicateMsg && <p style={{ fontSize: 11.5, color: colors.muted, marginTop: 8 }}>{duplicateMsg}</p>}
+          </div>
+        )}
 
         {guestsError && <p style={{ color: colors.red, fontSize: 12, marginBottom: 10 }}>{guestsError}</p>}
         {loadingGuests && <p style={{ color: colors.muted, fontSize: 13 }}>Chargement…</p>}
@@ -361,6 +481,56 @@ export default function Admin() {
             })}
           </div>
         )}
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
+          <BarChart3 size={16} color={colors.orange} /> Traçabilité par lieu
+        </h2>
+
+        {venueStats === null ? (
+          <button
+            onClick={loadVenueStats}
+            disabled={loadingVenueStats}
+            style={{
+              width: "100%",
+              background: "none",
+              border: `1px solid ${colors.border}`,
+              color: colors.ink,
+              borderRadius: 12,
+              padding: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            {loadingVenueStats ? "Chargement…" : "Afficher la traçabilité par lieu"}
+          </button>
+        ) : venueStats.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: colors.muted }}>Aucun lieu enregistré pour l'instant.</p>
+        ) : (
+          venueStats.map((v) => (
+            <div
+              key={v.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: colors.surface,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: "10px 12px",
+                marginBottom: 8
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{v.name}</div>
+              <div style={{ fontSize: 11.5, color: colors.muted, textAlign: "right" }}>
+                {v.eventsCount} événement{v.eventsCount > 1 ? "s" : ""} · {v.registrationsCount} inscription{v.registrationsCount > 1 ? "s" : ""}
+              </div>
+            </div>
+          ))
+        )}
+        {venueStatsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{venueStatsError}</p>}
       </div>
 
       <div style={{ marginBottom: 28 }}>

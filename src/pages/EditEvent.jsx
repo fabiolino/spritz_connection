@@ -97,11 +97,12 @@ export default function EditEvent() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/update-event", {
+      const res = await fetch("/api/create-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          action: "update",
           eventId: id,
           venueId: form.venueId || null,
           sumupLink: form.sumupLink || null,

@@ -13,6 +13,8 @@ export default function Register() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
   const [event, setEvent] = useState(null);
+  const [eventOptions, setEventOptions] = useState([]);
+  const [selectedOptionIds, setSelectedOptionIds] = useState([]);
   const [addMembership, setAddMembership] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,6 +31,13 @@ export default function Register() {
         .eq("id", id)
         .single();
       setEvent(data);
+
+      const { data: options } = await supabase
+        .from("event_options")
+        .select("id, label, price")
+        .eq("event_id", id)
+        .order("price", { ascending: true });
+      if (options) setEventOptions(options);
     }
     load();
   }, [id]);
@@ -59,14 +68,28 @@ export default function Register() {
 
   const isMember = !!profile?.is_member;
   const ticketPrice = isMember ? event.price_member : event.price_nonmember;
-  const total = ticketPrice + (addMembership ? MEMBERSHIP_PRICE : 0);
+
+  function toggleOption(optId) {
+    setSelectedOptionIds((prev) => (prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId]));
+  }
+
+  const chosenOptions = eventOptions.filter((o) => selectedOptionIds.includes(o.id));
+  const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price), 0);
+  const total = ticketPrice + optionsTotal + (addMembership ? MEMBERSHIP_PRICE : 0);
   const option = addMembership ? "both" : "billet";
 
   async function handlePay() {
     setLoading(true);
     setError("");
     try {
-      await startCheckout({ eventId: id, option, amount: total * 100, userId: user.id, userEmail: user.email });
+      await startCheckout({
+        eventId: id,
+        option,
+        amount: total * 100,
+        userId: user.id,
+        userEmail: user.email,
+        selectedOptions: chosenOptions.map((o) => ({ label: o.label, price: o.price }))
+      });
     } catch (err) {
       setError("Le paiement n'a pas pu démarrer — vérifie que le backend SumUp est configuré.");
       setLoading(false);
@@ -103,6 +126,37 @@ export default function Register() {
           )}
         </div>
       </div>
+
+      {eventOptions.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Options en supplément</div>
+          {eventOptions.map((o) => {
+            const checked = selectedOptionIds.includes(o.id);
+            return (
+              <div
+                key={o.id}
+                onClick={() => toggleOption(o.id)}
+                style={{
+                  border: `1.5px solid ${checked ? colors.orange : colors.border}`,
+                  background: checked ? "rgba(242,118,46,0.08)" : colors.surface,
+                  borderRadius: 12,
+                  padding: "11px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 8
+                }}
+              >
+                <div style={{ fontSize: 13.5 }}>{o.label}</div>
+                <span style={{ fontSize: 13.5, fontWeight: 700, color: colors.orange, whiteSpace: "nowrap" }}>
+                  + {o.price} €
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {!isMember && (
         <div

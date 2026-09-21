@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, Lock, Globe } from "lucide-react";
+import { ChevronLeft, Check, Lock, Globe, Plus, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
@@ -38,10 +38,14 @@ export default function CreateEvent() {
     price_nonmember: "",
     seats: "",
     category: "autre",
-    visibility: "public"
+    visibility: "public",
+    venueId: "",
+    sumupLink: ""
   });
   const [profiles, setProfiles] = useState([]);
   const [invitedIds, setInvitedIds] = useState([]);
+  const [venues, setVenues] = useState([]);
+  const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -56,12 +60,32 @@ export default function CreateEvent() {
     }
   }, [form.visibility, user]);
 
+  useEffect(() => {
+    supabase
+      .from("venues")
+      .select("id, name")
+      .order("name", { ascending: true })
+      .then(({ data }) => setVenues(data || []));
+  }, []);
+
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
   function toggleInvite(id) {
     setInvitedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function addOption() {
+    setOptions((prev) => [...prev, { label: "", price: "" }]);
+  }
+
+  function updateOption(index, field, value) {
+    setOptions((prev) => prev.map((o, i) => (i === index ? { ...o, [field]: value } : o)));
+  }
+
+  function removeOption(index) {
+    setOptions((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e) {
@@ -75,7 +99,10 @@ export default function CreateEvent() {
         body: JSON.stringify({
           ...form,
           organizerId: user?.id || null,
-          invitedUserIds: form.visibility === "private" ? invitedIds : []
+          invitedUserIds: form.visibility === "private" ? invitedIds : [],
+          venueId: form.venueId || null,
+          sumupLink: form.sumupLink || null,
+          options: form.sumupLink ? [] : options
         })
       });
       const data = await res.json();
@@ -156,6 +183,20 @@ export default function CreateEvent() {
               );
             })}
           </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Lieu (optionnel, pour la traçabilité)</label>
+          <select
+            style={inputStyle}
+            value={form.venueId}
+            onChange={(e) => update("venueId", e.target.value)}
+          >
+            <option value="">Aucun lieu partenaire</option>
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -282,6 +323,79 @@ export default function CreateEvent() {
           <label style={labelStyle}>Nombre de places</label>
           <input type="number" min="1" required style={inputStyle} value={form.seats} onChange={(e) => update("seats", e.target.value)} />
         </div>
+
+        <div
+          style={{
+            border: `1px solid ${colors.border}`,
+            borderRadius: 14,
+            padding: 14,
+            background: colors.surface
+          }}
+        >
+          <label style={labelStyle}>Lien de paiement SumUp (optionnel)</label>
+          <input
+            style={inputStyle}
+            value={form.sumupLink}
+            onChange={(e) => update("sumupLink", e.target.value)}
+            placeholder="https://pay.sumup.com/b2c/..."
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Si tu colles un lien ici, l'app affichera un simple bouton "Payer via SumUp" qui ouvre ce lien —
+            plus simple, mais sans gestion automatique des places ni des options ci-dessous. Laisse vide pour
+            garder le système de paiement intégré habituel.
+          </p>
+        </div>
+
+        {!form.sumupLink && (
+          <div>
+            <label style={labelStyle}>Options en supplément (optionnel)</label>
+            {options.map((o, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <input
+                  style={{ ...inputStyle, flex: 2 }}
+                  placeholder="Ex : Table VIP"
+                  value={o.label}
+                  onChange={(e) => updateOption(i, "label", e.target.value)}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  style={{ ...inputStyle, flex: 1 }}
+                  placeholder="€"
+                  value={o.price}
+                  onChange={(e) => updateOption(i, "price", e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(i)}
+                  style={{ background: "none", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "0 10px", cursor: "pointer", color: colors.muted }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addOption}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "none",
+                border: `1px dashed ${colors.border}`,
+                borderRadius: 10,
+                padding: "8px 12px",
+                fontSize: 12.5,
+                color: colors.orange,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Plus size={14} /> Ajouter une option
+            </button>
+          </div>
+        )}
 
         {error && <p style={{ color: colors.red, fontSize: 13 }}>{error}</p>}
 

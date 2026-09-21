@@ -27,7 +27,10 @@ export default async function handler(req, res) {
     seats,
     category,
     visibility,
-    invitedUserIds
+    invitedUserIds,
+    venueId,
+    sumupLink,
+    options
   } = req.body;
 
   if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
@@ -56,6 +59,8 @@ export default async function handler(req, res) {
         taken: 0,
         category: category || "autre",
         visibility: visibility === "private" ? "private" : "public",
+        venue_id: venueId || null,
+        sumup_link: sumupLink || null,
         latitude,
         longitude
       })
@@ -72,6 +77,18 @@ export default async function handler(req, res) {
       const { error: inviteError } = await supabaseAdmin.from("event_invites").insert(rows);
       if (inviteError) {
         console.error("Erreur insertion invitations:", inviteError);
+      }
+    }
+
+    if (Array.isArray(options) && options.length > 0) {
+      const optionRows = options
+        .filter((o) => o.label && o.price !== "")
+        .map((o) => ({ event_id: data.id, label: o.label, price: Number(o.price) || 0 }));
+      if (optionRows.length > 0) {
+        const { error: optionsError } = await supabaseAdmin.from("event_options").insert(optionRows);
+        if (optionsError) {
+          console.error("Erreur insertion options:", optionsError);
+        }
       }
     }
 

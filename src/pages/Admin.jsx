@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil } from "lucide-react";
+import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -31,6 +31,10 @@ export default function Admin() {
   const [duplicateDate, setDuplicateDate] = useState("");
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateMsg, setDuplicateMsg] = useState("");
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState("");
 
   const [venueStats, setVenueStats] = useState(null);
   const [loadingVenueStats, setLoadingVenueStats] = useState(false);
@@ -129,6 +133,8 @@ export default function Admin() {
     setGuestsError("");
     setDuplicateMsg("");
     setDuplicateDate("");
+    setConfirmingDelete(false);
+    setDeleteMsg("");
     if (!eventId) return;
     if (!adminSecret) {
       setGuestsError("Renseigne le mot de passe administrateur d'abord");
@@ -209,6 +215,43 @@ export default function Admin() {
     } catch (err) {
       setDuplicateMsg("Impossible de contacter le serveur");
       setDuplicating(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!adminSecret) {
+      setDeleteMsg("Renseigne le mot de passe administrateur d'abord");
+      return;
+    }
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+    setDeleting(true);
+    setDeleteMsg("");
+    try {
+      const res = await fetch("/api/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "delete", eventId: selectedEventId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteMsg(data.error || "Erreur lors de la suppression");
+        setDeleting(false);
+        setConfirmingDelete(false);
+        return;
+      }
+      setAllEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
+      setSelectedEventId("");
+      setGuestState(null);
+      setDeleting(false);
+      setConfirmingDelete(false);
+      setDeleteMsg("Événement supprimé.");
+    } catch (err) {
+      setDeleteMsg("Impossible de contacter le serveur");
+      setDeleting(false);
+      setConfirmingDelete(false);
     }
   }
 
@@ -378,6 +421,50 @@ export default function Admin() {
           >
             <Pencil size={13} /> Modifier cet événement (corriger une erreur)
           </button>
+        )}
+
+        {selectedEventId && (
+          <div style={{ marginBottom: 14 }}>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                background: confirmingDelete ? colors.red : "none",
+                border: `1px solid ${colors.red}`,
+                color: confirmingDelete ? "#fff" : colors.red,
+                borderRadius: 12,
+                padding: 10,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              <Trash2 size={13} />
+              {deleting ? "Suppression…" : confirmingDelete ? "Confirmer la suppression définitive" : "Supprimer cet événement"}
+            </button>
+            {confirmingDelete && !deleting && (
+              <button
+                onClick={() => setConfirmingDelete(false)}
+                style={{
+                  width: "100%",
+                  background: "none",
+                  border: "none",
+                  color: colors.muted,
+                  fontSize: 11.5,
+                  padding: 6,
+                  cursor: "pointer"
+                }}
+              >
+                Annuler
+              </button>
+            )}
+            {deleteMsg && <p style={{ fontSize: 11.5, color: colors.muted, marginTop: 4 }}>{deleteMsg}</p>}
+          </div>
         )}
 
         {selectedEventId && (

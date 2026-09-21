@@ -1,11 +1,11 @@
 // Appelle la fonction serverless Vercel qui crée la transaction SumUp,
 // puis redirige l'utilisateur vers la page de paiement hébergée par SumUp.
 
-export async function startCheckout({ eventId, option, amount, userEmail, userId }) {
+export async function startCheckout({ eventId, option, amount, userEmail, userId, selectedOptions }) {
   const res = await fetch("/api/create-sumup-checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eventId, option, amount, userEmail, userId })
+    body: JSON.stringify({ eventId, option, amount, userEmail, userId, selectedOptions })
   });
 
   if (!res.ok) {

@@ -192,10 +192,10 @@ export default function Admin() {
     setDuplicating(true);
     setDuplicateMsg("");
     try {
-      const res = await fetch("/api/duplicate-event", {
+      const res = await fetch("/api/create-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminSecret, eventId: selectedEventId, newDate: duplicateDate })
+        body: JSON.stringify({ adminSecret, action: "duplicate", eventId: selectedEventId, newDate: duplicateDate })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -220,10 +220,10 @@ export default function Admin() {
     setLoadingVenueStats(true);
     setVenueStatsError("");
     try {
-      const res = await fetch("/api/venue-stats", {
+      const res = await fetch("/api/manage-guests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminSecret })
+        body: JSON.stringify({ adminSecret, action: "venue-stats" })
       });
       const data = await res.json();
       if (!res.ok) {

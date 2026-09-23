@@ -17,6 +17,7 @@ import Account from "./pages/Account.jsx";
 import Friends from "./pages/Friends.jsx";
 import Venues from "./pages/Venues.jsx";
 import Community from "./pages/Community.jsx";
+import Help from "./pages/Help.jsx";
 export default function App() {
   return (
     <AuthProvider>
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/friends" element={<Friends />} />
           <Route path="/venues" element={<Venues />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/help" element={<Help />} />
       </Routes>
       </div>
       </CategoriesProvider>

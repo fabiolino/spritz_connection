@@ -404,7 +404,7 @@ export default function Admin() {
       {pendingEvents.length > 0 && (
         <div style={{ marginBottom: 28 }}>
           <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
-            <Clock size={16} color={colors.orange} /> Événements gratuits en attente
+            <Clock size={16} color={colors.orange} /> Propositions en attente
           </h2>
           {modError && <p style={{ color: colors.red, fontSize: 12, marginBottom: 10 }}>{modError}</p>}
 
@@ -414,9 +414,25 @@ export default function Admin() {
               <div style={{ fontSize: 12, color: colors.muted, marginBottom: 2 }}>
                 Par {e.organizer} — {e.organizer_contact}
               </div>
-              <div style={{ fontSize: 12, color: colors.muted, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: colors.muted, marginBottom: 2 }}>
                 {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })} — {e.address}
               </div>
+              {e.is_free === false ? (
+                <div style={{ fontSize: 12, color: colors.orange, fontWeight: 700, marginBottom: 4 }}>
+                  Payant — {e.price_member}€ membre / {e.price_nonmember}€ non-membre
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: colors.olive, fontWeight: 700, marginBottom: 4 }}>Gratuit</div>
+              )}
+              {e.sumup_link && (
+                <div style={{ fontSize: 11.5, color: colors.muted, marginBottom: 12, wordBreak: "break-all" }}>
+                  Lien de paiement (organisateur) :{" "}
+                  <a href={e.sumup_link} target="_blank" rel="noreferrer" style={{ color: colors.blue }}>
+                    {e.sumup_link}
+                  </a>
+                </div>
+              )}
+              {!e.sumup_link && <div style={{ marginBottom: 12 }} />}
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   disabled={moderating === e.id}

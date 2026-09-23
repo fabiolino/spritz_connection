@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2 } from "lucide-react";
+import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
@@ -431,6 +431,27 @@ export default function Feed() {
         }}
       >
         🏛️ Lieux partenaires
+      </button>
+      <button
+        onClick={() => navigate("/help")}
+        style={{
+          width: "100%",
+          background: "none",
+          border: `1px solid ${colors.border}`,
+          color: colors.muted,
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 13,
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          marginBottom: 10
+        }}
+      >
+        <HelpCircle size={15} /> Aide &amp; FAQ
       </button>
       <button
         onClick={() => navigate("/admin")}

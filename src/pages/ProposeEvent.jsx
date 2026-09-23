@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check } from "lucide-react";
+import { ChevronLeft, Check, ExternalLink } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
@@ -23,6 +23,7 @@ const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 5, display
 export default function ProposeEvent() {
   const navigate = useNavigate();
   const { categories } = useCategories();
+  const [isPaid, setIsPaid] = useState(false);
   const [form, setForm] = useState({
     title: "",
     organizer: "",
@@ -32,7 +33,10 @@ export default function ProposeEvent() {
     address: "",
     phone: "",
     seats: "",
-    category: "autre"
+    category: "autre",
+    price_member: "",
+    price_nonmember: "",
+    sumupLink: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,13 +48,29 @@ export default function ProposeEvent() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    if (isPaid && !form.sumupLink) {
+      setError("Le lien de paiement est obligatoire pour un événement payant.");
+      return;
+    }
+    if (isPaid && !form.price_member && !form.price_nonmember) {
+      setError("Renseigne au moins un tarif (membre ou non-membre).");
+      return;
+    }
+
+    setLoading(true);
     try {
+      const payload = {
+        ...form,
+        price_member: isPaid ? form.price_member : 0,
+        price_nonmember: isPaid ? form.price_nonmember : 0,
+        sumupLink: isPaid ? form.sumupLink : ""
+      };
       const res = await fetch("/api/create-free-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
@@ -89,12 +109,49 @@ export default function ProposeEvent() {
         <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 19, margin: 0 }}>Proposer une soirée gratuite</h1>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 19, margin: 0 }}>Proposer une soirée</h1>
       </div>
 
       <p style={{ fontSize: 13, color: colors.muted, marginBottom: 20, lineHeight: 1.5 }}>
         Ton événement sera examiné avant de devenir visible dans l'app — compte quelques heures.
       </p>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        <button
+          type="button"
+          onClick={() => setIsPaid(false)}
+          style={{
+            flex: 1,
+            border: `1.5px solid ${!isPaid ? colors.orange : colors.border}`,
+            background: !isPaid ? "rgba(242,118,46,0.1)" : colors.surface,
+            color: colors.ink,
+            borderRadius: 12,
+            padding: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer"
+          }}
+        >
+          Gratuit
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsPaid(true)}
+          style={{
+            flex: 1,
+            border: `1.5px solid ${isPaid ? colors.orange : colors.border}`,
+            background: isPaid ? "rgba(242,118,46,0.1)" : colors.surface,
+            color: colors.ink,
+            borderRadius: 12,
+            padding: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer"
+          }}
+        >
+          Payant
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
@@ -171,6 +228,61 @@ export default function ProposeEvent() {
           <label style={labelStyle}>Nombre de places</label>
           <input type="number" min="1" required style={inputStyle} value={form.seats} onChange={(e) => update("seats", e.target.value)} />
         </div>
+
+        {isPaid && (
+          <div
+            style={{
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 14,
+              padding: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14
+            }}
+          >
+            <p style={{ fontSize: 12, color: colors.muted, margin: 0, lineHeight: 1.5 }}>
+              <ExternalLink size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
+              Les règlements passent directement par ton propre lien de paiement — jamais par Spritz Connection.
+            </p>
+
+            <div>
+              <label style={labelStyle}>Tarif membre (€)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                style={inputStyle}
+                value={form.price_member}
+                onChange={(e) => update("price_member", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Tarif non-membre (€)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                style={inputStyle}
+                value={form.price_nonmember}
+                onChange={(e) => update("price_nonmember", e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Lien de paiement (SumUp, Lydia, PayPal…)</label>
+              <input
+                required={isPaid}
+                type="url"
+                placeholder="https://…"
+                style={inputStyle}
+                value={form.sumupLink}
+                onChange={(e) => update("sumupLink", e.target.value)}
+              />
+            </div>
+          </div>
+        )}
 
         {error && <p style={{ color: colors.red, fontSize: 13 }}>{error}</p>}
 

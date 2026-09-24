@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink } from "lucide-react";
+import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
+
+function formatEuro(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
+}
 
 export default function EventDetail() {
   const { id } = useParams();
@@ -22,6 +27,7 @@ export default function EventDetail() {
   const [photos, setPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [eventOptions, setEventOptions] = useState([]);
 
   useEffect(() => {
     async function load() {
@@ -44,6 +50,13 @@ export default function EventDetail() {
       }
       const { data } = await supabase.from("events").select("*").eq("id", id).single();
       setEvent(data);
+
+      const { data: optionRows } = await supabase
+        .from("event_options")
+        .select("id, label, price, onsite_price, payment_link")
+        .eq("event_id", id)
+        .order("price", { ascending: true });
+      if (optionRows) setEventOptions(optionRows);
 
       const res = await fetch("/api/event-attendees", {
         method: "POST",
@@ -252,6 +265,93 @@ export default function EventDetail() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {eventOptions.length > 0 && (
+          <div
+            style={{
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 14,
+              marginBottom: 16
+            }}
+          >
+            <div style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <Tag size={15} color={colors.orange} /> En supplément, moins cher à l'avance
+            </div>
+            <p style={{ fontSize: 11.5, color: colors.muted, margin: "0 0 10px", lineHeight: 1.4 }}>
+              {event.sumup_link
+                ? "Réserve-les maintenant pour profiter du prix réduit (prix barré = prix sur place)."
+                : "À ajouter lors de l'inscription pour profiter du prix réduit (prix barré = prix sur place)."}
+            </p>
+            {eventOptions.map((o) => {
+              const promo = Number(o.onsite_price) > Number(o.price);
+              return (
+                <div
+                  key={o.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    padding: "9px 0",
+                    borderTop: `1px solid ${colors.border}`
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
+                    <div style={{ fontSize: 13.5, marginTop: 2 }}>
+                      {promo && (
+                        <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>
+                          {formatEuro(o.onsite_price)}
+                        </span>
+                      )}
+                      <strong style={{ color: colors.orange }}>{formatEuro(o.price)}</strong>
+                      {promo && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            color: "#fff",
+                            background: colors.orange,
+                            borderRadius: 20,
+                            padding: "2px 7px"
+                          }}
+                        >
+                          -{Math.round((1 - Number(o.price) / Number(o.onsite_price)) * 100)} %
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {event.sumup_link && o.payment_link && (
+                    <a
+                      href={o.payment_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        flexShrink: 0,
+                        background: "none",
+                        border: `1.5px solid ${colors.orange}`,
+                        color: colors.orange,
+                        borderRadius: 10,
+                        padding: "7px 12px",
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5
+                      }}
+                    >
+                      <ExternalLink size={12} /> Réserver
+                    </a>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

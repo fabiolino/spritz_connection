@@ -32,20 +32,20 @@ export default async function handler(req, res) {
     }
 
     if (checkout.status === "PAID") {
-      const { data: reg, error: regFetchError } = await supabaseAdmin
+      // Mise à jour conditionnelle : si la page billet a déjà confirmé le paiement,
+      // rien ne se passe (la place n'est comptée qu'une seule fois).
+      const { data: updated } = await supabaseAdmin
         .from("registrations")
-        .select("id, event_id, paid")
+        .update({ paid: true, paid_at: new Date().toISOString() })
         .eq("sumup_checkout_id", checkoutId)
-        .single();
+        .eq("paid", false)
+        .select("id, event_id");
+      const reg = updated && updated[0];
 
-      if (!regFetchError && reg && !reg.paid) {
-        await supabaseAdmin.from("registrations").update({ paid: true }).eq("id", reg.id);
-
-        if (reg.event_id) {
-          const { data: ev } = await supabaseAdmin.from("events").select("taken").eq("id", reg.event_id).single();
-          if (ev) {
-            await supabaseAdmin.from("events").update({ taken: ev.taken + 1 }).eq("id", reg.event_id);
-          }
+      if (reg && reg.event_id) {
+        const { data: ev } = await supabaseAdmin.from("events").select("taken").eq("id", reg.event_id).single();
+        if (ev) {
+          await supabaseAdmin.from("events").update({ taken: (ev.taken || 0) + 1 }).eq("id", reg.event_id);
         }
       }
     }

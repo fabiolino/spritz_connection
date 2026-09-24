@@ -21,6 +21,26 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (action === "co-requests-list") {
+      const { data, error } = await supabaseAdmin
+        .from("co_organizer_requests")
+        .select("id, name, note, status, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return res.status(200).json({ requests: data || [] });
+    }
+
+    if (action === "co-request-moderate") {
+      const { requestId, decision } = req.body;
+      if (!requestId || !["approved", "rejected"].includes(decision)) {
+        return res.status(400).json({ error: "Paramètres invalides" });
+      }
+      const { error } = await supabaseAdmin.from("co_organizer_requests").update({ status: decision }).eq("id", requestId);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === "venue-stats") {
       const { data: venues, error: venuesError } = await supabaseAdmin.from("venues").select("id, name");
       if (venuesError) throw venuesError;

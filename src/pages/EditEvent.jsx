@@ -61,8 +61,8 @@ export default function EditEvent() {
           sumupLink: event.sumup_link || ""
         });
       }
-      const { data: opts } = await supabase.from("event_options").select("label, price").eq("event_id", id);
-      if (opts) setOptions(opts.map((o) => ({ label: o.label, price: String(o.price) })));
+      const { data: opts } = await supabase.from("event_options").select("label, price, onsite_price, payment_link").eq("event_id", id);
+      if (opts) setOptions(opts.map((o) => ({ label: o.label, price: String(o.price), onsite_price: o.onsite_price != null ? String(o.onsite_price) : "", payment_link: o.payment_link || "" })));
       setLoadingEvent(false);
     }
     load();
@@ -81,7 +81,7 @@ export default function EditEvent() {
   }
 
   function addOption() {
-    setOptions((prev) => [...prev, { label: "", price: "" }]);
+    setOptions((prev) => [...prev, { label: "", price: "", onsite_price: "", payment_link: "" }]);
   }
 
   function updateOption(index, field, value) {
@@ -106,7 +106,7 @@ export default function EditEvent() {
           eventId: id,
           venueId: form.venueId || null,
           sumupLink: form.sumupLink || null,
-          options: form.sumupLink ? [] : options
+          options
         })
       });
       const data = await res.json();
@@ -307,37 +307,74 @@ export default function EditEvent() {
             placeholder="https://pay.sumup.com/b2c/..."
           />
           <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
-            Si renseigné, remplace le système de paiement intégré (places et options ci-dessous ne s'appliquent plus).
+            Si renseigné, remplace le système de paiement intégré (les places ne sont plus comptées). Les options restent affichées sur la page de l'événement, avec leur propre lien de paiement si indiqué.
           </p>
         </div>
 
-        {!form.sumupLink && (
+        {(
           <div>
             <label style={labelStyle}>Options en supplément (optionnel)</label>
+            <p style={{ fontSize: 11, color: colors.muted, marginTop: 0, marginBottom: 8, lineHeight: 1.4 }}>
+              Ex. : Spritz à 5 € réservé à l'avance au lieu de 8,50 € sur place. Le « prix sur place » s'affiche
+              barré à côté du prix réduit. Laisse-le vide pour une option sans promo.
+            </p>
             {options.map((o, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <input
-                  style={{ ...inputStyle, flex: 2 }}
-                  placeholder="Ex : Table VIP"
-                  value={o.label}
-                  onChange={(e) => updateOption(i, "label", e.target.value)}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  style={{ ...inputStyle, flex: 1 }}
-                  placeholder="€"
-                  value={o.price}
-                  onChange={(e) => updateOption(i, "price", e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeOption(i)}
-                  style={{ background: "none", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "0 10px", cursor: "pointer", color: colors.muted }}
-                >
-                  <X size={14} />
-                </button>
+              <div
+                key={i}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 12, padding: 10, marginBottom: 8, background: colors.bg }}
+              >
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    placeholder="Ex : Spritz"
+                    value={o.label}
+                    onChange={(e) => updateOption(i, "label", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeOption(i)}
+                    style={{ background: "none", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "0 10px", cursor: "pointer", color: colors.muted }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Prix à l'avance (€)</div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      style={inputStyle}
+                      placeholder="5"
+                      value={o.price}
+                      onChange={(e) => updateOption(i, "price", e.target.value)}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Prix sur place, barré (€)</div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      style={inputStyle}
+                      placeholder="8,50"
+                      value={o.onsite_price || ""}
+                      onChange={(e) => updateOption(i, "onsite_price", e.target.value)}
+                    />
+                  </div>
+                </div>
+                {form.sumupLink && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Lien de paiement de cette option (optionnel)</div>
+                    <input
+                      style={inputStyle}
+                      placeholder="https://..."
+                      value={o.payment_link || ""}
+                      onChange={(e) => updateOption(i, "payment_link", e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             ))}
             <button

@@ -49,7 +49,16 @@ async function replaceOptions(eventId, options) {
   if (Array.isArray(options) && options.length > 0) {
     const optionRows = options
       .filter((o) => o.label && o.price !== "")
-      .map((o) => ({ event_id: eventId, label: o.label, price: Number(o.price) || 0 }));
+      .map((o) => {
+        const onsite = Number(o.onsite_price);
+        return {
+          event_id: eventId,
+          label: o.label,
+          price: Number(o.price) || 0,
+          onsite_price: onsite > 0 ? onsite : null,
+          payment_link: o.payment_link ? String(o.payment_link).trim() || null : null
+        };
+      });
     if (optionRows.length > 0) {
       const { error } = await supabaseAdmin.from("event_options").insert(optionRows);
       if (error) console.error("Erreur insertion options:", error);
@@ -181,7 +190,7 @@ export default async function handler(req, res) {
 
       const { data: sourceOptions } = await supabaseAdmin
         .from("event_options")
-        .select("label, price")
+        .select("label, price, onsite_price, payment_link")
         .eq("event_id", eventId);
       if (sourceOptions && sourceOptions.length > 0) {
         await replaceOptions(created.id, sourceOptions);

@@ -1,11 +1,20 @@
 // Appelle la fonction serverless Vercel qui crée la transaction SumUp,
 // puis redirige l'utilisateur vers la page de paiement hébergée par SumUp.
+// Le montant est recalculé côté serveur : on n'envoie que les choix (options, adhésion).
 
-export async function startCheckout({ eventId, option, amount, userEmail, userId, selectedOptions }) {
+import { supabase } from "./supabaseClient";
+
+export async function authHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function startCheckout({ eventId, option, selectedOptionIds }) {
   const res = await fetch("/api/create-sumup-checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eventId, option, amount, userEmail, userId, selectedOptions })
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ eventId, option, selectedOptionIds: selectedOptionIds || [] })
   });
 
   if (!res.ok) {

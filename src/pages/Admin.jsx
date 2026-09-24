@@ -4,13 +4,12 @@ import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
-const DEMO_REQUESTS = [
-  { id: 1, name: "Giulia R.", note: "Envie d'organiser une soirée cinéma italien à Belleville." }
-];
-
 export default function Admin() {
   const navigate = useNavigate();
-  const [requests, setRequests] = useState(DEMO_REQUESTS);
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requestsError, setRequestsError] = useState("");
+  const [moderatingRequest, setModeratingRequest] = useState(null);
   const [pendingEvents, setPendingEvents] = useState([]);
   const [adminSecret, setAdminSecret] = useState("");
   const [moderating, setModerating] = useState(null);
@@ -82,9 +81,50 @@ export default function Admin() {
       setMembers(data.profiles);
       setAdminVerified(true);
       setVerifying(false);
+      loadCoRequests(adminSecret);
     } catch (err) {
       setAdminVerified(false);
       setVerifying(false);
+    }
+  }
+
+  async function loadCoRequests(secret) {
+    setLoadingRequests(true);
+    setRequestsError("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret: secret, action: "co-requests-list" })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRequestsError(data.error || "Erreur");
+        setLoadingRequests(false);
+        return;
+      }
+      setRequests(data.requests || []);
+      setLoadingRequests(false);
+    } catch (err) {
+      setRequestsError("Impossible de contacter le serveur");
+      setLoadingRequests(false);
+    }
+  }
+
+  async function moderateRequest(requestId, decision) {
+    setModeratingRequest(requestId);
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "co-request-moderate", requestId, decision })
+      });
+      if (res.ok) {
+        setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      }
+      setModeratingRequest(null);
+    } catch (err) {
+      setModeratingRequest(null);
     }
   }
 
@@ -799,19 +839,27 @@ export default function Admin() {
         Valide les demandes pour qu'une personne puisse créer ses propres soirées sous Spritz Connection.
       </p>
 
+      {loadingRequests && <p style={{ color: colors.muted, fontSize: 13 }}>Chargement…</p>}
+      {requestsError && <p style={{ color: colors.red, fontSize: 12, marginBottom: 10 }}>{requestsError}</p>}
+      {!loadingRequests && requests.length === 0 && (
+        <p style={{ fontSize: 12.5, color: colors.muted }}>Aucune demande en attente pour l'instant.</p>
+      )}
+
       {requests.map((r) => (
         <div key={r.id} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 14, marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{r.name}</div>
           <div style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }}>{r.note}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={() => setRequests((prev) => prev.filter((x) => x.id !== r.id))}
+              disabled={moderatingRequest === r.id}
+              onClick={() => moderateRequest(r.id, "approved")}
               style={{ flex: 1, background: colors.olive, border: "none", color: colors.ink, borderRadius: 10, padding: 8, fontWeight: 700, cursor: "pointer" }}
             >
               <Check size={14} style={{ verticalAlign: "middle", marginRight: 6 }} /> Valider
             </button>
             <button
-              onClick={() => setRequests((prev) => prev.filter((x) => x.id !== r.id))}
+              disabled={moderatingRequest === r.id}
+              onClick={() => moderateRequest(r.id, "rejected")}
               style={{ flex: 1, background: "none", border: `1px solid ${colors.border}`, color: colors.ink, borderRadius: 10, padding: 8, cursor: "pointer" }}
             >
               <X size={14} style={{ verticalAlign: "middle", marginRight: 6 }} /> Refuser

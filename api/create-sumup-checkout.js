@@ -32,6 +32,11 @@ const supabaseAdmin = createClient(
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx et Register.jsx
 
+// Tant que l'association n'est pas créée : quiconque réserve à l'avance dans l'app paie
+// le « tarif membre » ; le « tarif non-membre » correspond au prix sur place le jour J.
+// À passer à false (ici ET dans src/lib/pricing.js) une fois l'association créée.
+const ADVANCE_PRICE_FOR_ALL = true;
+
 // Alphabet sans caractères ambigus (pas de 0/O, 1/I/L)
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
@@ -206,7 +211,7 @@ async function handleExternalReservation(req, res) {
     isMember = !!profile?.is_member;
   }
 
-  let amount = Number(isMember ? event.price_member : event.price_nonmember) || 0;
+  let amount = Number(ADVANCE_PRICE_FOR_ALL || isMember ? event.price_member : event.price_nonmember) || 0;
   let chosenOptions = [];
   if (Array.isArray(selectedOptionIds) && selectedOptionIds.length > 0) {
     const { data: opts } = await supabaseAdmin
@@ -305,7 +310,7 @@ async function handleCheckout(req, res) {
       return res.status(403).json({ error: "Tu ne peux pas t'inscrire à cet événement." });
     }
 
-    amount = Number(isMember ? event.price_member : event.price_nonmember) || 0;
+    amount = Number(ADVANCE_PRICE_FOR_ALL || isMember ? event.price_member : event.price_nonmember) || 0;
 
     if (Array.isArray(selectedOptionIds) && selectedOptionIds.length > 0) {
       const { data: opts } = await supabaseAdmin
@@ -317,7 +322,7 @@ async function handleCheckout(req, res) {
       amount += chosenOptions.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
     }
 
-    if (option === "both" && !isMember) {
+    if (option === "both" && !isMember && !ADVANCE_PRICE_FOR_ALL) {
       amount += MEMBERSHIP_PRICE;
     }
     description = `Spritz Connection — ${event.title}`;

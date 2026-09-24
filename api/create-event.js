@@ -11,6 +11,39 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Les champs "datetime-local" du navigateur envoient une heure sans fuseau
+// (ex. "2026-10-02T19:00"). Le serveur Vercel tourne en UTC : sans conversion,
+// 19:00 était enregistré comme 19:00 UTC, soit 21:00 à Paris.
+// On interprète donc toute heure sans fuseau comme une heure de Paris.
+function parisOffsetMs(ts) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Paris",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).formatToParts(new Date(ts));
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return asUtc - Math.floor(ts / 1000) * 1000;
+}
+
+function parisToISO(value) {
+  if (!value || typeof value !== "string") return value;
+  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(value)) return value;
+  const [datePart, timePart = "00:00"] = value.split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [h, mi] = timePart.split(":").map(Number);
+  const wallClock = Date.UTC(y, m - 1, d, h || 0, mi || 0);
+  let utc = wallClock - parisOffsetMs(wallClock);
+  const check = parisOffsetMs(utc);
+  if (wallClock - check !== utc) utc = wallClock - check;
+  return new Date(utc).toISOString();
+}
+
 async function replaceOptions(eventId, options) {
   await supabaseAdmin.from("event_options").delete().eq("event_id", eventId);
   if (Array.isArray(options) && options.length > 0) {
@@ -123,7 +156,7 @@ export default async function handler(req, res) {
           title: source.title,
           organizer: source.organizer,
           description: source.description,
-          event_date: newDate,
+          event_date: parisToISO(newDate),
           address: source.address,
           phone: source.phone,
           price_member: source.price_member,
@@ -174,7 +207,7 @@ export default async function handler(req, res) {
           title,
           organizer,
           description: description || "",
-          event_date,
+          event_date: parisToISO(event_date),
           address,
           phone,
           price_member: Number(price_member) || 0,
@@ -223,7 +256,7 @@ export default async function handler(req, res) {
         title,
         organizer,
         description: description || "",
-        event_date,
+        event_date: parisToISO(event_date),
         address,
         phone,
         price_member: Number(price_member) || 0,

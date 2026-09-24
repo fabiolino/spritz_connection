@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag } from "lucide-react";
+import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag, Square, CheckSquare } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
+import { authHeaders } from "../lib/sumupClient";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -17,7 +18,7 @@ export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getCategory } = useCategories();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [event, setEvent] = useState(null);
   const [registering, setRegistering] = useState(false);
   const [registered, setRegistered] = useState(false);
@@ -28,6 +29,10 @@ export default function EventDetail() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [eventOptions, setEventOptions] = useState([]);
+  const [selectedExtraIds, setSelectedExtraIds] = useState([]);
+  const [guestName, setGuestName] = useState("");
+  const [reserving, setReserving] = useState(false);
+  const [reserveError, setReserveError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -80,6 +85,50 @@ export default function EventDetail() {
 
   if (!event) return null;
   const full = event.taken >= event.seats;
+  // Événement réglé par un lien de paiement externe : l'app calcule le montant à payer
+  // (entrée + suppléments cochés) pour que le participant sache quoi régler.
+  const externalPay = !!event.sumup_link && !event.is_free;
+  const isMember = !!profile?.is_member;
+  const entryPrice = Number(isMember ? event.price_member : event.price_nonmember) || 0;
+  const checkableExtras = eventOptions.filter((o) => !o.payment_link);
+  const extrasTotal = checkableExtras
+    .filter((o) => selectedExtraIds.includes(o.id))
+    .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+  const externalTotal = Math.round((entryPrice + extrasTotal) * 100) / 100;
+  async function handleExternalReservation() {
+    if (!user && !guestName.trim()) {
+      setReserveError("Indique ton prénom et ton nom pour la réservation.");
+      return;
+    }
+    setReserving(true);
+    setReserveError("");
+    try {
+      const res = await fetch("/api/create-sumup-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({
+          action: "external-reservation",
+          eventId: id,
+          selectedOptionIds: selectedExtraIds,
+          guestName: guestName.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReserveError(data.error || "La réservation n'a pas pu être enregistrée");
+        setReserving(false);
+        return;
+      }
+      navigate(`/ticket/${data.registrationId}`);
+    } catch (err) {
+      setReserveError("Impossible de contacter le serveur");
+      setReserving(false);
+    }
+  }
+
+  function toggleExtra(optId) {
+    setSelectedExtraIds((prev) => (prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId]));
+  }
   const cat = getCategory(event.category);
 
   async function handleFreeRegister() {
@@ -283,15 +332,19 @@ export default function EventDetail() {
             </div>
             <p style={{ fontSize: 11.5, color: colors.muted, margin: "0 0 10px", lineHeight: 1.4 }}>
               {event.sumup_link
-                ? "Réserve-les maintenant pour profiter du prix réduit (prix barré = prix sur place)."
+                ? "Coche-les pour les ajouter à ton paiement et profiter du prix réduit (prix barré = prix sur place)."
                 : "À ajouter lors de l'inscription pour profiter du prix réduit (prix barré = prix sur place)."}
             </p>
             {eventOptions.map((o) => {
               const promo = Number(o.onsite_price) > Number(o.price);
+              const checkable = externalPay && !o.payment_link;
+              const checked = selectedExtraIds.includes(o.id);
               return (
                 <div
                   key={o.id}
+                  onClick={checkable ? () => toggleExtra(o.id) : undefined}
                   style={{
+                    cursor: checkable ? "pointer" : "default",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -300,7 +353,12 @@ export default function EventDetail() {
                     borderTop: `1px solid ${colors.border}`
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  {checkable && (
+                    <div style={{ flexShrink: 0, color: checked ? colors.orange : colors.muted, display: "flex" }}>
+                      {checked ? <CheckSquare size={20} /> : <Square size={20} />}
+                    </div>
+                  )}
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
                     <div style={{ fontSize: 13.5, marginTop: 2 }}>
                       {promo && (
@@ -355,7 +413,99 @@ export default function EventDetail() {
           </div>
         )}
 
-        {event.sumup_link ? (
+        {externalPay && (
+          <div
+            style={{
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 14,
+              padding: "12px 14px",
+              marginBottom: 12,
+              fontSize: 13.5
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+              <span>Entrée {isMember ? "(tarif membre)" : "(tarif non-membre)"}</span>
+              <span>{formatEuro(entryPrice)}</span>
+            </div>
+            {checkableExtras
+              .filter((o) => selectedExtraIds.includes(o.id))
+              .map((o) => (
+                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                  <span>+ {o.label}</span>
+                  <span>{formatEuro(o.price)}</span>
+                </div>
+              ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderTop: `1px solid ${colors.border}`,
+                marginTop: 6,
+                paddingTop: 8,
+                fontWeight: 800,
+                fontSize: 15
+              }}
+            >
+              <span>Total à régler</span>
+              <span style={{ color: colors.orange }}>{formatEuro(externalTotal)}</span>
+            </div>
+            {!isMember && Number(event.price_member) < Number(event.price_nonmember) && (
+              <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 6 }}>
+                Membre ? Connecte-toi pour voir ton tarif ({formatEuro(event.price_member)} l'entrée).
+              </div>
+            )}
+          </div>
+        )}
+
+        {externalPay ? (
+          <div style={{ marginBottom: 16 }}>
+            {!user && (
+              <input
+                placeholder="Ton prénom et ton nom"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  background: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 12,
+                  padding: "11px 12px",
+                  fontSize: 14,
+                  color: colors.ink,
+                  marginBottom: 10
+                }}
+              />
+            )}
+            <button
+              onClick={handleExternalReservation}
+              disabled={reserving}
+              style={{
+                width: "100%",
+                background: colors.orange,
+                color: "#fff",
+                border: "none",
+                borderRadius: 14,
+                padding: 14,
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(232,95,38,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8
+              }}
+            >
+              <Check size={15} /> {reserving ? "Réservation…" : `Réserver et payer ${formatEuro(externalTotal)}`}
+            </button>
+            <p style={{ fontSize: 11.5, color: colors.muted, textAlign: "center", margin: "8px 0 0", lineHeight: 1.4 }}>
+              Tu reçois ta confirmation avec ton code de réservation, puis tu règles via SumUp.
+            </p>
+            {reserveError && <p style={{ color: colors.red, fontSize: 12.5, marginTop: 6 }}>{reserveError}</p>}
+          </div>
+        ) : event.sumup_link ? (
           <a
             href={event.sumup_link}
             target="_blank"

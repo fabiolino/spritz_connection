@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, LogOut, Star, Camera } from "lucide-react";
+import { ChevronLeft, LogOut, Star, Camera, Ticket } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
@@ -136,6 +136,28 @@ export default function Account() {
         </button>
         <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Mon compte</h1>
       </div>
+
+      <button
+        onClick={() => navigate("/tickets")}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          background: colors.surface,
+          border: `1.5px solid ${colors.orange}`,
+          color: colors.orange,
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          marginBottom: 18
+        }}
+      >
+        <Ticket size={16} /> Mes billets
+      </button>
 
       {/* Photo de profil */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>

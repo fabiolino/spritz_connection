@@ -80,7 +80,7 @@ export default function Register() {
 
   const chosenOptions = eventOptions.filter((o) => selectedOptionIds.includes(o.id));
   const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price), 0);
-  const total = ticketPrice + optionsTotal + (addMembership ? MEMBERSHIP_PRICE : 0);
+  const total = Math.round((Number(ticketPrice) + optionsTotal + (addMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
   const option = addMembership ? "both" : "billet";
 
   async function handlePay() {
@@ -90,13 +90,10 @@ export default function Register() {
       await startCheckout({
         eventId: id,
         option,
-        amount: total * 100,
-        userId: user.id,
-        userEmail: user.email,
-        selectedOptions: chosenOptions.map((o) => ({ label: o.label, price: o.price }))
+        selectedOptionIds: chosenOptions.map((o) => o.id)
       });
     } catch (err) {
-      setError("Le paiement n'a pas pu démarrer — vérifie que le backend SumUp est configuré.");
+      setError(err.message || "Le paiement n'a pas pu démarrer.");
       setLoading(false);
     }
   }
@@ -204,7 +201,7 @@ export default function Register() {
         }}
       >
         <span>Total</span>
-        <span>{total} €</span>
+        <span>{formatEuro(total)}</span>
       </div>
 
       {error && <p style={{ color: colors.red, fontSize: 13, marginBottom: 10 }}>{error}</p>}
@@ -229,7 +226,7 @@ export default function Register() {
           boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
         }}
       >
-        <Lock size={15} /> {loading ? "Redirection vers le paiement…" : "Payer en ligne"}
+        <Lock size={15} /> {loading ? "Redirection vers le paiement…" : `Payer ${formatEuro(total)} en ligne`}
       </button>
     </div>
   );

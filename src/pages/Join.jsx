@@ -17,10 +17,7 @@ export default function Join() {
     try {
       await startCheckout({
         eventId: "membership",
-        option: "adhesion",
-        amount: MEMBERSHIP_PRICE * 100,
-        userId: user.id,
-        userEmail: user.email
+        option: "adhesion"
       });
     } catch (err) {
       alert("Le paiement n'a pas pu démarrer — vérifie la configuration SumUp.");

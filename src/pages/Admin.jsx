@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil, Trash2, Ticket } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 
@@ -40,6 +40,10 @@ export default function Admin() {
   const [venueStatsError, setVenueStatsError] = useState("");
 
   const [adminVerified, setAdminVerified] = useState(null);
+  const [eventTickets, setEventTickets] = useState(null);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [ticketsError, setTicketsError] = useState("");
+  const [ticketSearch, setTicketSearch] = useState("");
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
@@ -207,6 +211,9 @@ export default function Admin() {
     setDuplicateDate("");
     setConfirmingDelete(false);
     setDeleteMsg("");
+    setEventTickets(null);
+    setTicketsError("");
+    setTicketSearch("");
     if (!eventId) return;
     if (!adminSecret) {
       setGuestsError("Renseigne le mot de passe administrateur d'abord");
@@ -324,6 +331,48 @@ export default function Admin() {
       setDeleteMsg("Impossible de contacter le serveur");
       setDeleting(false);
       setConfirmingDelete(false);
+    }
+  }
+
+  async function loadTickets() {
+    if (!adminSecret) {
+      setTicketsError("Renseigne le mot de passe administrateur d'abord");
+      return;
+    }
+    setLoadingTickets(true);
+    setTicketsError("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "tickets", eventId: selectedEventId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTicketsError(data.error || "Erreur");
+        setLoadingTickets(false);
+        return;
+      }
+      setEventTickets(data.tickets || []);
+      setLoadingTickets(false);
+    } catch (err) {
+      setTicketsError("Impossible de contacter le serveur");
+      setLoadingTickets(false);
+    }
+  }
+
+  async function toggleTicketPaid(t) {
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "mark-paid", registrationId: t.id, value: !t.paid })
+      });
+      if (res.ok) {
+        setEventTickets((prev) => prev.map((x) => (x.id === t.id ? { ...x, paid: !t.paid } : x)));
+      }
+    } catch (err) {
+      setTicketsError("Impossible de contacter le serveur");
     }
   }
 
@@ -543,6 +592,109 @@ export default function Admin() {
           >
             <Pencil size={13} /> Modifier cet événement (corriger une erreur)
           </button>
+        )}
+
+        {selectedEventId && (
+          <div
+            style={{
+              background: colors.surface,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 14
+            }}
+          >
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <Ticket size={13} /> Billets &amp; réservations (contrôle à l'entrée)
+            </div>
+            {eventTickets === null ? (
+              <button
+                onClick={loadTickets}
+                disabled={loadingTickets}
+                style={{
+                  width: "100%",
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.ink,
+                  borderRadius: 10,
+                  padding: 9,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                {loadingTickets ? "Chargement…" : "Afficher les billets"}
+              </button>
+            ) : eventTickets.length === 0 ? (
+              <p style={{ fontSize: 12, color: colors.muted, margin: 0 }}>
+                Aucun billet ni réservation pour cet événement pour l'instant.
+              </p>
+            ) : (
+              <>
+                <input
+                  placeholder="Rechercher un code ou un nom…"
+                  value={ticketSearch}
+                  onChange={(e) => setTicketSearch(e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: colors.bg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 10,
+                    padding: "8px 10px",
+                    fontSize: 12.5,
+                    color: colors.ink,
+                    boxSizing: "border-box",
+                    marginBottom: 8
+                  }}
+                />
+                {eventTickets
+                  .filter((t) => {
+                    const q = ticketSearch.trim().toLowerCase();
+                    return !q || (t.code || "").toLowerCase().includes(q) || (t.name || "").toLowerCase().includes(q);
+                  })
+                  .map((t) => (
+                    <div
+                      key={t.id}
+                      style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "7px 0", borderTop: `1px solid ${colors.border}`, fontSize: 12.5 }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{t.name}</div>
+                        {t.options.length > 0 && <div style={{ color: colors.muted, fontSize: 11.5 }}>+ {t.options.join(", ")}</div>}
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 800, letterSpacing: 1 }}>{t.code}</div>
+                        <div style={{ color: colors.muted, fontSize: 11.5 }}>{Number(t.amount).toLocaleString("fr-FR")} €</div>
+                        {t.external ? (
+                          <button
+                            onClick={() => toggleTicketPaid(t)}
+                            style={{
+                              marginTop: 4,
+                              background: t.paid ? "rgba(107,124,79,0.15)" : "none",
+                              border: `1px solid ${t.paid ? colors.olive : colors.gold}`,
+                              color: t.paid ? colors.olive : "#9A6B00",
+                              borderRadius: 20,
+                              padding: "3px 9px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            {t.paid ? "✓ Payé" : "À vérifier — marquer payé"}
+                          </button>
+                        ) : (
+                          <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Payé en ligne</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                <p style={{ fontSize: 11.5, color: colors.muted, margin: "8px 0 0" }}>
+                  {eventTickets.length} au total · {eventTickets.filter((t) => t.paid).length} payé(s)
+                </p>
+              </>
+            )}
+            {ticketsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 6 }}>{ticketsError}</p>}
+          </div>
         )}
 
         {selectedEventId && (

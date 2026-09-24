@@ -8,6 +8,11 @@ import { colors, fonts } from "../lib/theme";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
 
+function formatEuro(n) {
+  const v = Number(n) || 0;
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
+}
+
 export default function Register() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,7 +39,7 @@ export default function Register() {
 
       const { data: options } = await supabase
         .from("event_options")
-        .select("id, label, price")
+        .select("id, label, price, onsite_price")
         .eq("event_id", id)
         .order("price", { ascending: true });
       if (options) setEventOptions(options);
@@ -150,7 +155,12 @@ export default function Register() {
               >
                 <div style={{ fontSize: 13.5 }}>{o.label}</div>
                 <span style={{ fontSize: 13.5, fontWeight: 700, color: colors.orange, whiteSpace: "nowrap" }}>
-                  + {o.price} €
+                  {Number(o.onsite_price) > Number(o.price) && (
+                    <span style={{ textDecoration: "line-through", color: colors.muted, fontWeight: 500, marginRight: 6 }}>
+                      {formatEuro(o.onsite_price)}
+                    </span>
+                  )}
+                  + {formatEuro(o.price)}
                 </span>
               </div>
             );

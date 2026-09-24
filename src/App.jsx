@@ -18,6 +18,8 @@ import Friends from "./pages/Friends.jsx";
 import Venues from "./pages/Venues.jsx";
 import Community from "./pages/Community.jsx";
 import Help from "./pages/Help.jsx";
+import Ticket from "./pages/Ticket.jsx";
+import MyTickets from "./pages/MyTickets.jsx";
 export default function App() {
   return (
     <AuthProvider>
@@ -48,6 +50,8 @@ export default function App() {
           <Route path="/venues" element={<Venues />} />
           <Route path="/community" element={<Community />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/ticket/:id" element={<Ticket />} />
+          <Route path="/tickets" element={<MyTickets />} />
       </Routes>
       </div>
       </CategoriesProvider>

@@ -310,11 +310,11 @@ export default function CreateEvent() {
 
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Tarif membre (€)</label>
+            <label style={labelStyle}>Tarif membre / réservation à l'avance (€)</label>
             <input type="number" min="0" step="0.5" required style={inputStyle} value={form.price_member} onChange={(e) => update("price_member", e.target.value)} />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Tarif non-membre (€)</label>
+            <label style={labelStyle}>Tarif non-membre / sur place le jour J (€)</label>
             <input type="number" min="0" step="0.5" required style={inputStyle} value={form.price_nonmember} onChange={(e) => update("price_nonmember", e.target.value)} />
           </div>
         </div>

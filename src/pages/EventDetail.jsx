@@ -8,6 +8,7 @@ import { CategoryIcon } from "../lib/eventIcons";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
+import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice } from "../lib/pricing";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -89,7 +90,8 @@ export default function EventDetail() {
   // (entrée + suppléments cochés) pour que le participant sache quoi régler.
   const externalPay = !!event.sumup_link && !event.is_free;
   const isMember = !!profile?.is_member;
-  const entryPrice = Number(isMember ? event.price_member : event.price_nonmember) || 0;
+  const entryPrice = onlineEntryPrice(event, isMember);
+  const onsitePrice = Number(event.price_nonmember) || 0;
   const checkableExtras = eventOptions.filter((o) => !o.payment_link);
   const extrasTotal = checkableExtras
     .filter((o) => selectedExtraIds.includes(o.id))
@@ -425,8 +427,16 @@ export default function EventDetail() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-              <span>Entrée {isMember ? "(tarif membre)" : "(tarif non-membre)"}</span>
-              <span>{formatEuro(entryPrice)}</span>
+              <span>
+                Entrée{" "}
+                {ADVANCE_PRICE_FOR_ALL ? "(réservation à l'avance)" : isMember ? "(tarif membre)" : "(tarif non-membre)"}
+              </span>
+              <span>
+                {ADVANCE_PRICE_FOR_ALL && onsitePrice > entryPrice && (
+                  <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>{formatEuro(onsitePrice)}</span>
+                )}
+                {formatEuro(entryPrice)}
+              </span>
             </div>
             {checkableExtras
               .filter((o) => selectedExtraIds.includes(o.id))
@@ -450,7 +460,12 @@ export default function EventDetail() {
               <span>Total à régler</span>
               <span style={{ color: colors.orange }}>{formatEuro(externalTotal)}</span>
             </div>
-            {!isMember && Number(event.price_member) < Number(event.price_nonmember) && (
+            {ADVANCE_PRICE_FOR_ALL && onsitePrice > entryPrice && (
+              <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 6 }}>
+                Entrée à {formatEuro(onsitePrice)} si tu paies sur place le jour J.
+              </div>
+            )}
+            {!ADVANCE_PRICE_FOR_ALL && !isMember && Number(event.price_member) < Number(event.price_nonmember) && (
               <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 6 }}>
                 Membre ? Connecte-toi pour voir ton tarif ({formatEuro(event.price_member)} l'entrée).
               </div>
@@ -598,7 +613,9 @@ export default function EventDetail() {
             </button>
             {!full && (
               <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: -4, marginBottom: 16 }}>
-                {event.price_member} € membres · {event.price_nonmember} € non-membres
+                {ADVANCE_PRICE_FOR_ALL
+                  ? `${formatEuro(event.price_member)} en réservant à l'avance · ${formatEuro(event.price_nonmember)} sur place le jour J`
+                  : `${formatEuro(event.price_member)} membres · ${formatEuro(event.price_nonmember)} non-membres`}
               </p>
             )}
           </>

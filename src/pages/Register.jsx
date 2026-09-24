@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { startCheckout } from "../lib/sumupClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
+import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice } from "../lib/pricing";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
 
@@ -59,7 +60,7 @@ export default function Register() {
           <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Inscription</h1>
         </div>
         <p style={{ fontSize: 13, color: colors.muted, marginBottom: 16, lineHeight: 1.5 }}>
-          Connecte-toi pour t'inscrire — ça permet d'appliquer automatiquement ton tarif si tu es déjà membre.
+          Connecte-toi pour t'inscrire et payer en ligne — tu recevras ton billet dans l'app.
         </p>
         <button
           onClick={() => navigate("/login")}
@@ -72,7 +73,7 @@ export default function Register() {
   }
 
   const isMember = !!profile?.is_member;
-  const ticketPrice = isMember ? event.price_member : event.price_nonmember;
+  const ticketPrice = onlineEntryPrice(event, isMember);
 
   function toggleOption(optId) {
     setSelectedOptionIds((prev) => (prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId]));
@@ -121,7 +122,15 @@ export default function Register() {
       >
         {isMember && <Star size={15} color={colors.gold} />}
         <div style={{ fontSize: 13 }}>
-          {isMember ? (
+          {ADVANCE_PRICE_FOR_ALL ? (
+            <>
+              Tarif réservation à l'avance —{" "}
+              {Number(event.price_nonmember) > Number(event.price_member) && (
+                <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 4 }}>{formatEuro(event.price_nonmember)}</span>
+              )}
+              <strong>{formatEuro(event.price_member)}</strong>
+            </>
+          ) : isMember ? (
             <>Tarif membre appliqué — <strong>{event.price_member} €</strong></>
           ) : (
             <>Tarif non-membre — <strong>{event.price_nonmember} €</strong></>
@@ -165,7 +174,7 @@ export default function Register() {
         </div>
       )}
 
-      {!isMember && (
+      {!isMember && !ADVANCE_PRICE_FOR_ALL && (
         <div
           onClick={() => setAddMembership((v) => !v)}
           style={{

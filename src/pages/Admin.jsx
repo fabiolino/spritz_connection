@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban, Copy, BarChart3, Pencil, Trash2, Ticket } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
+import InviteButtons from "../components/InviteButtons.jsx";
+import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -45,6 +47,8 @@ export default function Admin() {
   const [ticketsError, setTicketsError] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [inviteLink, setInviteLink] = useState(null);
+  const [loadingInviteLink, setLoadingInviteLink] = useState(false);
 
   useEffect(() => {
     async function loadPending() {
@@ -56,7 +60,7 @@ export default function Admin() {
 
     async function loadAllEvents() {
       if (!import.meta.env.VITE_SUPABASE_URL) return;
-      const { data } = await supabase.from("events").select("id, title, event_date").order("event_date", { ascending: false }).limit(50);
+      const { data } = await supabase.from("events").select("id, title, event_date, visibility").order("event_date", { ascending: false }).limit(50);
       if (data) setAllEvents(data);
     }
     loadAllEvents();
@@ -214,6 +218,7 @@ export default function Admin() {
     setEventTickets(null);
     setTicketsError("");
     setTicketSearch("");
+    setInviteLink(null);
     if (!eventId) return;
     if (!adminSecret) {
       setGuestsError("Renseigne le mot de passe administrateur d'abord");
@@ -241,6 +246,27 @@ export default function Admin() {
       setGuestsError("Impossible de contacter le serveur");
       setLoadingGuests(false);
     }
+  }
+
+  async function loadInviteLink() {
+    setLoadingInviteLink(true);
+    setGuestsError("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "invite-link", eventId: selectedEventId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGuestsError(data.error || "Impossible de générer le lien d'invitation");
+      } else {
+        setInviteLink(eventInviteUrl(selectedEventId, data.token));
+      }
+    } catch (err) {
+      setGuestsError("Impossible de contacter le serveur");
+    }
+    setLoadingInviteLink(false);
   }
 
   async function toggleGuestAction(action, userId, currentlyOn) {
@@ -593,6 +619,44 @@ export default function Admin() {
             <Pencil size={13} /> Modifier cet événement (corriger une erreur)
           </button>
         )}
+
+        {selectedEventId &&
+          (() => {
+            const ev = allEvents.find((e) => e.id === selectedEventId);
+            const isPrivate = ev?.visibility === "private";
+            return inviteLink ? (
+              <InviteButtons
+                event={ev}
+                url={inviteLink}
+                title={isPrivate ? "Lien d'invitation privé" : "Inviter par WhatsApp / SMS"}
+                subtitle={
+                  isPrivate
+                    ? "Toute personne qui ouvre ce lien et crée son compte est ajoutée aux invités. Ne le partage qu'avec les personnes voulues."
+                    : undefined
+                }
+                style={{ marginBottom: 14 }}
+              />
+            ) : (
+              <button
+                onClick={loadInviteLink}
+                disabled={loadingInviteLink}
+                style={{
+                  width: "100%",
+                  background: "none",
+                  border: "1px solid #25D366",
+                  color: "#1a9e4b",
+                  borderRadius: 12,
+                  padding: 10,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  marginBottom: 14
+                }}
+              >
+                {loadingInviteLink ? "Préparation…" : isPrivate ? "🔒 Lien d'invitation privé (WhatsApp / SMS)" : "Inviter par WhatsApp / SMS"}
+              </button>
+            );
+          })()}
 
         {selectedEventId && (
           <div

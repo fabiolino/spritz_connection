@@ -9,6 +9,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: false,
       includeAssets: ["logo.jpg", "icon-192.png", "icon-512.png"],
+      // Ajoute la réception des notifications push au service worker généré
+      workbox: {
+        importScripts: ["push-sw.js"]
+      },
       manifest: {
         name: "Spritz Connection",
         short_name: "Spritz",

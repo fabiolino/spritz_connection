@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
+import { NotifyPrompt } from "../components/Notifications.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -263,6 +264,7 @@ export default function Ticket() {
               ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
+          {!isMembership && <NotifyPrompt style={{ marginTop: 18 }} />}
         </>
       )}
     </div>

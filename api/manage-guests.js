@@ -139,6 +139,23 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "eventId manquant" });
     }
 
+    // Lien d'invitation à partager (WhatsApp / SMS). Pour un événement privé, le lien
+    // contient un jeton secret qui permet à la personne de s'ajouter aux invités.
+    if (action === "invite-link") {
+      const { data: ev } = await supabaseAdmin.from("events").select("visibility").eq("id", eventId).single();
+      if (!ev) return res.status(404).json({ error: "Événement introuvable" });
+      if (ev.visibility !== "private") return res.status(200).json({ token: null });
+      const { data: existing } = await supabaseAdmin.from("event_invite_tokens").select("token").eq("event_id", eventId).maybeSingle();
+      if (existing) return res.status(200).json({ token: existing.token });
+      const { data: created, error: tokError } = await supabaseAdmin
+        .from("event_invite_tokens")
+        .insert({ event_id: eventId })
+        .select("token")
+        .single();
+      if (tokError) throw tokError;
+      return res.status(200).json({ token: created.token });
+    }
+
     if (action === "list") {
       const { data: invites } = await supabaseAdmin.from("event_invites").select("invited_user_id").eq("event_id", eventId);
       const { data: blocks } = await supabaseAdmin.from("event_blocks").select("blocked_user_id").eq("event_id", eventId);

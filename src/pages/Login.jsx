@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Mail, Check } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
+import { rememberAfterLogin, safeNextPath } from "../lib/afterLogin";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -15,9 +18,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    // Après le clic sur le lien reçu par email, on revient sur la page d'origine
+    // (ex. l'événement auquel la personne a été invitée).
+    if (next) rememberAfterLogin(next);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: window.location.origin + (next || "") }
     });
     setLoading(false);
     if (error) {
@@ -42,7 +48,7 @@ export default function Login() {
   return (
     <div style={{ padding: "0 20px 60px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
+        <button onClick={() => navigate(next || "/")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
         <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Se connecter</h1>

@@ -1,5 +1,7 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "./lib/AuthContext";
+import { takeAfterLogin } from "./lib/afterLogin";
 import { colors, fonts } from "./lib/theme";
 import { AuthProvider } from "./lib/AuthContext";
 import { CategoriesProvider } from "./lib/CategoriesContext";
@@ -20,6 +22,20 @@ import Community from "./pages/Community.jsx";
 import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
+// Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
+function AfterLoginRedirect() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (!user) return;
+    const path = takeAfterLogin();
+    if (path && location.pathname + location.search !== path) navigate(path, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -34,6 +50,7 @@ export default function App() {
           margin: "0 auto"
         }}
       >
+        <AfterLoginRedirect />
         <Routes>
           <Route path="/" element={<Feed />} />
           <Route path="/event/:id" element={<EventDetail />} />

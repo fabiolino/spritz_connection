@@ -1,5 +1,27 @@
 {
   "rewrites": [
+    {
+      "source": "/event/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Pinterest|Googlebot|bingbot|Applebot|Snapchat|redditbot|Embedly).*"
+        }
+      ],
+      "destination": "/api/event-attendees?og=1&id=:id"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Pinterest|Applebot|Snapchat|redditbot|Embedly).*"
+        }
+      ],
+      "destination": "/api/event-attendees?og=1"
+    },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

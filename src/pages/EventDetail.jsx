@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag, Square, CheckSquare } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
@@ -9,6 +9,9 @@ import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
 import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice } from "../lib/pricing";
+import { eventInviteUrl } from "../lib/invite";
+import InviteButtons from "../components/InviteButtons.jsx";
+import { NotifyPrompt } from "../components/Notifications.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -19,8 +22,14 @@ export default function EventDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getCategory } = useCategories();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get("invite");
   const [event, setEvent] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [invitePreview, setInvitePreview] = useState(null);
+  const [inviteError, setInviteError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [registering, setRegistering] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState("");
@@ -52,10 +61,33 @@ export default function EventDetail() {
           seats: 40,
           taken: 27
         });
+        setLoaded(true);
         return;
       }
-      const { data } = await supabase.from("events").select("*").eq("id", id).single();
-      setEvent(data);
+      const { data } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+      setEvent(data || null);
+
+      if (!data) {
+        // Événement privé (ou introuvable) : si le lien contient une invitation, on montre un aperçu
+        if (inviteToken) {
+          try {
+            const res = await fetch("/api/event-attendees", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "invite-preview", eventId: id, token: inviteToken })
+            });
+            const json = await res.json();
+            if (res.ok) setInvitePreview(json.event);
+            else setInviteError(json.error || "Lien d'invitation invalide");
+          } catch {
+            setInviteError("Impossible de contacter le serveur");
+          }
+        }
+        setLoaded(true);
+        return;
+      }
+      setInvitePreview(null);
+      setLoaded(true);
 
       const { data: optionRows } = await supabase
         .from("event_options")
@@ -81,10 +113,66 @@ export default function EventDetail() {
         .order("created_at", { ascending: true });
       if (photoRows) setPhotos(photoRows);
     }
+    if (authLoading) return;
     load();
-  }, [id]);
+  }, [id, user?.id, authLoading, reloadKey]);
 
-  if (!event) return null;
+  // Connecté·e avec un lien d'invitation valide : on s'ajoute aux invités puis on recharge l'événement
+  useEffect(() => {
+    if (!user || !invitePreview || event) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/event-attendees", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          body: JSON.stringify({ action: "invite-accept", eventId: id, token: inviteToken })
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (res.ok) setReloadKey((k) => k + 1);
+        else setInviteError(json.error || "L'invitation n'a pas pu être acceptée");
+      } catch {
+        if (!cancelled) setInviteError("Impossible de contacter le serveur");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, invitePreview, event, id, inviteToken]);
+
+  if (!event) {
+    if (!loaded) return null;
+    if (invitePreview) {
+      return (
+        <InviteLanding
+          event={invitePreview}
+          category={getCategory(invitePreview.category)}
+          user={user}
+          error={inviteError}
+          onLogin={() => navigate(`/login?next=${encodeURIComponent(`/event/${id}?invite=${inviteToken}`)}`)}
+          onBack={() => navigate("/")}
+        />
+      );
+    }
+    return (
+      <div style={{ padding: "60px 24px", textAlign: "center" }}>
+        <p style={{ fontFamily: fonts.display, fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Événement introuvable</p>
+        <p style={{ fontSize: 13, color: colors.muted, lineHeight: 1.5, marginBottom: 20 }}>
+          {inviteError ||
+            (user
+              ? "Il a peut-être été supprimé, ou il est privé et tu n'y es pas invité·e."
+              : "Il est peut-être privé : connecte-toi avec le compte invité pour le voir.")}
+        </p>
+        <button
+          onClick={() => navigate(user ? "/" : `/login?next=${encodeURIComponent(`/event/${id}`)}`)}
+          style={{ background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: "12px 20px", fontWeight: 700, cursor: "pointer" }}
+        >
+          {user ? "Voir les événements" : "Se connecter"}
+        </button>
+      </div>
+    );
+  }
   const full = event.taken >= event.seats;
   // Événement réglé par un lien de paiement externe : l'app calcule le montant à payer
   // (entrée + suppléments cochés) pour que le participant sache quoi régler.
@@ -160,7 +248,7 @@ export default function EventDetail() {
     const result = await shareContent({
       title: event.title,
       text: `Rejoins-moi à "${event.title}" sur Spritz Connection !`,
-      url: `${window.location.origin}/event/${id}`
+      url: eventInviteUrl(id)
     });
     if (result === "copied") setShareMsg("Lien copié !");
     if (result === "failed") setShareMsg("Impossible de partager pour le moment.");
@@ -621,6 +709,8 @@ export default function EventDetail() {
           </>
         )}
 
+        {registered && <NotifyPrompt style={{ marginBottom: 16 }} />}
+
         <button
           onClick={() => navigate(`/event/${id}/chat`)}
           style={{
@@ -642,6 +732,10 @@ export default function EventDetail() {
         >
           <MessageCircle size={16} /> Discussion de l'événement
         </button>
+
+        {event.visibility !== "private" && new Date(event.event_date) > new Date() && (
+          <InviteButtons event={event} url={eventInviteUrl(id)} style={{ marginTop: -12, marginBottom: 26 }} />
+        )}
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
@@ -694,6 +788,89 @@ function Field({ icon, children }) {
   return (
     <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
       {icon} {children}
+    </div>
+  );
+}
+
+// Aperçu d'un événement privé pour une personne arrivée via un lien d'invitation (WhatsApp / SMS)
+function InviteLanding({ event, category, user, error, onLogin, onBack }) {
+  return (
+    <div style={{ paddingBottom: 40 }}>
+      <div style={{ padding: "18px 20px 0" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer", padding: 0 }}>
+          <ChevronLeft size={22} />
+        </button>
+      </div>
+      <div
+        style={{
+          margin: "10px 20px 18px",
+          borderRadius: 20,
+          background: "linear-gradient(155deg, rgba(242,118,46,0.28), rgba(240,180,41,0.22))",
+          padding: "26px 20px",
+          textAlign: "center"
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+          <CategoryIcon category={category} size={64} />
+        </div>
+        <span
+          style={{ display: "inline-block", fontSize: 11, fontWeight: 700, color: "#fff", background: colors.blue, borderRadius: 20, padding: "3px 11px", marginBottom: 10 }}
+        >
+          🔒 Tu es invité·e
+        </span>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0 }}>{event.title}</h1>
+      </div>
+
+      <div style={{ padding: "0 20px" }}>
+        {event.description && <p style={{ fontSize: 14, lineHeight: 1.6, color: colors.muted, marginBottom: 18 }}>{event.description}</p>}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            background: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20
+          }}
+        >
+          <Field icon={<Calendar size={15} color={colors.orange} />}>
+            {new Date(event.event_date).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}
+          </Field>
+          {event.organizer && <Field icon={<User size={15} color={colors.orange} />}>Organisateur — {event.organizer}</Field>}
+          {event.address && <Field icon={<MapPin size={15} color={colors.orange} />}>{event.address}</Field>}
+        </div>
+
+        {user ? (
+          <p style={{ textAlign: "center", fontSize: 13.5, color: error ? colors.red : colors.muted }}>
+            {error || "On t'ajoute à la liste des invités…"}
+          </p>
+        ) : (
+          <>
+            <button
+              onClick={onLogin}
+              style={{
+                width: "100%",
+                background: colors.orange,
+                color: "#fff",
+                border: "none",
+                borderRadius: 14,
+                padding: 14,
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
+              }}
+            >
+              Accepter l'invitation
+            </button>
+            <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
+              Il suffit de ton email : tu reçois un lien de connexion, et tu reviens directement ici pour t'inscrire.
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }

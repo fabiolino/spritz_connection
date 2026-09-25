@@ -6,6 +6,7 @@ import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import { NotificationSettings } from "../components/Notifications.jsx";
 
 const GENDERS = [
   { id: "femme", label: "Femme" },
@@ -266,6 +267,8 @@ export default function Account() {
       >
         {saving ? "Enregistrement…" : "Enregistrer"}
       </button>
+
+      <NotificationSettings />
 
       <button
         onClick={handleLogout}

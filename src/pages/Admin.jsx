@@ -4,6 +4,7 @@ import { ChevronLeft, Check, X, CalendarPlus, Clock, Star, Users, UserCheck, Ban
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import InviteButtons from "../components/InviteButtons.jsx";
+import AdminVenues from "../components/AdminVenues.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
@@ -931,6 +932,8 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      <AdminVenues adminSecret={adminSecret} />
 
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>

@@ -4,6 +4,7 @@
 // serverless du plan Hobby).
 
 import { createClient } from "@supabase/supabase-js";
+import { geocodeAddress } from "./_geocode.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -103,6 +104,60 @@ export default async function handler(req, res) {
         }
       }
       return res.status(200).json({ ok: true, changed: !!reg });
+    }
+
+    // --- Lieux partenaires : liste, ajout / modification, suppression ---
+    if (action === "venues-list") {
+      const { data, error } = await supabaseAdmin.from("venues").select("*").order("name", { ascending: true });
+      if (error) throw error;
+      return res.status(200).json({ venues: data || [] });
+    }
+
+    if (action === "venue-save") {
+      const v = req.body.venue || {};
+      const name = String(v.name || "").trim();
+      const address = String(v.address || "").trim();
+      if (!name || !address) return res.status(400).json({ error: "Le nom et l'adresse sont obligatoires" });
+      const clean = (x) => (x == null ? null : String(x).trim() || null);
+      const capacity = parseInt(v.capacity, 10);
+      const row = {
+        name,
+        address,
+        description: clean(v.description),
+        capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
+        contact_name: clean(v.contact_name),
+        contact_phone: clean(v.contact_phone),
+        contact_email: clean(v.contact_email),
+        payment_info: clean(v.payment_info)
+      };
+
+      // Géocodage seulement si l'adresse est nouvelle ou a changé
+      let previous = null;
+      if (v.id) {
+        const { data } = await supabaseAdmin.from("venues").select("address, latitude").eq("id", v.id).maybeSingle();
+        previous = data;
+        if (!previous) return res.status(404).json({ error: "Lieu introuvable" });
+      }
+      if (!previous || previous.address !== address || previous.latitude == null) {
+        Object.assign(row, await geocodeAddress(address));
+      }
+
+      const query = v.id
+        ? supabaseAdmin.from("venues").update(row).eq("id", v.id)
+        : supabaseAdmin.from("venues").insert(row);
+      const { data: saved, error } = await query.select("*").single();
+      if (error) throw error;
+      return res.status(200).json({ venue: saved, geocoded: saved.latitude != null });
+    }
+
+    if (action === "venue-delete") {
+      const { venueId } = req.body;
+      if (!venueId) return res.status(400).json({ error: "venueId manquant" });
+      // Les événements liés gardent leur adresse, ils perdent seulement le lien vers ce lieu
+      await supabaseAdmin.from("events").update({ venue_id: null }).eq("venue_id", venueId);
+      const { error } = await supabaseAdmin.from("venues").delete().eq("id", venueId);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
     }
 
     if (action === "venue-stats") {

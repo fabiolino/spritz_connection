@@ -68,6 +68,15 @@ export default function Admin() {
     loadAllEvents();
   }, []);
 
+  // Si l'événement a été choisi avant de valider le mot de passe, on charge les inscriptions
+  // dès que le mot de passe est validé (plus besoin de rechoisir l'événement)
+  useEffect(() => {
+    if (adminVerified === true && selectedEventId && eventTickets === null && !loadingTickets) {
+      loadGuests(selectedEventId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminVerified]);
+
   async function handleVerifyAdmin(e) {
     if (e) e.preventDefault();
     if (!adminSecret) {

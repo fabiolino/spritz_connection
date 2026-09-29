@@ -388,6 +388,25 @@ export default function Admin() {
     }
   }
 
+  async function cancelTicket(t) {
+    if (!window.confirm(`Annuler l'inscription de ${t.name}${(t.quantity || 1) > 1 ? ` (${t.quantity} personnes)` : ""} ? Les places seront libérées.`)) return;
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "cancel-registration", registrationId: t.id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTicketsError(data.error || "Annulation impossible");
+        return;
+      }
+      setEventTickets((prev) => prev.filter((x) => x.id !== t.id));
+    } catch (err) {
+      setTicketsError("Impossible de contacter le serveur");
+    }
+  }
+
   async function toggleTicketPaid(t) {
     try {
       const res = await fetch("/api/manage-guests", {
@@ -765,13 +784,19 @@ export default function Admin() {
                               whiteSpace: "nowrap"
                             }}
                           >
-                            {t.paid ? "✓ Payé" : "À vérifier — marquer payé"}
+                            {t.paid ? "✓ Payé" : "Réservé"}
                           </button>
                         ) : Number(t.amount) === 0 ? (
                           <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Inscrit (gratuit)</div>
                         ) : (
                           <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Payé en ligne</div>
                         )}
+                        <button
+                          onClick={() => cancelTicket(t)}
+                          style={{ display: "block", marginLeft: "auto", marginTop: 4, background: "none", border: "none", padding: 0, color: colors.red, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}
+                        >
+                          Annuler
+                        </button>
                       </div>
                     </div>
                   ))}

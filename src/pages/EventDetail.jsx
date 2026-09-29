@@ -35,6 +35,7 @@ export default function EventDetail() {
   const [registered, setRegistered] = useState(false);
   const [error, setError] = useState("");
   const [attendees, setAttendees] = useState([]);
+  const [attendeeTotal, setAttendeeTotal] = useState(0);
   const [shareMsg, setShareMsg] = useState("");
   const [photos, setPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -105,6 +106,7 @@ export default function EventDetail() {
       if (res.ok) {
         const json = await res.json();
         setAttendees(json.attendees || []);
+        setAttendeeTotal(json.total ?? (json.attendees || []).length);
       }
 
       const { data: photoRows } = await supabase
@@ -366,10 +368,10 @@ export default function EventDetail() {
           <Field icon={<Phone size={15} color={colors.orange} />}>{event.phone}</Field>
         </div>
 
-        {attendees.length > 0 && (
+        {attendeeTotal > 0 && (
           <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 12.5, color: colors.muted, marginBottom: 8 }}>
-              {attendees.length} participant{attendees.length > 1 ? "s" : ""}
+            <p style={{ fontSize: 13, fontWeight: 700, color: colors.ink, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <Users size={14} color={colors.orange} /> {attendeeTotal} participant{attendeeTotal > 1 ? "s" : ""}
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: -6 }}>
               {attendees.slice(0, 12).map((a, i) => (
@@ -395,7 +397,7 @@ export default function EventDetail() {
                   {!a.photo_url && a.name?.[0]?.toUpperCase()}
                 </div>
               ))}
-              {attendees.length > 12 && (
+              {attendeeTotal > 12 && (
                 <div
                   style={{
                     width: 36,
@@ -412,10 +414,19 @@ export default function EventDetail() {
                     color: colors.muted
                   }}
                 >
-                  +{attendees.length - 12}
+                  +{attendeeTotal - Math.min(12, attendees.length)}
                 </div>
               )}
             </div>
+            {attendees.length > 0 && (
+              <p style={{ fontSize: 12.5, color: colors.muted, margin: "8px 0 0", lineHeight: 1.5 }}>
+                {(() => {
+                  const shown = attendees.slice(0, 15).map((a) => a.name);
+                  const others = attendeeTotal - shown.length;
+                  return others > 0 ? `${shown.join(", ")} et ${others} autre${others > 1 ? "s" : ""}` : shown.join(", ");
+                })()}
+              </p>
+            )}
           </div>
         )}
 

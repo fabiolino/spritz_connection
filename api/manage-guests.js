@@ -100,11 +100,28 @@ export default async function handler(req, res) {
         .eq("id", registrationId)
         .eq("external", true)
         .eq("paid", !paid)
-        .select("id, event_id, quantity");
+        .select("id");
       if (updError) throw updError;
-      const reg = updated && updated[0];
-      if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, (paid ? 1 : -1) * (reg.quantity || 1));
-      return res.status(200).json({ ok: true, changed: !!reg });
+      // Les places d'une réservation par lien externe sont déjà comptées à la réservation :
+      // ce bouton ne sert plus qu'à noter le paiement, sans toucher au compteur.
+      return res.status(200).json({ ok: true, changed: !!(updated && updated[0]) });
+    }
+
+    // Annuler une inscription (désistement, doublon…) : libère ses places
+    if (action === "cancel-registration") {
+      const { registrationId } = req.body;
+      if (!registrationId) return res.status(400).json({ error: "registrationId manquant" });
+      const { data: reg } = await supabaseAdmin
+        .from("registrations")
+        .select("id, event_id, quantity, paid, external")
+        .eq("id", registrationId)
+        .maybeSingle();
+      if (!reg) return res.status(404).json({ error: "Inscription introuvable" });
+      await supabaseAdmin.from("registration_options").delete().eq("registration_id", reg.id);
+      const { error: delError } = await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
+      if (delError) throw delError;
+      if (reg.event_id && (reg.paid || reg.external)) await addTaken(supabaseAdmin, reg.event_id, -(reg.quantity || 1));
+      return res.status(200).json({ ok: true });
     }
 
     // --- Lieux partenaires : liste, ajout / modification, suppression ---

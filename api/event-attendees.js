@@ -155,35 +155,57 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Par défaut : liste des participants inscrits et payés (nom + photo uniquement)
+    // Par défaut : participants de l'événement.
+    // Comptés : paiements confirmés, inscriptions gratuites et réservations par lien externe
+    // (les paiements intégrés abandonnés ne comptent pas).
+    // Affichés : nom + photo pour les comptes ; prénom seulement pour les inscrits sans compte
+    // et leurs accompagnants (jamais le nom de famille, l'email ni le téléphone).
     const { data: regs, error } = await supabaseAdmin
       .from("registrations")
-      .select("user_id")
+      .select("user_id, guest_name, quantity, attendee_names, created_at")
       .eq("event_id", eventId)
-      .eq("paid", true)
-      .not("user_id", "is", null)
-      .limit(60);
+      .or("paid.eq.true,external.eq.true")
+      .order("created_at", { ascending: true })
+      .limit(300);
 
     if (error) throw error;
 
-    const userIds = [...new Set((regs || []).map((r) => r.user_id))];
-    if (userIds.length === 0) {
-      return res.status(200).json({ attendees: [] });
+    const total = (regs || []).reduce((sum, r) => sum + (r.quantity || 1), 0);
+    const userIds = [...new Set((regs || []).map((r) => r.user_id).filter(Boolean))];
+    let profilesById = {};
+    if (userIds.length > 0) {
+      const { data: profiles, error: profError } = await supabaseAdmin
+        .from("profiles")
+        .select("id, name, email, photo_url")
+        .in("id", userIds);
+      if (profError) throw profError;
+      (profiles || []).forEach((p) => (profilesById[p.id] = p));
     }
 
-    const { data: profiles, error: profError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, name, email, photo_url")
-      .in("id", userIds);
+    const firstName = (full) => {
+      const w = String(full || "").trim().split(/\s+/)[0] || "";
+      return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "";
+    };
 
-    if (profError) throw profError;
+    const attendees = [];
+    const seenUsers = new Set();
+    for (const r of regs || []) {
+      if (r.user_id) {
+        if (!seenUsers.has(r.user_id)) {
+          seenUsers.add(r.user_id);
+          const p = profilesById[r.user_id];
+          attendees.push({ name: p?.name || p?.email?.split("@")[0] || "Participant", photo_url: p?.photo_url || null });
+        }
+      } else if (r.guest_name) {
+        attendees.push({ name: firstName(r.guest_name), photo_url: null });
+      }
+      (r.attendee_names || []).forEach((n) => {
+        const f = firstName(n);
+        if (f) attendees.push({ name: f, photo_url: null });
+      });
+    }
 
-    const attendees = (profiles || []).map((p) => ({
-      name: p.name || p.email?.split("@")[0] || "Participant",
-      photo_url: p.photo_url || null
-    }));
-
-    return res.status(200).json({ attendees });
+    return res.status(200).json({ attendees: attendees.slice(0, 60), total });
   } catch (err) {
     console.error("Erreur event-attendees:", err);
     return res.status(500).json({ error: "Erreur serveur" });

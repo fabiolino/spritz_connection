@@ -243,6 +243,9 @@ async function handleExternalReservation(req, res) {
     return res.status(500).json({ error: "Erreur lors de la réservation" });
   }
   await insertOptions(supabaseAdmin, reg.id, chosenOptions);
+  // La place est comptée dès la réservation : l'app ne peut pas savoir quand le lien
+  // SumUp externe est payé. En cas de désistement, l'admin annule la réservation.
+  await addTaken(supabaseAdmin, eventId, quantity);
 
   return res.status(200).json({ registrationId: reg.id, amount });
 }

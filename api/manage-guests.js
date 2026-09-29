@@ -5,7 +5,15 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { geocodeAddress } from "./_geocode.js";
-import { addTaken } from "./_registration.js";
+import {
+  addTaken,
+  parseQuantity,
+  readAttendeeNames,
+  entryTotal,
+  insertRegistration,
+  roundCents,
+  ADVANCE_PRICE_FOR_ALL
+} from "./_registration.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -105,6 +113,38 @@ export default async function handler(req, res) {
       // Les places d'une réservation par lien externe sont déjà comptées à la réservation :
       // ce bouton ne sert plus qu'à noter le paiement, sans toucher au compteur.
       return res.status(200).json({ ok: true, changed: !!(updated && updated[0]) });
+    }
+
+    // Inscription ajoutée à la main par l'admin (réservation reçue par WhatsApp, téléphone…)
+    if (action === "add-registration") {
+      const { eventId: evId, guestName, attendeeNames, alreadyPaid } = req.body;
+      const name = String(guestName || "").trim().slice(0, 80);
+      if (!evId) return res.status(400).json({ error: "eventId manquant" });
+      if (!name) return res.status(400).json({ error: "Indique le nom de la personne" });
+      const quantity = parseQuantity(req.body.quantity);
+      const { data: ev } = await supabaseAdmin
+        .from("events")
+        .select("id, is_free, price_member, price_nonmember, seats, taken")
+        .eq("id", evId)
+        .maybeSingle();
+      if (!ev) return res.status(404).json({ error: "Événement introuvable" });
+      const amount = ev.is_free ? 0 : roundCents(entryTotal(ev, { isMember: false, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }));
+      const paid = ev.is_free || !!alreadyPaid;
+      const reg = await insertRegistration(supabaseAdmin, {
+        event_id: evId,
+        user_id: null,
+        guest_name: name,
+        quantity,
+        attendee_names: readAttendeeNames(attendeeNames, quantity),
+        option: "manuel",
+        amount,
+        paid,
+        paid_at: paid ? new Date().toISOString() : null,
+        external: !paid
+      });
+      await addTaken(supabaseAdmin, evId, quantity);
+      const left = ev.seats ? ev.seats - (ev.taken || 0) - quantity : null;
+      return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, overbooked: left != null && left < 0 });
     }
 
     // Annuler une inscription (désistement, doublon…) : libère ses places

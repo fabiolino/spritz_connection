@@ -8,6 +8,11 @@
 
 export const MAX_GROUP = 10;
 
+// Tant que l'association n'est pas créée : quiconque réserve à l'avance paie le « tarif membre » ;
+// le « tarif non-membre » correspond au prix sur place le jour J.
+// À passer à false (ici ET dans src/lib/pricing.js) une fois l'association créée.
+export const ADVANCE_PRICE_FOR_ALL = true;
+
 // Alphabet sans caractères ambigus (pas de 0/O, 1/I/L)
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 

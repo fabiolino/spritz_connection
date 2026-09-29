@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import InviteButtons from "../components/InviteButtons.jsx";
 import AdminVenues from "../components/AdminVenues.jsx";
+import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
@@ -61,7 +62,7 @@ export default function Admin() {
 
     async function loadAllEvents() {
       if (!import.meta.env.VITE_SUPABASE_URL) return;
-      const { data } = await supabase.from("events").select("id, title, event_date, visibility").order("event_date", { ascending: false }).limit(50);
+      const { data } = await supabase.from("events").select("id, title, event_date, visibility, is_free").order("event_date", { ascending: false }).limit(50);
       if (data) setAllEvents(data);
     }
     loadAllEvents();
@@ -225,6 +226,8 @@ export default function Admin() {
       setGuestsError("Renseigne le mot de passe administrateur d'abord");
       return;
     }
+    // Les inscriptions s'affichent directement dès qu'on choisit l'événement
+    loadTickets(eventId);
     if (!members) {
       await loadMembers();
     }
@@ -361,7 +364,9 @@ export default function Admin() {
     }
   }
 
-  async function loadTickets() {
+  async function loadTickets(eventIdOverride) {
+    const evId = typeof eventIdOverride === "string" ? eventIdOverride : selectedEventId;
+    if (!evId) return;
     if (!adminSecret) {
       setTicketsError("Renseigne le mot de passe administrateur d'abord");
       return;
@@ -372,7 +377,7 @@ export default function Admin() {
       const res = await fetch("/api/manage-guests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminSecret, action: "tickets", eventId: selectedEventId })
+        body: JSON.stringify({ adminSecret, action: "tickets", eventId: evId })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -591,7 +596,7 @@ export default function Admin() {
 
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
-          <UserCheck size={16} color={colors.orange} /> Invités, exclusions &amp; duplication
+          <UserCheck size={16} color={colors.orange} /> Gérer un événement : inscriptions, invités, duplication
         </h2>
         <select
           value={selectedEventId}
@@ -689,11 +694,16 @@ export default function Admin() {
             }}
           >
             <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <Ticket size={13} /> Billets &amp; réservations (contrôle à l'entrée)
+              <Ticket size={13} /> Inscriptions &amp; réservations (contrôle à l'entrée)
             </div>
+            <AdminAddRegistration
+              adminSecret={adminSecret}
+              event={allEvents.find((e) => e.id === selectedEventId) || { id: selectedEventId }}
+              onAdded={() => loadTickets(selectedEventId)}
+            />
             {eventTickets === null ? (
               <button
-                onClick={loadTickets}
+                onClick={() => loadTickets()}
                 disabled={loadingTickets}
                 style={{
                   width: "100%",
@@ -793,9 +803,22 @@ export default function Admin() {
                         )}
                         <button
                           onClick={() => cancelTicket(t)}
-                          style={{ display: "block", marginLeft: "auto", marginTop: 4, background: "none", border: "none", padding: 0, color: colors.red, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}
+                          style={{
+                            display: "block",
+                            marginLeft: "auto",
+                            marginTop: 5,
+                            background: "none",
+                            border: `1px solid ${colors.red}`,
+                            borderRadius: 20,
+                            padding: "3px 9px",
+                            color: colors.red,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap"
+                          }}
                         >
-                          Annuler
+                          ✕ Annuler
                         </button>
                       </div>
                     </div>

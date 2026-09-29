@@ -35,7 +35,8 @@ import {
   insertRegistration,
   insertOptions,
   addTaken,
-  roundCents
+  roundCents,
+  ADVANCE_PRICE_FOR_ALL
 } from "./_registration.js";
 
 const supabaseAdmin = createClient(
@@ -45,10 +46,7 @@ const supabaseAdmin = createClient(
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx et Register.jsx
 
-// Tant que l'association n'est pas créée : quiconque réserve à l'avance dans l'app paie
-// le « tarif membre » ; le « tarif non-membre » correspond au prix sur place le jour J.
-// À passer à false (ici ET dans src/lib/pricing.js) une fois l'association créée.
-const ADVANCE_PRICE_FOR_ALL = true;
+// ADVANCE_PRICE_FOR_ALL (tarif « réservation à l'avance » pour tous) : voir api/_registration.js
 
 async function getUserFromRequest(req) {
   const header = req.headers.authorization || "";

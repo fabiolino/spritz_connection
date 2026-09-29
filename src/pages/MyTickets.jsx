@@ -70,6 +70,7 @@ export default function MyTickets() {
               : "Adhésion"}
             {" · "}
             <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 700, color: colors.ink }}>{t.code}</span>
+            {(t.quantity || 1) > 1 && <span> · {t.quantity} pers.</span>}
             {!t.paid && t.external && <span style={{ color: "#9A6B00" }}> · réservé</span>}
           </div>
         </div>

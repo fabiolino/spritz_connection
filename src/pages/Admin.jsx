@@ -715,7 +715,12 @@ export default function Admin() {
                 {eventTickets
                   .filter((t) => {
                     const q = ticketSearch.trim().toLowerCase();
-                    return !q || (t.code || "").toLowerCase().includes(q) || (t.name || "").toLowerCase().includes(q);
+                    return (
+                      !q ||
+                      (t.code || "").toLowerCase().includes(q) ||
+                      (t.name || "").toLowerCase().includes(q) ||
+                      (t.attendeeNames || []).some((n) => n.toLowerCase().includes(q))
+                    );
                   })
                   .map((t) => (
                     <div
@@ -723,8 +728,23 @@ export default function Admin() {
                       style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "7px 0", borderTop: `1px solid ${colors.border}`, fontSize: 12.5 }}
                     >
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600 }}>{t.name}</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {t.name}
+                          {(t.quantity || 1) > 1 && (
+                            <span
+                              style={{ marginLeft: 6, background: colors.orange, color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 10.5, fontWeight: 800 }}
+                            >
+                              ×{t.quantity}
+                            </span>
+                          )}
+                        </div>
+                        {t.attendeeNames?.length > 0 && (
+                          <div style={{ color: colors.muted, fontSize: 11.5 }}>avec {t.attendeeNames.join(", ")}</div>
+                        )}
                         {t.options.length > 0 && <div style={{ color: colors.muted, fontSize: 11.5 }}>+ {t.options.join(", ")}</div>}
+                        {t.withoutAccount && t.contact && (
+                          <div style={{ color: colors.muted, fontSize: 11 }}>sans compte · {t.contact}</div>
+                        )}
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 800, letterSpacing: 1 }}>{t.code}</div>
@@ -747,6 +767,8 @@ export default function Admin() {
                           >
                             {t.paid ? "✓ Payé" : "À vérifier — marquer payé"}
                           </button>
+                        ) : Number(t.amount) === 0 ? (
+                          <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Inscrit (gratuit)</div>
                         ) : (
                           <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Payé en ligne</div>
                         )}
@@ -754,7 +776,9 @@ export default function Admin() {
                     </div>
                   ))}
                 <p style={{ fontSize: 11.5, color: colors.muted, margin: "8px 0 0" }}>
-                  {eventTickets.length} au total · {eventTickets.filter((t) => t.paid).length} payé(s)
+                  {eventTickets.length} réservation{eventTickets.length > 1 ? "s" : ""} ·{" "}
+                  {eventTickets.reduce((n, t) => n + (t.quantity || 1), 0)} personne(s) ·{" "}
+                  {eventTickets.filter((t) => t.paid).reduce((n, t) => n + (t.quantity || 1), 0)} confirmée(s)
                 </p>
               </>
             )}

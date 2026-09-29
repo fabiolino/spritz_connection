@@ -24,6 +24,19 @@
 // n'est jamais utilisé, pour qu'un billet « payé » corresponde vraiment au bon prix.
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  parseQuantity,
+  readGuest,
+  readAttendeeNames,
+  entryTotal,
+  loadChosenOptions,
+  optionsTotal,
+  seatsError,
+  insertRegistration,
+  insertOptions,
+  addTaken,
+  roundCents
+} from "./_registration.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -36,21 +49,6 @@ const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx et Register.js
 // le « tarif membre » ; le « tarif non-membre » correspond au prix sur place le jour J.
 // À passer à false (ici ET dans src/lib/pricing.js) une fois l'association créée.
 const ADVANCE_PRICE_FOR_ALL = true;
-
-// Alphabet sans caractères ambigus (pas de 0/O, 1/I/L)
-const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-function randomCode(length = 6) {
-  let code = "";
-  for (let i = 0; i < length; i++) {
-    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
-  }
-  return code;
-}
-
-function roundCents(n) {
-  return Math.round(Number(n) * 100) / 100;
-}
 
 async function getUserFromRequest(req) {
   const header = req.headers.authorization || "";
@@ -69,14 +67,9 @@ async function markPaid(registrationId) {
     .update({ paid: true, paid_at: new Date().toISOString() })
     .eq("id", registrationId)
     .eq("paid", false)
-    .select("id, event_id");
+    .select("id, event_id, quantity");
   const reg = updated && updated[0];
-  if (reg && reg.event_id) {
-    const { data: ev } = await supabaseAdmin.from("events").select("taken").eq("id", reg.event_id).single();
-    if (ev) {
-      await supabaseAdmin.from("events").update({ taken: (ev.taken || 0) + 1 }).eq("id", reg.event_id);
-    }
-  }
+  if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, reg.quantity || 1);
 }
 
 async function verifyWithSumup(checkoutId) {
@@ -97,7 +90,7 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, created_at, paid_at, external, guest_name")
+    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, created_at, paid_at, external, guest_name, quantity, attendee_names")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
@@ -118,7 +111,7 @@ async function handleTicket(req, res) {
 
   const { data: options } = await supabaseAdmin
     .from("registration_options")
-    .select("label, price")
+    .select("label, price, quantity")
     .eq("registration_id", reg.id);
 
   let event = null;
@@ -139,6 +132,8 @@ async function handleTicket(req, res) {
       code: reg.paid || reg.external ? reg.ticket_code : null,
       external: !!reg.external,
       guestName: reg.guest_name || null,
+      quantity: reg.quantity || 1,
+      attendeeNames: reg.attendee_names || [],
       createdAt: reg.created_at,
       option: reg.option,
       amount: reg.amount,
@@ -156,7 +151,7 @@ async function handleMyTickets(req, res) {
   }
   const { data: regs, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, option, amount, ticket_code, created_at, paid, external")
+    .select("id, event_id, option, amount, ticket_code, created_at, paid, external, quantity")
     .eq("user_id", user.id)
     .or("paid.eq.true,external.eq.true")
     .order("created_at", { ascending: false });
@@ -180,6 +175,7 @@ async function handleMyTickets(req, res) {
       external: !!r.external,
       option: r.option,
       amount: r.amount,
+      quantity: r.quantity || 1,
       event: r.event_id ? eventsById[r.event_id] || null : null
     }))
   });
@@ -187,22 +183,87 @@ async function handleMyTickets(req, res) {
 
 // ---------- Réservation pour un événement à lien de paiement externe ----------
 async function handleExternalReservation(req, res) {
-  const { eventId, selectedOptionIds, guestName } = req.body;
+  const { eventId } = req.body;
   if (!eventId) return res.status(400).json({ error: "eventId manquant" });
 
   const user = await getUserFromRequest(req);
-  const name = (guestName || "").trim().slice(0, 80);
-  if (!user && !name) {
-    return res.status(400).json({ error: "Indique ton prénom et ton nom pour la réservation." });
+  let guest = null;
+  if (!user) {
+    guest = readGuest(req.body);
+    if (guest.error) return res.status(400).json({ error: guest.error });
   }
+  const quantity = parseQuantity(req.body.quantity);
 
   const { data: event } = await supabaseAdmin
     .from("events")
-    .select("id, price_member, price_nonmember, sumup_link, approved, is_free")
+    .select("id, price_member, price_nonmember, sumup_link, approved, is_free, seats, taken")
     .eq("id", eventId)
     .maybeSingle();
   if (!event || !event.approved || !event.sumup_link) {
     return res.status(404).json({ error: "Événement introuvable" });
+  }
+  const full = seatsError(event, quantity);
+  if (full) return res.status(409).json({ error: full });
+
+  let isMember = false;
+  if (user) {
+    const { data: blocked } = await supabaseAdmin
+      .from("event_blocks")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("blocked_user_id", user.id)
+      .maybeSingle();
+    if (blocked) return res.status(403).json({ error: "Tu ne peux pas t'inscrire à cet événement." });
+    const { data: profile } = await supabaseAdmin.from("profiles").select("is_member").eq("id", user.id).maybeSingle();
+    isMember = !!profile?.is_member;
+  }
+
+  const chosenOptions = await loadChosenOptions(supabaseAdmin, eventId, req.body);
+  const amount = roundCents(
+    entryTotal(event, { isMember, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }) + optionsTotal(chosenOptions)
+  );
+
+  let reg;
+  try {
+    reg = await insertRegistration(supabaseAdmin, {
+      event_id: eventId,
+      user_id: user ? user.id : null,
+      guest_name: guest?.name || null,
+      guest_email: guest?.email || null,
+      guest_phone: guest?.phone || null,
+      quantity,
+      attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
+      option: "billet",
+      amount,
+      paid: false,
+      external: true
+    });
+  } catch (err) {
+    console.error("Erreur réservation externe:", err);
+    return res.status(500).json({ error: "Erreur lors de la réservation" });
+  }
+  await insertOptions(supabaseAdmin, reg.id, chosenOptions);
+
+  return res.status(200).json({ registrationId: reg.id, amount });
+}
+
+// ---------- Création du paiement ----------
+async function handleCheckout(req, res) {
+  const { eventId, option } = req.body;
+
+  if (!eventId || !option) {
+    return res.status(400).json({ error: "Paramètres manquants (eventId, option)" });
+  }
+
+  const isMembership = eventId === "membership";
+  const user = await getUserFromRequest(req);
+
+  // Sans compte : possible pour un événement (pas pour l'adhésion), avec nom + email
+  let guest = null;
+  if (!user) {
+    if (isMembership) return res.status(401).json({ error: "Connecte-toi pour adhérer en ligne" });
+    guest = readGuest(req.body, { requireEmail: true });
+    if (guest.error) return res.status(400).json({ error: guest.error });
   }
 
   let isMember = false;
@@ -211,76 +272,10 @@ async function handleExternalReservation(req, res) {
     isMember = !!profile?.is_member;
   }
 
-  let amount = Number(ADVANCE_PRICE_FOR_ALL || isMember ? event.price_member : event.price_nonmember) || 0;
-  let chosenOptions = [];
-  if (Array.isArray(selectedOptionIds) && selectedOptionIds.length > 0) {
-    const { data: opts } = await supabaseAdmin
-      .from("event_options")
-      .select("id, label, price")
-      .eq("event_id", eventId)
-      .in("id", selectedOptionIds);
-    chosenOptions = opts || [];
-    amount += chosenOptions.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-  }
-  amount = roundCents(amount);
-
-  let reg = null;
-  for (let attempt = 0; attempt < 5 && !reg; attempt++) {
-    const { data, error } = await supabaseAdmin
-      .from("registrations")
-      .insert({
-        event_id: eventId,
-        user_id: user ? user.id : null,
-        guest_name: name || null,
-        option: "billet",
-        amount,
-        paid: false,
-        external: true,
-        ticket_code: randomCode()
-      })
-      .select()
-      .single();
-    if (!error) reg = data;
-    else if (error.code !== "23505") {
-      console.error("Erreur réservation externe:", error);
-      return res.status(500).json({ error: "Erreur lors de la réservation" });
-    }
-  }
-  if (!reg) return res.status(500).json({ error: "Erreur lors de la réservation" });
-
-  if (chosenOptions.length > 0) {
-    await supabaseAdmin.from("registration_options").insert(
-      chosenOptions.map((o) => ({ registration_id: reg.id, label: o.label, price: Number(o.price) || 0 }))
-    );
-  }
-
-  return res.status(200).json({ registrationId: reg.id, amount });
-}
-
-// ---------- Création du paiement ----------
-async function handleCheckout(req, res) {
-  const { eventId, option, selectedOptionIds } = req.body;
-
-  if (!eventId || !option) {
-    return res.status(400).json({ error: "Paramètres manquants (eventId, option)" });
-  }
-
-  const user = await getUserFromRequest(req);
-  if (!user) {
-    return res.status(401).json({ error: "Connecte-toi pour payer en ligne" });
-  }
-
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("is_member")
-    .eq("id", user.id)
-    .maybeSingle();
-  const isMember = !!profile?.is_member;
-
+  const quantity = isMembership ? 1 : parseQuantity(req.body.quantity);
   let amount = 0;
   let chosenOptions = [];
   let description = "Spritz Connection — adhésion";
-  const isMembership = eventId === "membership";
 
   if (isMembership) {
     amount = MEMBERSHIP_PRICE;
@@ -296,36 +291,28 @@ async function handleCheckout(req, res) {
     if (event.sumup_link) {
       return res.status(400).json({ error: "Cet événement se règle via son propre lien de paiement." });
     }
-    if (event.seats && event.taken >= event.seats) {
-      return res.status(409).json({ error: "Désolé, l'événement est complet." });
-    }
+    const full = seatsError(event, quantity);
+    if (full) return res.status(409).json({ error: full });
 
-    const { data: blocked } = await supabaseAdmin
-      .from("event_blocks")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("blocked_user_id", user.id)
-      .maybeSingle();
-    if (blocked) {
-      return res.status(403).json({ error: "Tu ne peux pas t'inscrire à cet événement." });
-    }
-
-    amount = Number(ADVANCE_PRICE_FOR_ALL || isMember ? event.price_member : event.price_nonmember) || 0;
-
-    if (Array.isArray(selectedOptionIds) && selectedOptionIds.length > 0) {
-      const { data: opts } = await supabaseAdmin
-        .from("event_options")
-        .select("id, label, price")
+    if (user) {
+      const { data: blocked } = await supabaseAdmin
+        .from("event_blocks")
+        .select("id")
         .eq("event_id", eventId)
-        .in("id", selectedOptionIds);
-      chosenOptions = opts || [];
-      amount += chosenOptions.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+        .eq("blocked_user_id", user.id)
+        .maybeSingle();
+      if (blocked) {
+        return res.status(403).json({ error: "Tu ne peux pas t'inscrire à cet événement." });
+      }
     }
 
-    if (option === "both" && !isMember && !ADVANCE_PRICE_FOR_ALL) {
+    chosenOptions = await loadChosenOptions(supabaseAdmin, eventId, req.body);
+    amount = entryTotal(event, { isMember, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }) + optionsTotal(chosenOptions);
+
+    if (option === "both" && user && !isMember && !ADVANCE_PRICE_FOR_ALL) {
       amount += MEMBERSHIP_PRICE;
     }
-    description = `Spritz Connection — ${event.title}`;
+    description = `Spritz Connection — ${event.title}${quantity > 1 ? ` (${quantity} pers.)` : ""}`;
   }
 
   amount = roundCents(amount);
@@ -335,41 +322,28 @@ async function handleCheckout(req, res) {
 
   // 1. On crée l'inscription d'abord (non payée), pour connaître son identifiant
   //    et y renvoyer le participant après le paiement.
-  let reg = null;
-  for (let attempt = 0; attempt < 5 && !reg; attempt++) {
-    const { data, error } = await supabaseAdmin
-      .from("registrations")
-      .insert({
-        event_id: isMembership ? null : eventId,
-        user_id: user.id,
-        option,
-        amount,
-        paid: false,
-        ticket_code: randomCode()
-      })
-      .select()
-      .single();
-    if (!error) reg = data;
-    else if (error.code !== "23505") {
-      console.error("Erreur insertion registration:", error);
-      return res.status(500).json({ error: "Erreur lors de l'inscription" });
-    }
-  }
-  if (!reg) {
+  let reg;
+  try {
+    reg = await insertRegistration(supabaseAdmin, {
+      event_id: isMembership ? null : eventId,
+      user_id: user ? user.id : null,
+      guest_name: guest?.name || null,
+      guest_email: guest?.email || null,
+      guest_phone: guest?.phone || null,
+      quantity,
+      attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
+      option,
+      amount,
+      paid: false
+    });
+  } catch (err) {
+    console.error("Erreur insertion registration:", err);
     return res.status(500).json({ error: "Erreur lors de l'inscription" });
   }
-
-  if (chosenOptions.length > 0) {
-    const optionRows = chosenOptions.map((o) => ({
-      registration_id: reg.id,
-      label: o.label,
-      price: Number(o.price) || 0
-    }));
-    const { error: optionsError } = await supabaseAdmin.from("registration_options").insert(optionRows);
-    if (optionsError) console.error("Erreur insertion registration_options:", optionsError);
-  }
+  await insertOptions(supabaseAdmin, reg.id, chosenOptions);
 
   // 2. Création du paiement SumUp
+  const customerEmail = user?.email || guest?.email;
   const response = await fetch("https://api.sumup.com/v0.1/checkouts", {
     method: "POST",
     headers: {
@@ -385,7 +359,7 @@ async function handleCheckout(req, res) {
       redirect_url: `${process.env.PUBLIC_APP_URL}/ticket/${reg.id}`,
       return_url: `${process.env.PUBLIC_APP_URL}/api/sumup-webhook`,
       hosted_checkout: { enabled: true },
-      ...(user.email ? { customer_id: user.email } : {})
+      ...(customerEmail ? { customer_id: customerEmail } : {})
     })
   });
 

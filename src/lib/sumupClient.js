@@ -10,11 +10,12 @@ export async function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function startCheckout({ eventId, option, selectedOptionIds }) {
+// extra : { quantity, attendeeNames, optionQuantities, guestName, guestEmail, guestPhone }
+export async function startCheckout({ eventId, option, selectedOptionIds, ...extra }) {
   const res = await fetch("/api/create-sumup-checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ eventId, option, selectedOptionIds: selectedOptionIds || [] })
+    body: JSON.stringify({ eventId, option, selectedOptionIds: selectedOptionIds || [], ...extra })
   });
 
   if (!res.ok) {

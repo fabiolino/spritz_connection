@@ -3,6 +3,7 @@
 //   https://spritz-connection.vercel.app/api/sumup-webhook
 
 import { createClient } from "@supabase/supabase-js";
+import { addTaken } from "./_registration.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -39,15 +40,11 @@ export default async function handler(req, res) {
         .update({ paid: true, paid_at: new Date().toISOString() })
         .eq("sumup_checkout_id", checkoutId)
         .eq("paid", false)
-        .select("id, event_id");
+        .select("id, event_id, quantity");
       const reg = updated && updated[0];
 
-      if (reg && reg.event_id) {
-        const { data: ev } = await supabaseAdmin.from("events").select("taken").eq("id", reg.event_id).single();
-        if (ev) {
-          await supabaseAdmin.from("events").update({ taken: (ev.taken || 0) + 1 }).eq("id", reg.event_id);
-        }
-      }
+      // Une inscription de groupe occupe autant de places que de personnes
+      if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, reg.quantity || 1);
     }
 
     return res.status(200).json({ received: true, status: checkout.status });

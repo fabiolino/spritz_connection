@@ -13,3 +13,15 @@ export function onlineEntryPrice(event, isMember) {
   const useMemberPrice = ADVANCE_PRICE_FOR_ALL || isMember;
   return Number(useMemberPrice ? event.price_member : event.price_nonmember) || 0;
 }
+
+// Prix des entrées pour un groupe (même règle que api/_registration.js) :
+// un membre paie le tarif membre pour lui-même, ses accompagnants le tarif non-membre.
+export function groupEntryPrice(event, isMember, quantity) {
+  if (!event) return 0;
+  const member = Number(event.price_member) || 0;
+  const nonMember = Number(event.price_nonmember) || 0;
+  const q = Math.max(1, quantity || 1);
+  if (ADVANCE_PRICE_FOR_ALL) return member * q;
+  if (isMember) return member + nonMember * (q - 1);
+  return nonMember * q;
+}

@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { geocodeAddress } from "./_geocode.js";
+import { addTaken } from "./_registration.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ error: "eventId manquant" });
       const { data: regs, error: regsError } = await supabaseAdmin
         .from("registrations")
-        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name")
+        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names")
         .eq("event_id", eventId)
         .or("paid.eq.true,external.eq.true")
         .order("created_at", { ascending: true });
@@ -57,10 +58,12 @@ export default async function handler(req, res) {
       if (regIds.length > 0) {
         const { data: opts } = await supabaseAdmin
           .from("registration_options")
-          .select("registration_id, label")
+          .select("registration_id, label, quantity")
           .in("registration_id", regIds);
         (opts || []).forEach((o) => {
-          (optionsByReg[o.registration_id] = optionsByReg[o.registration_id] || []).push(o.label);
+          (optionsByReg[o.registration_id] = optionsByReg[o.registration_id] || []).push(
+            (o.quantity || 1) > 1 ? `${o.quantity} × ${o.label}` : o.label
+          );
         });
       }
       let profilesById = {};
@@ -77,6 +80,10 @@ export default async function handler(req, res) {
           paid: !!r.paid,
           external: !!r.external,
           name: profilesById[r.user_id]?.name || profilesById[r.user_id]?.email || r.guest_name || "—",
+          quantity: r.quantity || 1,
+          attendeeNames: r.attendee_names || [],
+          contact: r.user_id ? profilesById[r.user_id]?.email || null : [r.guest_email, r.guest_phone].filter(Boolean).join(" · ") || null,
+          withoutAccount: !r.user_id,
           options: optionsByReg[r.id] || []
         }))
       });
@@ -93,16 +100,10 @@ export default async function handler(req, res) {
         .eq("id", registrationId)
         .eq("external", true)
         .eq("paid", !paid)
-        .select("id, event_id");
+        .select("id, event_id, quantity");
       if (updError) throw updError;
       const reg = updated && updated[0];
-      if (reg && reg.event_id) {
-        const { data: ev } = await supabaseAdmin.from("events").select("taken").eq("id", reg.event_id).single();
-        if (ev) {
-          const taken = Math.max(0, (ev.taken || 0) + (paid ? 1 : -1));
-          await supabaseAdmin.from("events").update({ taken }).eq("id", reg.event_id);
-        }
-      }
+      if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, (paid ? 1 : -1) * (reg.quantity || 1));
       return res.status(200).json({ ok: true, changed: !!reg });
     }
 
@@ -175,7 +176,7 @@ export default async function handler(req, res) {
       if (eventIds.length > 0) {
         const { data: regs, error: regsError } = await supabaseAdmin
           .from("registrations")
-          .select("event_id")
+          .select("event_id, quantity")
           .in("event_id", eventIds);
         if (regsError) throw regsError;
         registrations = regs;
@@ -183,7 +184,10 @@ export default async function handler(req, res) {
 
       const stats = venues.map((v) => {
         const venueEventIds = events.filter((e) => e.venue_id === v.id).map((e) => e.id);
-        const registrationsCount = registrations.filter((r) => venueEventIds.includes(r.event_id)).length;
+        // Compte des personnes (une inscription de groupe compte pour chacun de ses membres)
+        const registrationsCount = registrations
+          .filter((r) => venueEventIds.includes(r.event_id))
+          .reduce((sum, r) => sum + (r.quantity || 1), 0);
         return { id: v.id, name: v.name, eventsCount: venueEventIds.length, registrationsCount };
       });
 

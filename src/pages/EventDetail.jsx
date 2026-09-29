@@ -8,7 +8,8 @@ import { CategoryIcon } from "../lib/eventIcons";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
-import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice } from "../lib/pricing";
+import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice, groupEntryPrice } from "../lib/pricing";
+import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../components/GroupForm.jsx";
 import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
 import { NotifyPrompt } from "../components/Notifications.jsx";
@@ -39,8 +40,8 @@ export default function EventDetail() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [eventOptions, setEventOptions] = useState([]);
-  const [selectedExtraIds, setSelectedExtraIds] = useState([]);
-  const [guestName, setGuestName] = useState("");
+  const [optionQty, setOptionQty] = useState({});
+  const [group, setGroup] = useState(emptyGroup());
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState("");
 
@@ -179,15 +180,19 @@ export default function EventDetail() {
   const externalPay = !!event.sumup_link && !event.is_free;
   const isMember = !!profile?.is_member;
   const entryPrice = onlineEntryPrice(event, isMember);
+  const groupEntry = groupEntryPrice(event, isMember, group.quantity);
   const onsitePrice = Number(event.price_nonmember) || 0;
+  const seatsLeft = event.seats > 0 ? Math.max(0, event.seats - (event.taken || 0)) : null;
   const checkableExtras = eventOptions.filter((o) => !o.payment_link);
-  const extrasTotal = checkableExtras
-    .filter((o) => selectedExtraIds.includes(o.id))
-    .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-  const externalTotal = Math.round((entryPrice + extrasTotal) * 100) / 100;
+  const chosenExtras = checkableExtras.filter((o) => (optionQty[o.id] || 0) > 0);
+  const extrasTotal = chosenExtras.reduce((sum, o) => sum + (Number(o.price) || 0) * optionQty[o.id], 0);
+  const externalTotal = Math.round((groupEntry + extrasTotal) * 100) / 100;
+  const loginToRegister = () => navigate(`/login?next=${encodeURIComponent(`/event/${id}`)}`);
+
   async function handleExternalReservation() {
-    if (!user && !guestName.trim()) {
-      setReserveError("Indique ton prénom et ton nom pour la réservation.");
+    const check = groupError(group, user);
+    if (check) {
+      setReserveError(check);
       return;
     }
     setReserving(true);
@@ -199,8 +204,8 @@ export default function EventDetail() {
         body: JSON.stringify({
           action: "external-reservation",
           eventId: id,
-          selectedOptionIds: selectedExtraIds,
-          guestName: guestName.trim()
+          optionQuantities: Object.fromEntries(chosenExtras.map((o) => [o.id, optionQty[o.id]])),
+          ...groupPayload(group, user)
         })
       });
       const data = await res.json();
@@ -216,19 +221,21 @@ export default function EventDetail() {
     }
   }
 
-  function toggleExtra(optId) {
-    setSelectedExtraIds((prev) => (prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId]));
-  }
   const cat = getCategory(event.category);
 
   async function handleFreeRegister() {
+    const check = groupError(group, user);
+    if (check) {
+      setError(check);
+      return;
+    }
     setRegistering(true);
     setError("");
     try {
       const res = await fetch("/api/register-free", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: id, userId: user?.id || null })
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ eventId: id, ...groupPayload(group, user) })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -236,8 +243,13 @@ export default function EventDetail() {
         setRegistering(false);
         return;
       }
+      // Page de confirmation avec le code à montrer à l'entrée (valable pour tout le groupe)
+      if (data.registrationId) {
+        navigate(`/ticket/${data.registrationId}`);
+        return;
+      }
       setRegistered(true);
-      setEvent((e) => ({ ...e, taken: e.taken + 1 }));
+      setEvent((e) => ({ ...e, taken: e.taken + (data.quantity || 1) }));
     } catch (err) {
       setError("Impossible de contacter le serveur");
       setRegistering(false);
@@ -407,6 +419,17 @@ export default function EventDetail() {
           </div>
         )}
 
+        {!full && (externalPay || (event.is_free && !registered)) && (
+          <GroupForm
+            group={group}
+            onChange={setGroup}
+            user={user}
+            seatsLeft={seatsLeft}
+            unitLabel={externalPay ? "un seul paiement" : "un seul billet"}
+            onLogin={loginToRegister}
+          />
+        )}
+
         {eventOptions.length > 0 && (
           <div
             style={{
@@ -422,19 +445,17 @@ export default function EventDetail() {
             </div>
             <p style={{ fontSize: 11.5, color: colors.muted, margin: "0 0 10px", lineHeight: 1.4 }}>
               {event.sumup_link
-                ? "Coche-les pour les ajouter à ton paiement et profiter du prix réduit (prix barré = prix sur place)."
+                ? `Ajoute-les à ton paiement${group.quantity > 1 ? " (pour tout le groupe)" : ""} et profite du prix réduit (prix barré = prix sur place).`
                 : "À ajouter lors de l'inscription pour profiter du prix réduit (prix barré = prix sur place)."}
             </p>
             {eventOptions.map((o) => {
               const promo = Number(o.onsite_price) > Number(o.price);
               const checkable = externalPay && !o.payment_link;
-              const checked = selectedExtraIds.includes(o.id);
+              const qty = optionQty[o.id] || 0;
               return (
                 <div
                   key={o.id}
-                  onClick={checkable ? () => toggleExtra(o.id) : undefined}
                   style={{
-                    cursor: checkable ? "pointer" : "default",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -443,11 +464,6 @@ export default function EventDetail() {
                     borderTop: `1px solid ${colors.border}`
                   }}
                 >
-                  {checkable && (
-                    <div style={{ flexShrink: 0, color: checked ? colors.orange : colors.muted, display: "flex" }}>
-                      {checked ? <CheckSquare size={20} /> : <Square size={20} />}
-                    </div>
-                  )}
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
                     <div style={{ fontSize: 13.5, marginTop: 2 }}>
@@ -474,6 +490,15 @@ export default function EventDetail() {
                       )}
                     </div>
                   </div>
+                  {checkable && (
+                    <Stepper
+                      value={qty}
+                      min={0}
+                      max={Math.max(20, group.quantity * 3)}
+                      onChange={(n) => setOptionQty((p) => ({ ...p, [o.id]: n }))}
+                      label={o.label}
+                    />
+                  )}
                   {event.sumup_link && o.payment_link && (
                     <a
                       href={o.payment_link}
@@ -516,24 +541,27 @@ export default function EventDetail() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
               <span>
-                Entrée{" "}
+                {group.quantity > 1 ? `${group.quantity} entrées` : "Entrée"}{" "}
                 {ADVANCE_PRICE_FOR_ALL ? "(réservation à l'avance)" : isMember ? "(tarif membre)" : "(tarif non-membre)"}
               </span>
               <span>
                 {ADVANCE_PRICE_FOR_ALL && onsitePrice > entryPrice && (
-                  <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>{formatEuro(onsitePrice)}</span>
+                  <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>
+                    {formatEuro(onsitePrice * group.quantity)}
+                  </span>
                 )}
-                {formatEuro(entryPrice)}
+                {formatEuro(groupEntry)}
               </span>
             </div>
-            {checkableExtras
-              .filter((o) => selectedExtraIds.includes(o.id))
-              .map((o) => (
-                <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-                  <span>+ {o.label}</span>
-                  <span>{formatEuro(o.price)}</span>
-                </div>
-              ))}
+            {chosenExtras.map((o) => (
+              <div key={o.id} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>
+                  + {optionQty[o.id] > 1 ? `${optionQty[o.id]} × ` : ""}
+                  {o.label}
+                </span>
+                <span>{formatEuro(Number(o.price) * optionQty[o.id])}</span>
+              </div>
+            ))}
             <div
               style={{
                 display: "flex",
@@ -550,7 +578,7 @@ export default function EventDetail() {
             </div>
             {ADVANCE_PRICE_FOR_ALL && onsitePrice > entryPrice && (
               <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 6 }}>
-                Entrée à {formatEuro(onsitePrice)} si tu paies sur place le jour J.
+                Entrée à {formatEuro(onsitePrice)} par personne si tu paies sur place le jour J.
               </div>
             )}
             {!ADVANCE_PRICE_FOR_ALL && !isMember && Number(event.price_member) < Number(event.price_nonmember) && (
@@ -563,27 +591,9 @@ export default function EventDetail() {
 
         {externalPay ? (
           <div style={{ marginBottom: 16 }}>
-            {!user && (
-              <input
-                placeholder="Ton prénom et ton nom"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  background: colors.surface,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 12,
-                  padding: "11px 12px",
-                  fontSize: 14,
-                  color: colors.ink,
-                  marginBottom: 10
-                }}
-              />
-            )}
             <button
               onClick={handleExternalReservation}
-              disabled={reserving}
+              disabled={reserving || full}
               style={{
                 width: "100%",
                 background: colors.orange,
@@ -601,10 +611,16 @@ export default function EventDetail() {
                 gap: 8
               }}
             >
-              <Check size={15} /> {reserving ? "Réservation…" : `Réserver et payer ${formatEuro(externalTotal)}`}
+              <Check size={15} />{" "}
+              {full
+                ? "Complet"
+                : reserving
+                ? "Réservation…"
+                : `Réserver${group.quantity > 1 ? ` pour ${group.quantity}` : ""} et payer ${formatEuro(externalTotal)}`}
             </button>
             <p style={{ fontSize: 11.5, color: colors.muted, textAlign: "center", margin: "8px 0 0", lineHeight: 1.4 }}>
-              Tu reçois ta confirmation avec ton code de réservation, puis tu règles via SumUp.
+              Tu reçois ta confirmation avec {group.quantity > 1 ? "un seul code pour tout le groupe" : "ton code de réservation"}, puis tu règles
+              {group.quantity > 1 ? " le total en une fois" : ""} via SumUp.
             </p>
             {reserveError && <p style={{ color: colors.red, fontSize: 12.5, marginTop: 6 }}>{reserveError}</p>}
           </div>
@@ -673,7 +689,13 @@ export default function EventDetail() {
                   boxShadow: full ? "none" : "0 4px 12px rgba(107,124,79,0.28)"
                 }}
               >
-                {full ? "Complet" : registering ? "Inscription…" : "Je m'inscris — gratuit"}
+                {full
+                  ? "Complet"
+                  : registering
+                  ? "Inscription…"
+                  : group.quantity > 1
+                  ? `Inscrire ${group.quantity} personnes — gratuit`
+                  : "Je m'inscris — gratuit"}
               </button>
               {error && <p style={{ color: colors.red, fontSize: 12, textAlign: "center", marginBottom: 10 }}>{error}</p>}
             </>

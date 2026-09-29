@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 
@@ -54,6 +54,9 @@ export default function Ticket() {
   }, [id]);
 
   const isMembership = ticket && !ticket.event;
+  const isFree = ticket && !isMembership && Number(ticket.amount) === 0;
+  const quantity = ticket?.quantity || 1;
+  const optionLine = (o) => Number(o.price || 0) * (o.quantity || 1);
 
   return (
     <div style={{ padding: "0 20px 40px" }}>
@@ -112,7 +115,9 @@ export default function Ticket() {
                 ? "Ton adhésion est bien payée. Ton statut membre sera activé très vite — bienvenue dans la famille Spritz Connection !"
                 : ticket.external && !ticket.paid
                 ? `Ta réservation est enregistrée ! Il ne reste plus qu'à régler ${formatEuro(ticket.amount)} via SumUp. Montre ensuite cette confirmation à l'entrée.`
-                : "Ton paiement est confirmé. Montre ce billet à l'entrée, on a hâte de te voir !"}
+                : isFree
+                ? `Ton inscription${quantity > 1 ? ` pour ${quantity} personnes` : ""} est confirmée. Montre ce code à l'entrée, on a hâte de vous voir !`
+                : `Ton paiement est confirmé${quantity > 1 ? ` pour ${quantity} personnes` : ""}. Montre ce billet à l'entrée, on a hâte de ${quantity > 1 ? "vous" : "te"} voir !`}
             </p>
           </div>
 
@@ -181,6 +186,17 @@ export default function Ticket() {
                     <User size={14} color={colors.orange} /> {ticket.guestName}
                   </div>
                 )}
+                {quantity > 1 && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 6 }}>
+                    <Users size={14} color={colors.orange} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <span>
+                      <strong>Billet pour {quantity} personnes</strong>
+                      {ticket.attendeeNames?.length > 0 && (
+                        <span style={{ color: colors.muted }}> — avec {ticket.attendeeNames.join(", ")}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -193,7 +209,23 @@ export default function Ticket() {
               <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 38, fontWeight: 800, letterSpacing: 6, color: colors.ink, margin: "4px 0" }}>
                 {ticket.code}
               </div>
-              {ticket.paid ? (
+              {isFree ? (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    background: "rgba(107,124,79,0.15)",
+                    color: colors.olive,
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    borderRadius: 20,
+                    padding: "4px 12px"
+                  }}
+                >
+                  <CheckCircle2 size={13} /> Inscrit{quantity > 1 ? `s · ${quantity} personnes` : ""}
+                </div>
+              ) : ticket.paid ? (
                 <div
                   style={{
                     display: "inline-flex",
@@ -228,19 +260,26 @@ export default function Ticket() {
               )}
             </div>
 
+            {!isFree && (
             <div style={{ padding: "12px 18px 16px", fontSize: 13 }}>
               {!isMembership && (
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
-                  <span>Entrée{ticket.option === "both" ? " + adhésion" : ""}</span>
+                  <span>
+                    {quantity > 1 ? `${quantity} entrées` : "Entrée"}
+                    {ticket.option === "both" ? " + adhésion" : ""}
+                  </span>
                   <span style={{ color: colors.muted }}>
-                    {formatEuro(Number(ticket.amount) - ticket.options.reduce((s, o) => s + Number(o.price || 0), 0))}
+                    {formatEuro(Number(ticket.amount) - ticket.options.reduce((s, o) => s + optionLine(o), 0))}
                   </span>
                 </div>
               )}
               {ticket.options.map((o, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
-                  <span>+ {o.label}</span>
-                  <span style={{ color: colors.muted }}>{formatEuro(o.price)}</span>
+                  <span>
+                    + {(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}
+                    {o.label}
+                  </span>
+                  <span style={{ color: colors.muted }}>{formatEuro(optionLine(o))}</span>
                 </div>
               ))}
               <div
@@ -257,6 +296,7 @@ export default function Ticket() {
                 <span>{formatEuro(ticket.amount)}</span>
               </div>
             </div>
+            )}
           </div>
 
           <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>

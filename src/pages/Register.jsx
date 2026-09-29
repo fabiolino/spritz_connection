@@ -5,7 +5,8 @@ import { supabase } from "../lib/supabaseClient";
 import { startCheckout } from "../lib/sumupClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice } from "../lib/pricing";
+import { ADVANCE_PRICE_FOR_ALL, groupEntryPrice } from "../lib/pricing";
+import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../components/GroupForm.jsx";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
 
@@ -20,7 +21,8 @@ export default function Register() {
   const { user, profile, loading: authLoading } = useAuth();
   const [event, setEvent] = useState(null);
   const [eventOptions, setEventOptions] = useState([]);
-  const [selectedOptionIds, setSelectedOptionIds] = useState([]);
+  const [optionQty, setOptionQty] = useState({});
+  const [group, setGroup] = useState(emptyGroup());
   const [addMembership, setAddMembership] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,12 +30,12 @@ export default function Register() {
   useEffect(() => {
     async function load() {
       if (!import.meta.env.VITE_SUPABASE_URL) {
-        setEvent({ price_member: 8, price_nonmember: 12 });
+        setEvent({ price_member: 8, price_nonmember: 12, seats: 40, taken: 27 });
         return;
       }
       const { data } = await supabase
         .from("events")
-        .select("price_member, price_nonmember")
+        .select("price_member, price_nonmember, seats, taken")
         .eq("id", id)
         .single();
       setEvent(data);
@@ -50,48 +52,30 @@ export default function Register() {
 
   if (authLoading || !event) return null;
 
-  if (!user) {
-    return (
-      <div style={{ padding: "0 20px 40px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
-          <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
-            <ChevronLeft size={22} />
-          </button>
-          <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Inscription</h1>
-        </div>
-        <p style={{ fontSize: 13, color: colors.muted, marginBottom: 16, lineHeight: 1.5 }}>
-          Connecte-toi pour t'inscrire et payer en ligne — tu recevras ton billet dans l'app.
-        </p>
-        <button
-          onClick={() => navigate("/login")}
-          style={{ width: "100%", background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: "0 4px 12px rgba(232,95,38,0.3)" }}
-        >
-          Se connecter
-        </button>
-      </div>
-    );
-  }
-
   const isMember = !!profile?.is_member;
-  const ticketPrice = onlineEntryPrice(event, isMember);
+  const seatsLeft = event.seats > 0 ? Math.max(0, event.seats - (event.taken || 0)) : null;
+  const entryTotal = groupEntryPrice(event, isMember, group.quantity);
 
-  function toggleOption(optId) {
-    setSelectedOptionIds((prev) => (prev.includes(optId) ? prev.filter((x) => x !== optId) : [...prev, optId]));
-  }
-
-  const chosenOptions = eventOptions.filter((o) => selectedOptionIds.includes(o.id));
-  const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price), 0);
-  const total = Math.round((Number(ticketPrice) + optionsTotal + (addMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
-  const option = addMembership ? "both" : "billet";
+  const chosenOptions = eventOptions.filter((o) => (optionQty[o.id] || 0) > 0);
+  const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price) * optionQty[o.id], 0);
+  const withMembership = addMembership && !!user;
+  const total = Math.round((entryTotal + optionsTotal + (withMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
+  const option = withMembership ? "both" : "billet";
 
   async function handlePay() {
+    const check = groupError(group, user, { requireEmail: true });
+    if (check) {
+      setError(check);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       await startCheckout({
         eventId: id,
         option,
-        selectedOptionIds: chosenOptions.map((o) => o.id)
+        optionQuantities: Object.fromEntries(chosenOptions.map((o) => [o.id, optionQty[o.id]])),
+        ...groupPayload(group, user)
       });
     } catch (err) {
       setError(err.message || "Le paiement n'a pas pu démarrer.");
@@ -128,7 +112,7 @@ export default function Register() {
               {Number(event.price_nonmember) > Number(event.price_member) && (
                 <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 4 }}>{formatEuro(event.price_nonmember)}</span>
               )}
-              <strong>{formatEuro(event.price_member)}</strong>
+              <strong>{formatEuro(event.price_member)}</strong> par personne
             </>
           ) : isMember ? (
             <>Tarif membre appliqué — <strong>{event.price_member} €</strong></>
@@ -138,43 +122,59 @@ export default function Register() {
         </div>
       </div>
 
+      <GroupForm
+        group={group}
+        onChange={setGroup}
+        user={user}
+        seatsLeft={seatsLeft}
+        requireEmail
+        unitLabel="un seul paiement"
+        onLogin={() => navigate(`/login?next=${encodeURIComponent(`/event/${id}/register`)}`)}
+      />
+
       {eventOptions.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Options en supplément</div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Options en supplément</div>
+          <div style={{ fontSize: 11.5, color: colors.muted, marginBottom: 8 }}>
+            Choisis combien en prendre{group.quantity > 1 ? " pour tout le groupe" : ""}.
+          </div>
           {eventOptions.map((o) => {
-            const checked = selectedOptionIds.includes(o.id);
+            const qty = optionQty[o.id] || 0;
             return (
               <div
                 key={o.id}
-                onClick={() => toggleOption(o.id)}
                 style={{
-                  border: `1.5px solid ${checked ? colors.orange : colors.border}`,
-                  background: checked ? "rgba(242,118,46,0.08)" : colors.surface,
+                  border: `1.5px solid ${qty > 0 ? colors.orange : colors.border}`,
+                  background: qty > 0 ? "rgba(242,118,46,0.08)" : colors.surface,
                   borderRadius: 12,
-                  padding: "11px 14px",
-                  cursor: "pointer",
+                  padding: "10px 12px 10px 14px",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  gap: 10,
                   marginBottom: 8
                 }}
               >
-                <div style={{ fontSize: 13.5 }}>{o.label}</div>
-                <span style={{ fontSize: 13.5, fontWeight: 700, color: colors.orange, whiteSpace: "nowrap" }}>
-                  {Number(o.onsite_price) > Number(o.price) && (
-                    <span style={{ textDecoration: "line-through", color: colors.muted, fontWeight: 500, marginRight: 6 }}>
-                      {formatEuro(o.onsite_price)}
-                    </span>
-                  )}
-                  + {formatEuro(o.price)}
-                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
+                  <div style={{ fontSize: 13, marginTop: 2 }}>
+                    {Number(o.onsite_price) > Number(o.price) && (
+                      <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>
+                        {formatEuro(o.onsite_price)}
+                      </span>
+                    )}
+                    <strong style={{ color: colors.orange }}>{formatEuro(o.price)}</strong>
+                    {qty > 1 && <span style={{ color: colors.muted }}> · {formatEuro(Number(o.price) * qty)}</span>}
+                  </div>
+                </div>
+                <Stepper value={qty} min={0} max={Math.max(20, group.quantity * 3)} onChange={(n) => setOptionQty((p) => ({ ...p, [o.id]: n }))} label={o.label} />
               </div>
             );
           })}
         </div>
       )}
 
-      {!isMember && !ADVANCE_PRICE_FOR_ALL && (
+      {user && !isMember && !ADVANCE_PRICE_FOR_ALL && (
         <div
           onClick={() => setAddMembership((v) => !v)}
           style={{
@@ -209,7 +209,15 @@ export default function Register() {
           marginBottom: 14
         }}
       >
-        <span>Total</span>
+        <span>
+          Total{group.quantity > 1 ? ` · ${group.quantity} personnes` : ""}
+          {group.quantity > 1 && (
+            <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: colors.muted }}>
+              Entrées {formatEuro(entryTotal)}
+              {optionsTotal > 0 ? ` + options ${formatEuro(optionsTotal)}` : ""}
+            </span>
+          )}
+        </span>
         <span>{formatEuro(total)}</span>
       </div>
 
@@ -217,7 +225,7 @@ export default function Register() {
 
       <button
         onClick={handlePay}
-        disabled={loading}
+        disabled={loading || seatsLeft === 0}
         style={{
           width: "100%",
           background: colors.orange,
@@ -235,7 +243,7 @@ export default function Register() {
           boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
         }}
       >
-        <Lock size={15} /> {loading ? "Redirection vers le paiement…" : `Payer ${formatEuro(total)} en ligne`}
+        <Lock size={15} /> {seatsLeft === 0 ? "Complet" : loading ? "Redirection vers le paiement…" : `Payer ${formatEuro(total)} en ligne`}
       </button>
     </div>
   );

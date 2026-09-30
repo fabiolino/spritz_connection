@@ -247,7 +247,7 @@ export default function Ticket() {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 5,
-                    background: "rgba(240,180,41,0.18)",
+                    background: "rgba(255,197,43,0.18)",
                     color: "#9A6B00",
                     fontWeight: 700,
                     fontSize: 12.5,

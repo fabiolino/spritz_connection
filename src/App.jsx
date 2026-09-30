@@ -22,6 +22,7 @@ import Community from "./pages/Community.jsx";
 import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
+import BottomNav from "./components/BottomNav.jsx";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
 function AfterLoginRedirect() {
   const { user } = useAuth();
@@ -37,6 +38,9 @@ function AfterLoginRedirect() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const showNav = ["/", "/events", "/community", "/venues", "/account"].includes(location.pathname) || location.pathname.startsWith("/event/");
+
   return (
     <AuthProvider>
       <CategoriesProvider>
@@ -53,6 +57,7 @@ export default function App() {
         <AfterLoginRedirect />
         <Routes>
           <Route path="/" element={<Feed />} />
+          <Route path="/events" element={<Feed />} />
           <Route path="/event/:id" element={<EventDetail />} />
           <Route path="/event/:id/register" element={<Register />} />
           <Route path="/event/:id/chat" element={<Chat />} />
@@ -70,6 +75,7 @@ export default function App() {
           <Route path="/ticket/:id" element={<Ticket />} />
           <Route path="/tickets" element={<MyTickets />} />
       </Routes>
+      {showNav && <BottomNav />}
       </div>
       </CategoriesProvider>
     </AuthProvider>

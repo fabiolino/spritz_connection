@@ -105,6 +105,17 @@ export default function Feed() {
           alt="Spritz Connection — Aperitivo, Events, Culture & More"
           style={{ width: "100%", display: "block" }}
         />
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 70,
+            background: `linear-gradient(to bottom, rgba(255,250,240,0) 0%, ${colors.bg} 100%)`,
+            pointerEvents: "none"
+          }}
+        />
       </div>
 
       <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
@@ -331,8 +342,7 @@ export default function Feed() {
       {visibleEvents.map((e) => {
         const cat = getCategory(e.category);
         const d = userLocation ? distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude) : null;
-        const coverUrl = e.cover_photo_url || cat.default_cover_url;
-        const hasPhoto = !!coverUrl;
+        const hasPhoto = !!e.cover_photo_url;
         const dateObj = new Date(e.event_date);
         const weekday = dateObj.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase();
         const day = dateObj.toLocaleDateString("fr-FR", { day: "numeric" });
@@ -350,7 +360,7 @@ export default function Feed() {
               marginBottom: 14,
               cursor: "pointer",
               background: hasPhoto
-                ? `url(${coverUrl})`
+                ? `url(${e.cover_photo_url})`
                 : "linear-gradient(160deg, rgba(240,90,25,0.85), rgba(255,197,43,0.75))",
               backgroundSize: "cover",
               backgroundPosition: "center",

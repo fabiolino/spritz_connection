@@ -1,4 +1,4 @@
-// REPERE-V7-CHIPS-PETITES-SANS-BANNIERE — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
+// REPERE-V8-CHIPS-MINI — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
@@ -202,7 +202,7 @@ export default function Feed() {
 
       <div style={{ padding: "20px 20px 0" }}>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 18 }}>
         {categories.map((c) => {
           const active = activeCategory === c.id;
           return (
@@ -212,18 +212,18 @@ export default function Feed() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 5,
-                border: `1.5px solid ${colors.orange}`,
+                gap: 3,
+                border: `1px solid ${colors.orange}`,
                 background: active ? colors.orange : colors.surface,
                 color: active ? "#fff" : colors.ink,
-                borderRadius: 18,
-                padding: "5px 10px",
-                fontSize: 11.5,
+                borderRadius: 14,
+                padding: "3px 7px",
+                fontSize: 10,
                 fontWeight: 700,
                 cursor: "pointer"
               }}
             >
-              <CategoryIcon category={c} size={14} /> {c.label}
+              <CategoryIcon category={c} size={11} /> {c.label}
             </button>
           );
         })}

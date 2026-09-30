@@ -314,34 +314,85 @@ export default function EventDetail() {
           margin: "10px 20px 18px",
           borderRadius: 20,
           overflow: "hidden",
-          background: "linear-gradient(155deg, rgba(242,118,46,0.28), rgba(240,180,41,0.22))",
+          position: "relative",
+          background: event.cover_photo_url
+            ? `url(${event.cover_photo_url})`
+            : "linear-gradient(155deg, rgba(240,90,25,0.28), rgba(255,197,43,0.22))",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
           padding: "26px 20px",
           textAlign: "center"
         }}
       >
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-          <CategoryIcon category={cat} size={64} />
-        </div>
-        <span
-          style={{
-            display: "inline-block",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#fff",
-            background: colors.orange,
-            borderRadius: 20,
-            padding: "3px 11px",
-            marginBottom: 10
-          }}
-        >
-          {cat.label}
-        </span>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0 }}>{event.title}</h1>
-        {event.seats > 0 && (
-          <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: full ? colors.red : colors.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <Users size={14} /> {event.taken}/{event.seats} places
-          </div>
+        {event.cover_photo_url && (
+          <>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,43,73,0.15) 0%, rgba(6,43,73,0.55) 100%)" }} />
+            <div
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 12,
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "2px solid #fff",
+                boxShadow: "0 2px 6px rgba(6,43,73,0.35)"
+              }}
+            >
+              <img src="/logo.jpg" alt="Spritz Connection" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
+          </>
         )}
+        <div style={{ position: "relative" }}>
+          {!event.cover_photo_url && (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+              <CategoryIcon category={cat} size={64} />
+            </div>
+          )}
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#fff",
+              background: colors.orange,
+              borderRadius: 20,
+              padding: "3px 11px",
+              marginBottom: 10
+            }}
+          >
+            {cat.label}
+          </span>
+          <h1
+            style={{
+              fontFamily: fonts.display,
+              fontSize: 22,
+              margin: 0,
+              color: event.cover_photo_url ? "#fff" : colors.ink,
+              textShadow: event.cover_photo_url ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
+            }}
+          >
+            {event.title}
+          </h1>
+          {event.seats > 0 && (
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 13,
+                fontWeight: 700,
+                color: full ? colors.red : event.cover_photo_url ? "#fff" : colors.ink,
+                textShadow: event.cover_photo_url ? "0 1px 4px rgba(6,43,73,0.5)" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6
+              }}
+            >
+              <Users size={14} /> {event.taken}/{event.seats} places
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ padding: "0 20px" }}>
@@ -357,7 +408,7 @@ export default function EventDetail() {
             borderRadius: 16,
             padding: 16,
             marginBottom: 20,
-            boxShadow: "0 3px 10px rgba(43,36,25,0.05)"
+            boxShadow: "0 3px 10px rgba(6,43,73,0.05)"
           }}
         >
           <Field icon={<Calendar size={15} color={colors.orange} />}>
@@ -838,20 +889,60 @@ function InviteLanding({ event, category, user, error, onLogin, onBack }) {
         style={{
           margin: "10px 20px 18px",
           borderRadius: 20,
-          background: "linear-gradient(155deg, rgba(242,118,46,0.28), rgba(240,180,41,0.22))",
+          overflow: "hidden",
+          position: "relative",
+          background: event.cover_photo_url
+            ? `url(${event.cover_photo_url})`
+            : "linear-gradient(155deg, rgba(240,90,25,0.28), rgba(255,197,43,0.22))",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
           padding: "26px 20px",
           textAlign: "center"
         }}
       >
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-          <CategoryIcon category={category} size={64} />
+        {event.cover_photo_url && (
+          <>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,43,73,0.15) 0%, rgba(6,43,73,0.55) 100%)" }} />
+            <div
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 12,
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "2px solid #fff",
+                boxShadow: "0 2px 6px rgba(6,43,73,0.35)"
+              }}
+            >
+              <img src="/logo.jpg" alt="Spritz Connection" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            </div>
+          </>
+        )}
+        <div style={{ position: "relative" }}>
+          {!event.cover_photo_url && (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+              <CategoryIcon category={category} size={64} />
+            </div>
+          )}
+          <span
+            style={{ display: "inline-block", fontSize: 11, fontWeight: 700, color: "#fff", background: colors.blue, borderRadius: 20, padding: "3px 11px", marginBottom: 10 }}
+          >
+            🔒 Tu es invité·e
+          </span>
+          <h1
+            style={{
+              fontFamily: fonts.display,
+              fontSize: 22,
+              margin: 0,
+              color: event.cover_photo_url ? "#fff" : colors.ink,
+              textShadow: event.cover_photo_url ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
+            }}
+          >
+            {event.title}
+          </h1>
         </div>
-        <span
-          style={{ display: "inline-block", fontSize: 11, fontWeight: 700, color: "#fff", background: colors.blue, borderRadius: 20, padding: "3px 11px", marginBottom: 10 }}
-        >
-          🔒 Tu es invité·e
-        </span>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0 }}>{event.title}</h1>
       </div>
 
       <div style={{ padding: "0 20px" }}>

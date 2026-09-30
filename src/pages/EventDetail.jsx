@@ -14,6 +14,14 @@ import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 
+const EVENT_IMAGES = {
+  apero: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1200&q=85",
+  concert: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1200&q=85",
+  soiree: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=85",
+  degustation: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=85",
+  default: "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=1200&q=85"
+};
+
 function formatEuro(n) {
   const v = Number(n) || 0;
   return v.toLocaleString("fr-FR", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }) + " €";
@@ -312,36 +320,52 @@ export default function EventDetail() {
       <div
         style={{
           margin: "10px 20px 18px",
-          borderRadius: 20,
+          minHeight: 300,
+          borderRadius: 22,
           overflow: "hidden",
-          background: "linear-gradient(155deg, rgba(242,118,46,0.28), rgba(240,180,41,0.22))",
-          padding: "26px 20px",
-          textAlign: "center"
+          position: "relative",
+          backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.08), rgba(6,43,73,.82)), url("${EVENT_IMAGES[event.category] || EVENT_IMAGES.default}")`,
+          backgroundSize: "cover",
+          backgroundPosition: "center"
         }}
       >
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-          <CategoryIcon category={cat} size={64} />
-        </div>
-        <span
+        <img
+          src="/logo.jpg"
+          alt="Spritz Connection"
           style={{
-            display: "inline-block",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#fff",
-            background: colors.orange,
-            borderRadius: 20,
-            padding: "3px 11px",
-            marginBottom: 10
+            position: "absolute",
+            top: 14,
+            left: 14,
+            width: 72,
+            height: 72,
+            objectFit: "cover",
+            borderRadius: "50%"
           }}
-        >
-          {cat.label}
-        </span>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0 }}>{event.title}</h1>
-        {event.seats > 0 && (
-          <div style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: full ? colors.red : colors.ink, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <Users size={14} /> {event.taken}/{event.seats} places
-          </div>
-        )}
+        />
+        <div style={{ position: "absolute", left: 20, right: 20, bottom: 18, color: "#fff" }}>
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: 11,
+              fontWeight: 700,
+              color: colors.navy,
+              background: colors.gold,
+              borderRadius: 20,
+              padding: "4px 11px",
+              marginBottom: 8
+            }}
+          >
+            {cat.label}
+          </span>
+          <h1 style={{ fontFamily: fonts.display, fontSize: 28, lineHeight: 1.05, margin: "0 0 8px", textShadow: "0 3px 14px rgba(0,0,0,.3)" }}>
+            {event.title}
+          </h1>
+          {event.seats > 0 && (
+            <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+              <Users size={14} /> {event.taken}/{event.seats} places
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ padding: "0 20px" }}>

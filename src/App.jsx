@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./lib/AuthContext";
 import { takeAfterLogin } from "./lib/afterLogin";
+// Capture le "beforeinstallprompt" dès que possible (voir le fichier) : l'import seul suffit.
+import "./lib/installPrompt";
 import { colors, fonts } from "./lib/theme";
 import { AuthProvider } from "./lib/AuthContext";
 import { CategoriesProvider } from "./lib/CategoriesContext";

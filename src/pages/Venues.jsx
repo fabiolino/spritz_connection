@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, MapPin, Users, Phone, Mail, Building2, CreditCard } from "lucide-react";
+import { ChevronLeft, MapPin, Users, Phone, Mail, Building2, CreditCard, Star } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import VenueReviews from "../components/VenueReviews";
@@ -82,13 +82,34 @@ export default function Venues() {
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: 10,
               padding: 14,
               background: "linear-gradient(160deg, rgba(44,79,140,0.10), rgba(255,197,43,0.10))"
             }}
           >
-            <Building2 size={22} color={colors.blue} />
-            <h2 style={{ fontFamily: fonts.display, fontSize: 17, margin: 0 }}>{v.name}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <Building2 size={22} color={colors.blue} style={{ flexShrink: 0 }} />
+              <h2 style={{ fontFamily: fonts.display, fontSize: 17, margin: 0 }}>{v.name}</h2>
+            </div>
+            {ratings[v.id]?.count > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  flexShrink: 0,
+                  background: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 20,
+                  padding: "4px 10px"
+                }}
+              >
+                <Star size={12} color={colors.gold} fill={colors.gold} strokeWidth={1.5} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: colors.ink }}>{ratings[v.id].avg.toFixed(1)}</span>
+                <span style={{ fontSize: 11, color: colors.muted }}>({ratings[v.id].count})</span>
+              </div>
+            )}
           </div>
 
           <div style={{ padding: 14 }}>

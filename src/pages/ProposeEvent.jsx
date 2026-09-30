@@ -36,7 +36,8 @@ export default function ProposeEvent() {
     category: "autre",
     price_member: "",
     price_nonmember: "",
-    sumupLink: ""
+    sumupLink: "",
+    coverPhotoUrl: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -123,7 +124,7 @@ export default function ProposeEvent() {
           style={{
             flex: 1,
             border: `1.5px solid ${!isPaid ? colors.orange : colors.border}`,
-            background: !isPaid ? "rgba(242,118,46,0.1)" : colors.surface,
+            background: !isPaid ? "rgba(240,90,25,0.1)" : colors.surface,
             color: colors.ink,
             borderRadius: 12,
             padding: 10,
@@ -140,7 +141,7 @@ export default function ProposeEvent() {
           style={{
             flex: 1,
             border: `1.5px solid ${isPaid ? colors.orange : colors.border}`,
-            background: isPaid ? "rgba(242,118,46,0.1)" : colors.surface,
+            background: isPaid ? "rgba(240,90,25,0.1)" : colors.surface,
             color: colors.ink,
             borderRadius: 12,
             padding: 10,
@@ -184,7 +185,7 @@ export default function ProposeEvent() {
                     alignItems: "center",
                     gap: 6,
                     border: `1.5px solid ${active ? colors.orange : colors.border}`,
-                    background: active ? "rgba(242,118,46,0.1)" : colors.surface,
+                    background: active ? "rgba(240,90,25,0.1)" : colors.surface,
                     color: colors.ink,
                     borderRadius: 20,
                     padding: "7px 12px",
@@ -227,6 +228,33 @@ export default function ProposeEvent() {
         <div>
           <label style={labelStyle}>Nombre de places</label>
           <input type="number" min="1" required style={inputStyle} value={form.seats} onChange={(e) => update("seats", e.target.value)} />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Photo de couverture (URL, optionnel)</label>
+          <input
+            type="url"
+            style={inputStyle}
+            value={form.coverPhotoUrl}
+            onChange={(e) => update("coverPhotoUrl", e.target.value)}
+            placeholder="https://…"
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Une photo qui donne envie ! Elle sera visible sur la carte de l'événement une fois validé.
+          </p>
+          {form.coverPhotoUrl && (
+            <div
+              style={{
+                marginTop: 8,
+                height: 110,
+                borderRadius: 12,
+                backgroundImage: `url(${form.coverPhotoUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                border: `1px solid ${colors.border}`
+              }}
+            />
+          )}
         </div>
 
         {isPaid && (

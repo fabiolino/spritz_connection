@@ -1,4 +1,4 @@
-// REPERE-V6-CATEGORIES — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
+// REPERE-V7-CHIPS-PETITES-SANS-BANNIERE — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
@@ -33,7 +33,7 @@ export default function Feed() {
   const { categories, getCategory } = useCategories();
   const [events, setEvents] = useState(DEMO_EVENTS);
   const [loading, setLoading] = useState(true);
-  const [showJoinBanner, setShowJoinBanner] = useState(true);
+  const [showJoinBanner, setShowJoinBanner] = useState(false); // Association pas encore active — désactivé pour le moment
   const [shareMsg, setShareMsg] = useState("");
 
   const [userLocation, setUserLocation] = useState(null);
@@ -212,18 +212,18 @@ export default function Feed() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                gap: 5,
                 border: `1.5px solid ${colors.orange}`,
                 background: active ? colors.orange : colors.surface,
                 color: active ? "#fff" : colors.ink,
-                borderRadius: 20,
-                padding: "7px 13px",
-                fontSize: 12.5,
+                borderRadius: 18,
+                padding: "5px 10px",
+                fontSize: 11.5,
                 fontWeight: 700,
                 cursor: "pointer"
               }}
             >
-              <CategoryIcon category={c} size={16} /> {c.label}
+              <CategoryIcon category={c} size={14} /> {c.label}
             </button>
           );
         })}

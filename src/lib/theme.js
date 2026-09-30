@@ -12,6 +12,7 @@ export const colors = {
   orangeDark: "#C74C1C",
   red: "#D6432A",        // rouge du verre à spritz — accents secondaires
   blue: "#2C4F8C",       // bleu du texte du logo — titres, liens
+  navy: "#062B49",         // bleu nuit de la navigation et des grands contrastes
   gold: "#F0B429",       // or des confettis
   olive: "#6B7C4F",      // vert doux — validations (espace admin)
 

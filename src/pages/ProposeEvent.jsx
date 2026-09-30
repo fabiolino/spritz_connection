@@ -240,7 +240,7 @@ export default function ProposeEvent() {
             placeholder="https://…"
           />
           <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
-            Une photo qui donne envie ! Elle sera visible sur la carte de l'événement une fois validé.
+            Une photo qui donne envie ! Elle sera visible sur la carte de l'événement une fois validé. Si tu laisses vide, la photo par défaut de la catégorie choisie sera utilisée si elle existe.
           </p>
           {form.coverPhotoUrl && (
             <div

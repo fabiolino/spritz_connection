@@ -20,9 +20,51 @@ async function getUserFromRequest(req) {
   return data.user;
 }
 
+// Désinscription en libre-service (soirées gratuites uniquement — pour une soirée payante,
+// l'utilisateur doit se rapprocher de l'établissement qui a encaissé le paiement).
+async function handleCancel(req, res) {
+  const { registrationId } = req.body || {};
+  if (!registrationId) return res.status(400).json({ error: "registrationId manquant" });
+  try {
+    const { data: reg } = await supabaseAdmin
+      .from("registrations")
+      .select("id, event_id, quantity, paid, external")
+      .eq("id", registrationId)
+      .maybeSingle();
+    if (!reg) return res.status(404).json({ error: "Inscription introuvable" });
+
+    const { data: event } = await supabaseAdmin
+      .from("events")
+      .select("is_free, event_date")
+      .eq("id", reg.event_id)
+      .maybeSingle();
+    if (!event) return res.status(404).json({ error: "Événement introuvable" });
+    if (!event.is_free) {
+      return res.status(400).json({ error: "Cet événement est payant : rapproche-toi directement de l'établissement pour te désinscrire." });
+    }
+    if (new Date(event.event_date) <= new Date()) {
+      return res.status(400).json({ error: "Cet événement a déjà eu lieu." });
+    }
+
+    await supabaseAdmin.from("registration_options").delete().eq("registration_id", reg.id);
+    const { error: delError } = await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
+    if (delError) throw delError;
+    await addTaken(supabaseAdmin, reg.event_id, -(reg.quantity || 1));
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Erreur désinscription:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
+  }
+
+  if (req.body?.action === "cancel") {
+    return handleCancel(req, res);
   }
 
   const { eventId } = req.body || {};

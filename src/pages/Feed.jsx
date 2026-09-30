@@ -29,7 +29,7 @@ const RADII = [5, 10, 20];
 export default function Feed() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
-  const { getCategory } = useCategories();
+  const { categories, getCategory } = useCategories();
   const [events, setEvents] = useState(DEMO_EVENTS);
   const [loading, setLoading] = useState(true);
   const [showJoinBanner, setShowJoinBanner] = useState(true);
@@ -38,6 +38,7 @@ export default function Feed() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [radius, setRadius] = useState(null); // null = pas de filtre
+  const [activeCategory, setActiveCategory] = useState(null); // null = toutes catégories
 
   useEffect(() => {
     async function load() {
@@ -85,12 +86,16 @@ export default function Feed() {
   }
 
   const visibleEvents = useMemo(() => {
-    if (!radius || !userLocation) return events;
-    return events.filter((e) => {
-      const d = distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude);
-      return d === null ? true : d <= radius; // garde les événements sans coordonnées plutôt que de les cacher
-    });
-  }, [events, radius, userLocation]);
+    let list = events;
+    if (activeCategory) list = list.filter((e) => e.category === activeCategory);
+    if (radius && userLocation) {
+      list = list.filter((e) => {
+        const d = distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude);
+        return d === null ? true : d <= radius; // garde les événements sans coordonnées plutôt que de les cacher
+      });
+    }
+    return list;
+  }, [events, radius, userLocation, activeCategory]);
 
   return (
     <div style={{ paddingBottom: 100 }}>
@@ -189,11 +194,39 @@ export default function Feed() {
 
       <div style={{ padding: "20px 20px 0" }}>
 
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 18 }}>
+        {categories.map((c) => {
+          const active = activeCategory === c.id;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setActiveCategory(active ? null : c.id)}
+              style={{
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                border: `1.5px solid ${active ? colors.orange : colors.border}`,
+                background: active ? "rgba(240,90,25,0.1)" : colors.surface,
+                color: active ? colors.orange : colors.ink,
+                borderRadius: 20,
+                padding: "7px 13px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              <CategoryIcon category={c} size={16} /> {c.label}
+            </button>
+          );
+        })}
+      </div>
+
       {showJoinBanner && (
         <div
           onClick={() => navigate("/join")}
           style={{
-            background: "rgba(242,118,46,0.08)",
+            background: "rgba(240,90,25,0.08)",
             border: `1px solid ${colors.orange}`,
             borderRadius: 16,
             padding: "14px 16px",
@@ -257,7 +290,7 @@ export default function Feed() {
                 onClick={() => setRadius(radius === r ? null : r)}
                 style={{
                   border: `1.5px solid ${radius === r ? colors.orange : colors.border}`,
-                  background: radius === r ? "rgba(242,118,46,0.1)" : colors.surface,
+                  background: radius === r ? "rgba(240,90,25,0.1)" : colors.surface,
                   color: colors.ink,
                   borderRadius: 20,
                   padding: "5px 12px",
@@ -282,86 +315,115 @@ export default function Feed() {
         {locationError && <p style={{ fontSize: 11.5, color: colors.red, marginTop: 6 }}>{locationError}</p>}
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <h2 style={{ fontFamily: fonts.display, fontSize: 21, margin: 0, color: colors.navy }}>Prochains événements</h2>
+        <i style={{ display: "inline-block", width: 38, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
+      </div>
+
       {loading && <p style={{ color: colors.muted, fontSize: 13 }}>Chargement…</p>}
 
       {!loading && visibleEvents.length === 0 && (
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 20 }}>
-          Aucun événement dans ce rayon pour le moment.
+          Aucun événement pour le moment avec ces filtres.
         </p>
       )}
 
       {visibleEvents.map((e) => {
         const cat = getCategory(e.category);
         const d = userLocation ? distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude) : null;
+        const hasPhoto = !!e.cover_photo_url;
+        const dateObj = new Date(e.event_date);
+        const weekday = dateObj.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase();
+        const day = dateObj.toLocaleDateString("fr-FR", { day: "numeric" });
+        const month = dateObj.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase();
+        const timeStr = dateObj.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
         return (
           <div
             key={e.id}
             onClick={() => navigate(`/event/${e.id}`)}
             style={{
-              display: "flex",
-              alignItems: "stretch",
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
+              position: "relative",
+              height: 206,
+              borderRadius: 20,
               overflow: "hidden",
               marginBottom: 14,
               cursor: "pointer",
-              boxShadow: "0 3px 10px rgba(43,36,25,0.06)"
+              background: hasPhoto
+                ? `url(${e.cover_photo_url})`
+                : "linear-gradient(160deg, rgba(240,90,25,0.85), rgba(255,197,43,0.75))",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              boxShadow: "0 8px 18px rgba(6,43,73,0.18)"
             }}
           >
+            {!hasPhoto && (
+              <div style={{ position: "absolute", top: "28%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                <CategoryIcon category={cat} size={58} />
+              </div>
+            )}
             <div
               style={{
-                width: 84,
-                flexShrink: 0,
-                background: "linear-gradient(160deg, rgba(242,118,46,0.32), rgba(240,180,41,0.28))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(180deg, rgba(6,43,73,0.05) 30%, rgba(6,43,73,0.92) 100%)"
               }}
-            >
-              <CategoryIcon category={cat} size={56} />
+            />
+
+            {hasPhoto && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  border: "2px solid #fff",
+                  boxShadow: "0 2px 6px rgba(6,43,73,0.35)",
+                  flexShrink: 0
+                }}
+              >
+                <img src="/logo.jpg" alt="Spritz Connection" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+            )}
+
+            <div style={{ position: "absolute", top: 10, left: hasPhoto ? 52 : 10, right: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.orange, borderRadius: 20, padding: "3px 9px" }}>
+                {cat.label}
+              </span>
+              {e.is_free && (
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 9px" }}>
+                  Gratuit
+                </span>
+              )}
+              {e.visibility === "private" && (
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.navy, background: colors.gold, borderRadius: 20, padding: "3px 9px" }}>
+                  🔒 Privé
+                </span>
+              )}
+              {d !== null && (
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#fff", marginLeft: "auto", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
+                  {d.toFixed(1)} km
+                </span>
+              )}
             </div>
 
-            <div style={{ flex: 1, minWidth: 0, padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: "#fff",
-                    background: colors.orange,
-                    borderRadius: 20,
-                    padding: "3px 9px"
-                  }}
-                >
-                  {cat.label}
-                </span>
-                {e.is_free && (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 9px" }}>
-                    Gratuit
-                  </span>
-                )}
-                {e.visibility === "private" && (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.blue, borderRadius: 20, padding: "3px 9px" }}>
-                    🔒 Privé
-                  </span>
-                )}
-                {d !== null && (
-                  <span style={{ fontSize: 10.5, color: colors.muted, marginLeft: "auto" }}>{d.toFixed(1)} km</span>
-                )}
+            <div style={{ position: "absolute", left: 14, right: 14, bottom: 12, display: "flex", gap: 10, alignItems: "flex-end", color: "#fff" }}>
+              <div style={{ width: 40, flexShrink: 0, textAlign: "center" }}>
+                <b style={{ display: "block", fontSize: 10, letterSpacing: "0.08em" }}>{weekday}</b>
+                <strong style={{ display: "block", color: colors.gold, fontSize: 28, lineHeight: 0.95, fontFamily: fonts.display }}>{day}</strong>
+                <b style={{ display: "block", fontSize: 10, letterSpacing: "0.08em" }}>{month}</b>
               </div>
-              <h2 style={{ fontFamily: fonts.display, fontSize: 17, margin: "0 0 8px" }}>{e.title}</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: colors.muted, marginBottom: 4 }}>
-                <Calendar size={13} /> {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5, color: colors.muted }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <User size={13} /> Organisé par {e.organizer}
+              <div style={{ borderLeft: "1px solid rgba(255,255,255,0.4)", paddingLeft: 10, minWidth: 0, flex: 1 }}>
+                <h3 style={{ fontFamily: fonts.display, fontSize: 17, margin: "0 0 5px", lineHeight: 1.1 }}>{e.title}</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, opacity: 0.92, marginBottom: 2 }}>
+                  <Calendar size={11} /> {timeStr} <span style={{ opacity: 0.6 }}>·</span> <User size={11} /> {e.organizer}
                 </div>
                 {e.seats > 0 && (
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: e.taken >= e.seats ? colors.red : colors.muted }}>
-                    {e.taken}/{e.seats}
-                  </span>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: e.taken >= e.seats ? colors.red : "rgba(255,255,255,0.85)" }}>
+                    {e.taken}/{e.seats} places
+                  </div>
                 )}
               </div>
             </div>

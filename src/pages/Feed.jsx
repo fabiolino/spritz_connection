@@ -1,4 +1,4 @@
-// REPERE-V8-CHIPS-MINI — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
+// REPERE-V9-CHIPS-CENTREES — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
@@ -202,7 +202,7 @@ export default function Feed() {
 
       <div style={{ padding: "20px 20px 0" }}>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 18 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 5, marginBottom: 18 }}>
         {categories.map((c) => {
           const active = activeCategory === c.id;
           return (

@@ -99,22 +99,23 @@ export default function Feed() {
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      <div style={{ position: "relative" }}>
+      <div style={{ overflow: "hidden" }}>
         <img
           src="/header.png"
           alt="Spritz Connection — Aperitivo, Events, Culture & More"
-          style={{ width: "100%", display: "block" }}
+          style={{ width: "100%", display: "block", marginBottom: -3 }}
         />
       </div>
 
       <div
         style={{
-          height: 130,
-          background: `linear-gradient(to bottom, ${colors.orange} 0%, rgba(240,90,25,0.35) 45%, ${colors.bg} 100%)`
-        }}
-      />
-
-      <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
+          backgroundColor: colors.bg,
+          backgroundImage: `linear-gradient(to bottom, ${colors.orange} 0%, rgba(240,90,25,0.6) 20%, rgba(240,90,25,0.28) 45%, rgba(240,90,25,0.08) 70%, transparent 100%)`,
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "100% 850px",
+          backgroundPosition: "top",
+          padding: "16px 20px 4px"
+        }}>
         {!authLoading && (
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
             {user ? (

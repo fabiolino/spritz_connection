@@ -55,22 +55,22 @@ export default function BottomNav() {
               background: isActive ? "rgba(232,95,38,.16)" : "transparent",
               color: isActive ? colors.orange : "rgba(255,255,255,.92)",
               borderRadius: 16,
-              padding: "6px 2px 5px",
+              padding: "7px 0 6px",
               minWidth: 0,
               cursor: "pointer",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 3,
+              gap: 2,
               fontFamily: fonts.body,
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: isActive ? 800 : 650
             }}
           >
             <span
               style={{
-                width: 34,
-                height: 28,
+                width: 32,
+                height: 26,
                 borderRadius: 12,
                 display: "flex",
                 alignItems: "center",
@@ -80,7 +80,7 @@ export default function BottomNav() {
                 boxShadow: "none"
               }}
             >
-              <Icon size={17} strokeWidth={2.5} />
+              <Icon size={20} strokeWidth={2.5} />
             </span>
             <span>{label}</span>
           </button>

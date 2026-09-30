@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 
@@ -17,6 +17,32 @@ export default function Ticket() {
   const [error, setError] = useState("");
   const [waitedTooLong, setWaitedTooLong] = useState(false);
   const attempts = useRef(0);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [isCancelled, setIsCancelled] = useState(false);
+
+  async function handleCancelRegistration() {
+    if (!window.confirm("Confirmer l'annulation de ton inscription ? Tes places seront libérées pour d'autres personnes.")) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      const res = await fetch("/api/register-free", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", registrationId: id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCancelError(data.error || "Impossible d'annuler l'inscription");
+        setCancelling(false);
+        return;
+      }
+      setIsCancelled(true);
+    } catch (err) {
+      setCancelError("Impossible de contacter le serveur");
+      setCancelling(false);
+    }
+  }
 
   useEffect(() => {
     let timer = null;
@@ -87,7 +113,23 @@ export default function Ticket() {
         </div>
       )}
 
-      {ticket && ticket.failed && (
+      {isCancelled && (
+        <div style={{ textAlign: "center", padding: "40px 10px" }}>
+          <CheckCircle2 size={36} color={colors.olive} />
+          <p style={{ fontSize: 15, fontWeight: 700, margin: "16px 0 6px" }}>Inscription annulée</p>
+          <p style={{ fontSize: 13, color: colors.muted, lineHeight: 1.5, margin: "0 0 18px" }}>
+            Tes places ont été libérées. À bientôt pour une prochaine soirée !
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            style={{ background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: "12px 20px", fontWeight: 700, cursor: "pointer" }}
+          >
+            Retour à l'accueil
+          </button>
+        </div>
+      )}
+
+      {!isCancelled && ticket && ticket.failed && (
         <div style={{ textAlign: "center", padding: "40px 10px" }}>
           <XCircle size={36} color={colors.red} />
           <p style={{ fontSize: 15, fontWeight: 700, margin: "16px 0 6px" }}>Le paiement n'a pas abouti</p>
@@ -105,7 +147,7 @@ export default function Ticket() {
         </div>
       )}
 
-      {ticket && (ticket.paid || ticket.external) && (
+      {!isCancelled && ticket && (ticket.paid || ticket.external) && (
         <>
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <CheckCircle2 size={40} color={colors.olive} />
@@ -304,6 +346,32 @@ export default function Ticket() {
               ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
+
+          {isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
+            <div style={{ textAlign: "center", marginTop: 10 }}>
+              <button
+                onClick={handleCancelRegistration}
+                disabled={cancelling}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.muted,
+                  borderRadius: 14,
+                  padding: "10px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: cancelling ? "default" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <LogOut size={13} /> {cancelling ? "Annulation…" : "Annuler mon inscription"}
+              </button>
+              {cancelError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{cancelError}</p>}
+            </div>
+          )}
+
           {!isMembership && <NotifyPrompt style={{ marginTop: 18 }} />}
         </>
       )}

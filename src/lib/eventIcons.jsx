@@ -113,7 +113,7 @@ function PhotoBadge({ src, size }) {
         overflow: "hidden",
         border: `2px solid ${colors.orange}`,
         flexShrink: 0,
-        boxShadow: "0 2px 6px rgba(43,36,25,0.15)"
+        boxShadow: "0 2px 6px rgba(6,43,73,0.15)"
       }}
     >
       <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />

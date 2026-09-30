@@ -57,7 +57,7 @@ function ChipPicker({ options, value, onChange, multi, renderIcon }) {
               alignItems: "center",
               gap: 6,
               border: `1.5px solid ${active ? colors.orange : colors.border}`,
-              background: active ? "rgba(242,118,46,0.1)" : colors.surface,
+              background: active ? "rgba(240,90,25,0.1)" : colors.surface,
               color: colors.ink,
               borderRadius: 20,
               padding: "7px 12px",
@@ -213,7 +213,7 @@ export default function Account() {
               padding: "4px 12px",
               fontSize: 12,
               fontWeight: 700,
-              boxShadow: "0 3px 10px rgba(240,180,41,0.35)"
+              boxShadow: "0 3px 10px rgba(255,197,43,0.35)"
             }}
           >
             <Star size={13} /> Membre Spritz Connection

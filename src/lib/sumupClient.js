@@ -23,6 +23,13 @@ export async function startCheckout({ eventId, option, selectedOptionIds, ...ext
     throw new Error(err.error || "Échec de la création du paiement");
   }
 
-  const { url } = await res.json();
-  window.location.href = url; // redirection vers la page de paiement SumUp
+  const data = await res.json();
+
+  // Entrée gratuite de parrainage : pas de paiement, direction le billet
+  if (data.free) {
+    window.location.href = `/ticket/${data.registrationId}`;
+    return;
+  }
+
+  window.location.href = data.url; // redirection vers la page de paiement SumUp
 }

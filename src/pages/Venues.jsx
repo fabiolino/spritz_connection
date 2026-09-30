@@ -55,7 +55,7 @@ export default function Venues() {
             borderRadius: 18,
             overflow: "hidden",
             marginBottom: 14,
-            boxShadow: "0 3px 10px rgba(43,36,25,0.06)"
+            boxShadow: "0 3px 10px rgba(6,43,73,0.06)"
           }}
         >
           <div
@@ -64,7 +64,7 @@ export default function Venues() {
               alignItems: "center",
               gap: 10,
               padding: 14,
-              background: "linear-gradient(160deg, rgba(44,79,140,0.10), rgba(240,180,41,0.10))"
+              background: "linear-gradient(160deg, rgba(44,79,140,0.10), rgba(255,197,43,0.10))"
             }}
           >
             <Building2 size={22} color={colors.blue} />

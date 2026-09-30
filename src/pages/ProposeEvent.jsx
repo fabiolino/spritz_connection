@@ -4,6 +4,7 @@ import { ChevronLeft, Check, ExternalLink } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import AgeRangeSlider from "../components/AgeRangeSlider";
 
 const inputStyle = {
   width: "100%",
@@ -37,7 +38,9 @@ export default function ProposeEvent() {
     price_member: "",
     price_nonmember: "",
     sumupLink: "",
-    coverPhotoUrl: ""
+    coverPhotoUrl: "",
+    ageMin: "",
+    ageMax: ""
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -255,6 +258,18 @@ export default function ProposeEvent() {
               }}
             />
           )}
+        </div>
+
+        <div>
+          <label style={labelStyle}>Tranche d'âge conseillée (optionnel)</label>
+          <AgeRangeSlider
+            valueMin={form.ageMin}
+            valueMax={form.ageMax}
+            onChange={(min, max) => setForm((f) => ({ ...f, ageMin: min, ageMax: max }))}
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Laisse sur "Tous les âges" si c'est ouvert à tout le monde.
+          </p>
         </div>
 
         {isPaid && (

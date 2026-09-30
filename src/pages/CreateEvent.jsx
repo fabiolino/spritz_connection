@@ -6,6 +6,7 @@ import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import AgeRangeSlider from "../components/AgeRangeSlider";
 
 const inputStyle = {
   width: "100%",
@@ -41,7 +42,9 @@ export default function CreateEvent() {
     visibility: "public",
     venueId: "",
     sumupLink: "",
-    coverPhotoUrl: ""
+    coverPhotoUrl: "",
+    ageMin: "",
+    ageMax: ""
   });
   const [profiles, setProfiles] = useState([]);
   const [invitedIds, setInvitedIds] = useState([]);
@@ -303,6 +306,18 @@ export default function CreateEvent() {
               }}
             />
           )}
+        </div>
+
+        <div>
+          <label style={labelStyle}>Tranche d'âge conseillée (optionnel)</label>
+          <AgeRangeSlider
+            valueMin={form.ageMin}
+            valueMax={form.ageMax}
+            onChange={(min, max) => setForm((f) => ({ ...f, ageMin: min, ageMax: max }))}
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Laisse sur "Tous les âges" si l'événement est ouvert à tout le monde. Purement indicatif, jamais bloquant pour l'inscription.
+          </p>
         </div>
 
         <div>

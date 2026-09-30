@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import AgeRangeSlider from "../components/AgeRangeSlider";
 
 const inputStyle = {
   width: "100%",
@@ -59,7 +60,9 @@ export default function EditEvent() {
           visibility: event.visibility || "public",
           venueId: event.venue_id || "",
           sumupLink: event.sumup_link || "",
-          coverPhotoUrl: event.cover_photo_url || ""
+          coverPhotoUrl: event.cover_photo_url || "",
+          ageMin: event.age_min ?? "",
+          ageMax: event.age_max ?? ""
         });
       }
       const { data: opts } = await supabase.from("event_options").select("label, price, onsite_price, payment_link").eq("event_id", id);
@@ -278,6 +281,18 @@ export default function EditEvent() {
               }}
             />
           )}
+        </div>
+
+        <div>
+          <label style={labelStyle}>Tranche d'âge conseillée (optionnel)</label>
+          <AgeRangeSlider
+            valueMin={form.ageMin}
+            valueMax={form.ageMax}
+            onChange={(min, max) => setForm((f) => ({ ...f, ageMin: min, ageMax: max }))}
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Laisse sur "Tous les âges" si l'événement est ouvert à tout le monde. Purement indicatif, jamais bloquant pour l'inscription.
+          </p>
         </div>
 
         <div>

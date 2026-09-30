@@ -288,7 +288,7 @@ export default function CreateEvent() {
             placeholder="https://…"
           />
           <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
-            Affichée en fond de la carte sur l'accueil et en haut de la fiche de l'événement. Laisse vide pour garder le visuel par défaut (icône de catégorie).
+            Affichée en fond de la carte sur l'accueil et en haut de la fiche de l'événement. Laisse vide pour utiliser la photo par défaut de la catégorie si elle existe, sinon l'icône de catégorie.
           </p>
           {form.coverPhotoUrl && (
             <div

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Building2, Plus, Pencil, Trash2, MapPin, AlertTriangle } from "lucide-react";
+import { Building2, Plus, Pencil, Trash2, MapPin, AlertTriangle, MessageSquare } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
+import StarRating from "./StarRating";
 
 const EMPTY = {
   id: null,
@@ -49,6 +50,11 @@ export default function AdminVenues({ adminSecret }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const [reviews, setReviews] = useState(null); // null = section fermée, [] = ouverte et chargée
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [confirmDeleteReviewId, setConfirmDeleteReviewId] = useState(null);
+  const [reviewsError, setReviewsError] = useState("");
 
   async function call(body) {
     const res = await fetch("/api/manage-guests", {
@@ -122,7 +128,42 @@ export default function AdminVenues({ adminSecret }) {
     }
   }
 
+  async function loadReviews() {
+    if (!adminSecret) {
+      setReviewsError("Renseigne le mot de passe administrateur d'abord");
+      return;
+    }
+    setReviewsLoading(true);
+    setReviewsError("");
+    try {
+      const data = await call({ action: "venue-reviews-list" });
+      setReviews(data.reviews);
+    } catch (err) {
+      setReviewsError(err.message);
+    }
+    setReviewsLoading(false);
+  }
+
+  async function handleDeleteReview(review) {
+    setReviewsError("");
+    try {
+      await call({ action: "venue-review-delete", reviewId: review.id });
+      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      setConfirmDeleteReviewId(null);
+    } catch (err) {
+      setReviewsError(err.message);
+    }
+  }
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function formatReviewDate(iso) {
+    try {
+      return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+    } catch {
+      return "";
+    }
+  }
 
   return (
     <div style={{ marginBottom: 28 }}>
@@ -326,6 +367,87 @@ export default function AdminVenues({ adminSecret }) {
       )}
 
       {error && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{error}</p>}
+
+      <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${colors.border}` }}>
+        <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
+          <MessageSquare size={16} color={colors.orange} /> Avis sur les lieux
+        </h2>
+
+        {reviews === null ? (
+          <button
+            onClick={loadReviews}
+            disabled={reviewsLoading}
+            style={{
+              width: "100%",
+              background: "none",
+              border: `1px solid ${colors.border}`,
+              color: colors.ink,
+              borderRadius: 12,
+              padding: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            {reviewsLoading ? "Chargement…" : "Modérer les avis (voir, supprimer)"}
+          </button>
+        ) : (
+          <>
+            {reviews.length === 0 && <p style={{ fontSize: 12.5, color: colors.muted }}>Aucun avis pour l'instant.</p>}
+
+            {reviews.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  background: colors.surface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  marginBottom: 8
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>{r.venueName}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "3px 0" }}>
+                      <StarRating value={r.rating} size={12} />
+                      <span style={{ fontSize: 11, color: colors.muted }}>
+                        {r.name} · {formatReviewDate(r.createdAt)}
+                      </span>
+                    </div>
+                    {r.comment && <p style={{ fontSize: 12.5, color: colors.ink, margin: "4px 0 0", lineHeight: 1.4 }}>{r.comment}</p>}
+                  </div>
+                  <button
+                    onClick={() => setConfirmDeleteReviewId(r.id)}
+                    style={{ ...smallBtn, color: colors.red, flexShrink: 0 }}
+                    aria-label="Supprimer cet avis"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+                {confirmDeleteReviewId === r.id && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${colors.border}` }}>
+                    <p style={{ fontSize: 12, margin: "0 0 8px" }}>Supprimer cet avis définitivement ?</p>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => setConfirmDeleteReviewId(null)} style={{ ...smallBtn, flex: 1, justifyContent: "center" }}>
+                        Annuler
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReview(r)}
+                        style={{ ...smallBtn, flex: 1, justifyContent: "center", background: colors.red, color: "#fff", border: "none" }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+
+        {reviewsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{reviewsError}</p>}
+      </div>
     </div>
   );
 }

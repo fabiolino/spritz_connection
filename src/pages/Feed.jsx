@@ -43,11 +43,14 @@ const DEMO_EVENTS = [
 const RADII = [5, 10, 20];
 
 const EVENT_IMAGES = {
-  apero: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1000&q=90",
-  concert: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1000&q=90",
-  soiree: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1000&q=90",
-  degustation: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=90",
-  default: "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=1000&q=90"
+  // Direction photo : Italie réelle, lumière chaude, convivialité, spritz et gastronomie.
+  // Pas de mojitos, pas de restaurant générique, pas de banques d'images froides.
+  hero: "https://create.bainbridgebarn.org/web/image/event.event/181694/image_1024",
+  apero: "https://images.gayborhood.com/mil/aperitivo-culture-done-right.webp",
+  concert: "https://images.xceed.me/clubs/gallery/terrazza-martini-club-milano-xceed-6.jpg?fm=auto&h=1920&q=90&w=1920",
+  soiree: "https://lirp.cdn-website.com/f9831a4e/dms3rep/multi/opt/Vista%2BSky%2BBar%2BDj-cdc8302f-1920w.jpg",
+  degustation: "https://cdn.foodstorm.com/8f1f75b066de46f09379f9d055593dc6/images/4a3df2b29ef14857a5ea0ffd6301cc8e_720w.jpg",
+  default: "https://images.squarespace-cdn.com/content/v1/5c71847992441b1f77ae73a1/1600348181315-O5Y5NOAFVW1MT07GMKAT/PAESAN%2BLOW%2BRES%2BSEPTEMBER%2B2020%2B%40lateef.photography-11-2.jpg"
 };
 
 const CATEGORY_CARDS = [
@@ -151,7 +154,7 @@ export default function Feed() {
               position: "relative",
               height: 438,
               overflow: "hidden",
-              backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.05) 18%, rgba(6,43,73,.08) 42%, rgba(6,43,73,.64) 100%), url("${EVENT_IMAGES.apero}")`,
+              backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.05) 18%, rgba(6,43,73,.08) 42%, rgba(6,43,73,.64) 100%), url("${EVENT_IMAGES.hero}")`,
               backgroundSize: "cover",
               backgroundPosition: "center"
             }}

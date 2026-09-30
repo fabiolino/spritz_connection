@@ -104,48 +104,64 @@ export default function Feed() {
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      {!isEventsPage && <section
-        style={{
-          position: "relative",
-          minHeight: 390,
-          overflow: "hidden",
-          backgroundImage: "linear-gradient(180deg, rgba(6,43,73,.18) 0%, rgba(6,43,73,.08) 35%, rgba(6,43,73,.78) 100%), url('/header.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center"
-        }}
-      >
-        <img
-          src="/logo.jpg"
-          alt="Spritz Connection"
+      {!isEventsPage && (
+        <section
           style={{
-            position: "absolute",
-            top: 18,
-            left: 18,
-            width: 108,
-            height: 108,
-            objectFit: "cover",
-            borderRadius: "50%",
-            boxShadow: "0 8px 24px rgba(0,0,0,.2)"
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 20,
-            right: 20,
-            bottom: 24,
-            color: "#fff"
+            position: "relative",
+            overflow: "hidden",
+            background: colors.navy
           }}
         >
-          <div style={{ fontFamily: fonts.display, fontSize: 34, lineHeight: 1.02, maxWidth: 310, textShadow: "0 3px 16px rgba(0,0,0,.28)" }}>
-            Des rencontres qui ont du goût
+          <img
+            src="/header.png"
+            alt="Spritz Connection"
+            style={{
+              width: "100%",
+              height: "auto",
+              display: "block"
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(180deg, rgba(6,43,73,.04) 0%, rgba(6,43,73,.08) 35%, rgba(6,43,73,.84) 100%)"
+            }}
+          />
+          <img
+            src="/logo.jpg"
+            alt="Spritz Connection"
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              width: 82,
+              height: 82,
+              objectFit: "cover",
+              borderRadius: "50%",
+              border: "3px solid rgba(255,255,255,.95)",
+              boxShadow: "0 6px 18px rgba(0,0,0,.22)"
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 20,
+              right: 20,
+              bottom: 20,
+              color: "#fff"
+            }}
+          >
+            <div style={{ fontFamily: fonts.display, fontSize: 32, lineHeight: 1.02, maxWidth: 320, textShadow: "0 3px 16px rgba(0,0,0,.32)" }}>
+              Des rencontres qui ont du goût
+            </div>
+            <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
+              <span style={{ width: 32, height: 4, borderRadius: 99, background: colors.orange }} />
+              <span>Apéros · concerts · soirées · communauté</span>
+            </div>
           </div>
-          <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
-            <span style={{ width: 36, height: 4, borderRadius: 99, background: colors.orange }} />
-            Apéros · concerts · soirées · communauté
-          </div>
-        </div>
-      </section>}
+        </section>
+      )}
 
       {isEventsPage && (
         <div style={{ background: colors.bg, padding: "22px 20px 4px" }}>

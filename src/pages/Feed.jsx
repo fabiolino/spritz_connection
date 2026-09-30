@@ -26,6 +26,14 @@ const DEMO_EVENTS = [
 
 const RADII = [5, 10, 20];
 
+const EVENT_IMAGES = {
+  apero: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=85",
+  concert: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=900&q=85",
+  soiree: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=85",
+  degustation: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85",
+  default: "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=85"
+};
+
 export default function Feed() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
@@ -94,13 +102,48 @@ export default function Feed() {
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      <div style={{ position: "relative" }}>
+      <section
+        style={{
+          position: "relative",
+          minHeight: 390,
+          overflow: "hidden",
+          backgroundImage: "linear-gradient(180deg, rgba(6,43,73,.18) 0%, rgba(6,43,73,.08) 35%, rgba(6,43,73,.78) 100%), url('/header.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center"
+        }}
+      >
         <img
-          src="/header.png"
-          alt="Spritz Connection — Aperitivo, Events, Culture & More"
-          style={{ width: "100%", display: "block" }}
+          src="/logo.jpg"
+          alt="Spritz Connection"
+          style={{
+            position: "absolute",
+            top: 18,
+            left: 18,
+            width: 108,
+            height: 108,
+            objectFit: "cover",
+            borderRadius: "50%",
+            boxShadow: "0 8px 24px rgba(0,0,0,.2)"
+          }}
         />
-      </div>
+        <div
+          style={{
+            position: "absolute",
+            left: 20,
+            right: 20,
+            bottom: 24,
+            color: "#fff"
+          }}
+        >
+          <div style={{ fontFamily: fonts.display, fontSize: 34, lineHeight: 1.02, maxWidth: 310, textShadow: "0 3px 16px rgba(0,0,0,.28)" }}>
+            Des rencontres qui ont du goût
+          </div>
+          <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
+            <span style={{ width: 36, height: 4, borderRadius: 99, background: colors.orange }} />
+            Apéros · concerts · soirées · communauté
+          </div>
+        </div>
+      </section>
 
       <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
         {!authLoading && (
@@ -311,15 +354,22 @@ export default function Feed() {
           >
             <div
               style={{
-                width: 84,
+                width: 108,
+                minHeight: 116,
                 flexShrink: 0,
-                background: "linear-gradient(160deg, rgba(242,118,46,0.32), rgba(240,180,41,0.28))",
+                backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.08), rgba(6,43,73,.62)), url("${EVENT_IMAGES[e.category] || EVENT_IMAGES.default}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
+                alignItems: "flex-end",
+                justifyContent: "center",
+                paddingBottom: 10,
+                boxSizing: "border-box"
               }}
             >
-              <CategoryIcon category={cat} size={56} />
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CategoryIcon category={cat} size={23} />
+              </div>
             </div>
 
             <div style={{ flex: 1, minWidth: 0, padding: 14 }}>

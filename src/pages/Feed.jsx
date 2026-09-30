@@ -105,18 +105,14 @@ export default function Feed() {
           alt="Spritz Connection — Aperitivo, Events, Culture & More"
           style={{ width: "100%", display: "block" }}
         />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 70,
-            background: `linear-gradient(to bottom, rgba(255,250,240,0) 0%, ${colors.bg} 100%)`,
-            pointerEvents: "none"
-          }}
-        />
       </div>
+
+      <div
+        style={{
+          height: 130,
+          background: `linear-gradient(to bottom, ${colors.orange} 0%, rgba(240,90,25,0.35) 45%, ${colors.bg} 100%)`
+        }}
+      />
 
       <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
         {!authLoading && (

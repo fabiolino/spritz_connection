@@ -110,9 +110,9 @@ export default function Feed() {
       <div
         style={{
           backgroundColor: colors.bg,
-          backgroundImage: `linear-gradient(to bottom, ${colors.orange} 0%, rgba(240,90,25,0.6) 20%, rgba(240,90,25,0.28) 45%, rgba(240,90,25,0.08) 70%, transparent 100%)`,
+          backgroundImage: `linear-gradient(to bottom, ${colors.orange} 0%, rgba(240,90,25,0.75) 12%, rgba(240,90,25,0.5) 30%, rgba(240,90,25,0.28) 50%, rgba(240,90,25,0.12) 72%, transparent 100%)`,
           backgroundRepeat: "no-repeat",
-          backgroundSize: "100% 850px",
+          backgroundSize: "100% 1300px",
           backgroundPosition: "top",
           padding: "16px 20px 4px"
         }}>
@@ -198,7 +198,6 @@ export default function Feed() {
         {shareMsg && (
           <p style={{ textAlign: "center", fontSize: 11.5, color: colors.muted, marginTop: 8 }}>{shareMsg}</p>
         )}
-      </div>
 
       <div style={{ padding: "20px 20px 0" }}>
 
@@ -542,6 +541,7 @@ export default function Feed() {
       >
         <Shield size={15} /> Espace administrateur
       </button>
+      </div>
       </div>
     </div>
   );

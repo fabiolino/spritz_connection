@@ -65,7 +65,8 @@ export default async function handler(req, res) {
     category,
     price_member,
     price_nonmember,
-    sumupLink
+    sumupLink,
+    coverPhotoUrl
   } = req.body;
 
   if (!title || !organizer || !organizer_contact || !event_date || !address || !phone) {
@@ -101,6 +102,7 @@ export default async function handler(req, res) {
         taken: 0,
         is_free: !isPaid,
         sumup_link: isPaid ? sumupLink : null,
+        cover_photo_url: coverPhotoUrl ? String(coverPhotoUrl).trim() || null : null,
         approved: false,
         category: category || "autre",
         latitude,

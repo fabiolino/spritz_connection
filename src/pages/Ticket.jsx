@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
+import { InstallAppPrompt } from "../components/InstallAppPrompt.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -343,7 +344,7 @@ export default function Ticket() {
 
           <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
             {ticket.guestName
-              ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation."
+              ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation. Crée un compte avec le même email pour le retrouver automatiquement plus tard dans « Mes billets »."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
 
@@ -372,7 +373,8 @@ export default function Ticket() {
             </div>
           )}
 
-          {!isMembership && <NotifyPrompt style={{ marginTop: 18 }} />}
+          <InstallAppPrompt style={{ marginTop: 18 }} />
+          {!isMembership && <NotifyPrompt style={{ marginTop: 12 }} />}
         </>
       )}
     </div>

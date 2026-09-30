@@ -218,6 +218,34 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    // --- Lieux partenaires : modération des avis (notes + commentaires) ---
+    if (action === "venue-reviews-list") {
+      const { data, error } = await supabaseAdmin
+        .from("venue_reviews")
+        .select("id, venue_id, name, rating, comment, created_at, venues(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return res.status(200).json({
+        reviews: (data || []).map((r) => ({
+          id: r.id,
+          venueId: r.venue_id,
+          venueName: r.venues?.name || "—",
+          name: r.name,
+          rating: r.rating,
+          comment: r.comment,
+          createdAt: r.created_at
+        }))
+      });
+    }
+
+    if (action === "venue-review-delete") {
+      const { reviewId } = req.body;
+      if (!reviewId) return res.status(400).json({ error: "reviewId manquant" });
+      const { error } = await supabaseAdmin.from("venue_reviews").delete().eq("id", reviewId);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === "venue-stats") {
       const { data: venues, error: venuesError } = await supabaseAdmin.from("venues").select("id, name");
       if (venuesError) throw venuesError;

@@ -36,7 +36,9 @@ import {
   insertOptions,
   addTaken,
   roundCents,
-  ADVANCE_PRICE_FOR_ALL
+  ADVANCE_PRICE_FOR_ALL,
+  availableReferralCredits,
+  settleReferralOnPaid
 } from "./_registration.js";
 
 const supabaseAdmin = createClient(
@@ -65,9 +67,10 @@ async function markPaid(registrationId) {
     .update({ paid: true, paid_at: new Date().toISOString() })
     .eq("id", registrationId)
     .eq("paid", false)
-    .select("id, event_id, quantity");
+    .select("id, event_id, quantity, user_id, used_referral_credit");
   const reg = updated && updated[0];
   if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, reg.quantity || 1);
+  if (reg) await settleReferralOnPaid(supabaseAdmin, reg);
 }
 
 async function verifyWithSumup(checkoutId) {
@@ -277,6 +280,7 @@ async function handleCheckout(req, res) {
   let amount = 0;
   let chosenOptions = [];
   let description = "Spritz Connection — adhésion";
+  let usedReferralCredit = false;
 
   if (isMembership) {
     amount = MEMBERSHIP_PRICE;
@@ -313,12 +317,53 @@ async function handleCheckout(req, res) {
     if (option === "both" && user && !isMember && !ADVANCE_PRICE_FOR_ALL) {
       amount += MEMBERSHIP_PRICE;
     }
+
+    // Programme de parrainage : une entrée gratuite réduit le total du prix d'une place
+    // (jamais les options ni l'adhésion), à condition d'en avoir vraiment gagné une.
+    if (user && req.body.useReferralCredit) {
+      const available = await availableReferralCredits(supabaseAdmin, user.id);
+      if (available > 0) {
+        const unitEntryPrice = entryTotal(event, { isMember, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL });
+        amount = Math.max(0, amount - unitEntryPrice);
+        usedReferralCredit = true;
+      }
+    }
+
     description = `Spritz Connection — ${event.title}${quantity > 1 ? ` (${quantity} pers.)` : ""}`;
   }
 
   amount = roundCents(amount);
-  if (amount <= 0) {
+  if (amount < 0) {
     return res.status(400).json({ error: "Montant invalide" });
+  }
+  if (amount === 0 && !usedReferralCredit) {
+    return res.status(400).json({ error: "Montant invalide" });
+  }
+
+  // Entrée gratuite de parrainage qui couvre tout le montant : pas de paiement à faire,
+  // on inscrit directement la personne comme "payée" (comme pour un événement gratuit).
+  if (amount === 0 && usedReferralCredit) {
+    let freeReg;
+    try {
+      freeReg = await insertRegistration(supabaseAdmin, {
+        event_id: eventId,
+        user_id: user.id,
+        quantity,
+        attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
+        option,
+        amount: 0,
+        paid: true,
+        paid_at: new Date().toISOString(),
+        used_referral_credit: true
+      });
+    } catch (err) {
+      console.error("Erreur insertion registration (parrainage):", err);
+      return res.status(500).json({ error: "Erreur lors de l'inscription" });
+    }
+    await insertOptions(supabaseAdmin, freeReg.id, chosenOptions);
+    await addTaken(supabaseAdmin, eventId, quantity);
+    await settleReferralOnPaid(supabaseAdmin, { user_id: user.id, used_referral_credit: true });
+    return res.status(200).json({ free: true, registrationId: freeReg.id });
   }
 
   // 1. On crée l'inscription d'abord (non payée), pour connaître son identifiant
@@ -335,7 +380,8 @@ async function handleCheckout(req, res) {
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
       option,
       amount,
-      paid: false
+      paid: false,
+      used_referral_credit: usedReferralCredit
     });
   } catch (err) {
     console.error("Erreur insertion registration:", err);

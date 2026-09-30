@@ -1,3 +1,4 @@
+// REPERE-V5-FIX-COMPLET — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
@@ -338,7 +339,8 @@ export default function Feed() {
       {visibleEvents.map((e) => {
         const cat = getCategory(e.category);
         const d = userLocation ? distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude) : null;
-        const hasPhoto = !!e.cover_photo_url;
+        const coverUrl = e.cover_photo_url || cat.default_cover_url;
+        const hasPhoto = !!coverUrl;
         const dateObj = new Date(e.event_date);
         const weekday = dateObj.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase();
         const day = dateObj.toLocaleDateString("fr-FR", { day: "numeric" });
@@ -356,7 +358,7 @@ export default function Feed() {
               marginBottom: 14,
               cursor: "pointer",
               background: hasPhoto
-                ? `url(${e.cover_photo_url})`
+                ? `url(${coverUrl})`
                 : "linear-gradient(160deg, rgba(240,90,25,0.85), rgba(255,197,43,0.75))",
               backgroundSize: "cover",
               backgroundPosition: "center",
@@ -368,14 +370,6 @@ export default function Feed() {
                 <CategoryIcon category={cat} size={58} />
               </div>
             )}
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "linear-gradient(180deg, rgba(6,43,73,0.05) 30%, rgba(6,43,73,0.92) 100%)"
-              }}
-            />
-
             {hasPhoto && (
               <div
                 style={{
@@ -416,7 +410,19 @@ export default function Feed() {
               )}
             </div>
 
-            <div style={{ position: "absolute", left: 14, right: 14, bottom: 12, display: "flex", gap: 10, alignItems: "flex-end", color: "#fff" }}>
+            <div
+              style={{
+                position: "absolute",
+                left: 14,
+                right: 14,
+                bottom: 12,
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-end",
+                color: "#fff",
+                textShadow: hasPhoto ? "0 2px 8px rgba(6,43,73,0.85), 0 1px 2px rgba(6,43,73,0.9)" : "none"
+              }}
+            >
               <div style={{ width: 40, flexShrink: 0, textAlign: "center" }}>
                 <b style={{ display: "block", fontSize: 10, letterSpacing: "0.08em" }}>{weekday}</b>
                 <strong style={{ display: "block", color: colors.gold, fontSize: 28, lineHeight: 0.95, fontFamily: fonts.display }}>{day}</strong>

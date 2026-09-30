@@ -40,7 +40,8 @@ export default function CreateEvent() {
     category: "autre",
     visibility: "public",
     venueId: "",
-    sumupLink: ""
+    sumupLink: "",
+    coverPhotoUrl: ""
   });
   const [profiles, setProfiles] = useState([]);
   const [invitedIds, setInvitedIds] = useState([]);
@@ -169,7 +170,7 @@ export default function CreateEvent() {
                     alignItems: "center",
                     gap: 6,
                     border: `1.5px solid ${active ? colors.orange : colors.border}`,
-                    background: active ? "rgba(242,118,46,0.1)" : colors.surface,
+                    background: active ? "rgba(240,90,25,0.1)" : colors.surface,
                     color: colors.ink,
                     borderRadius: 20,
                     padding: "7px 12px",
@@ -212,7 +213,7 @@ export default function CreateEvent() {
                 justifyContent: "center",
                 gap: 6,
                 border: `1.5px solid ${form.visibility === "public" ? colors.orange : colors.border}`,
-                background: form.visibility === "public" ? "rgba(242,118,46,0.1)" : colors.surface,
+                background: form.visibility === "public" ? "rgba(240,90,25,0.1)" : colors.surface,
                 color: colors.ink,
                 borderRadius: 12,
                 padding: "9px 12px",
@@ -233,7 +234,7 @@ export default function CreateEvent() {
                 justifyContent: "center",
                 gap: 6,
                 border: `1.5px solid ${form.visibility === "private" ? colors.orange : colors.border}`,
-                background: form.visibility === "private" ? "rgba(242,118,46,0.1)" : colors.surface,
+                background: form.visibility === "private" ? "rgba(240,90,25,0.1)" : colors.surface,
                 color: colors.ink,
                 borderRadius: 12,
                 padding: "9px 12px",
@@ -276,6 +277,33 @@ export default function CreateEvent() {
             </div>
           </div>
         )}
+
+        <div>
+          <label style={labelStyle}>Photo de couverture (URL, optionnel)</label>
+          <input
+            type="url"
+            style={inputStyle}
+            value={form.coverPhotoUrl}
+            onChange={(e) => update("coverPhotoUrl", e.target.value)}
+            placeholder="https://…"
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Affichée en fond de la carte sur l'accueil et en haut de la fiche de l'événement. Laisse vide pour garder le visuel par défaut (icône de catégorie).
+          </p>
+          {form.coverPhotoUrl && (
+            <div
+              style={{
+                marginTop: 8,
+                height: 110,
+                borderRadius: 12,
+                backgroundImage: `url(${form.coverPhotoUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                border: `1px solid ${colors.border}`
+              }}
+            />
+          )}
+        </div>
 
         <div>
           <label style={labelStyle}>Description</label>

@@ -32,10 +32,10 @@ export default function BottomNav() {
         width: "min(470px, calc(100vw - 20px))",
         boxSizing: "border-box",
         padding: "8px 8px calc(8px + env(safe-area-inset-bottom))",
-        background: "rgba(255,255,255,.97)",
-        border: `1px solid ${colors.border}`,
-        borderRadius: 22,
-        boxShadow: "0 8px 28px rgba(43,36,25,.16)",
+        background: colors.navy,
+        border: "1px solid rgba(255,255,255,.10)",
+        borderRadius: 24,
+        boxShadow: "0 10px 30px rgba(6,43,73,.30)",
         zIndex: 50,
         display: "grid",
         gridTemplateColumns: "repeat(5, 1fr)",
@@ -52,8 +52,8 @@ export default function BottomNav() {
             aria-current={isActive ? "page" : undefined}
             style={{
               border: 0,
-              background: isActive ? "rgba(232,95,38,.10)" : "transparent",
-              color: isActive ? colors.orange : colors.blue,
+              background: isActive ? "rgba(232,95,38,.16)" : "transparent",
+              color: isActive ? colors.orange : "rgba(255,255,255,.92)",
               borderRadius: 16,
               padding: "6px 2px 5px",
               minWidth: 0,
@@ -63,21 +63,21 @@ export default function BottomNav() {
               alignItems: "center",
               gap: 3,
               fontFamily: fonts.body,
-              fontSize: 10,
+              fontSize: 10.5,
               fontWeight: isActive ? 800 : 650
             }}
           >
             <span
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: "50%",
+                width: 34,
+                height: 28,
+                borderRadius: 12,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: isActive ? colors.orange : "rgba(44,79,140,.09)",
-                color: isActive ? "#fff" : colors.blue,
-                boxShadow: isActive ? "0 3px 9px rgba(232,95,38,.24)" : "none"
+                background: "transparent",
+                color: isActive ? colors.orange : "rgba(255,255,255,.92)",
+                boxShadow: "none"
               }}
             >
               <Icon size={17} strokeWidth={2.5} />

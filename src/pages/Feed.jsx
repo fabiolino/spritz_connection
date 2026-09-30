@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
@@ -36,6 +36,8 @@ const EVENT_IMAGES = {
 
 export default function Feed() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEventsPage = location.pathname === "/events";
   const { user, profile, loading: authLoading } = useAuth();
   const { getCategory } = useCategories();
   const [events, setEvents] = useState(DEMO_EVENTS);
@@ -102,7 +104,7 @@ export default function Feed() {
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      <section
+      {!isEventsPage && <section
         style={{
           position: "relative",
           minHeight: 390,
@@ -143,7 +145,14 @@ export default function Feed() {
             Apéros · concerts · soirées · communauté
           </div>
         </div>
-      </section>
+      </section>}
+
+      {isEventsPage && (
+        <div style={{ background: colors.bg, padding: "22px 20px 4px" }}>
+          <h1 style={{ fontFamily: fonts.display, fontSize: 30, lineHeight: 1, margin: 0 }}>Tous les événements</h1>
+          <p style={{ color: colors.muted, fontSize: 13, margin: "8px 0 0" }}>Trouve ton prochain moment à l’italienne.</p>
+        </div>
+      )}
 
       <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
         {!authLoading && (

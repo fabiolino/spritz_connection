@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, MapPin, Users, Phone, Mail, Building2, CreditCard } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
+import VenueReviews from "../components/VenueReviews";
 
 export default function Venues() {
   const navigate = useNavigate();
   const [venues, setVenues] = useState([]);
+  const [ratings, setRatings] = useState({}); // { [venueId]: { avg, count } }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,6 +22,24 @@ export default function Venues() {
         .select("*")
         .order("created_at", { ascending: true });
       if (!error && data) setVenues(data);
+
+      // Une seule requête groupée pour la moyenne/nombre d'avis de tous les lieux,
+      // pour ne pas faire un appel par lieu juste pour afficher le résumé.
+      const { data: reviewRows } = await supabase.from("venue_reviews").select("venue_id, rating");
+      if (reviewRows) {
+        const byVenue = {};
+        reviewRows.forEach((r) => {
+          if (!byVenue[r.venue_id]) byVenue[r.venue_id] = { sum: 0, count: 0 };
+          byVenue[r.venue_id].sum += r.rating;
+          byVenue[r.venue_id].count += 1;
+        });
+        const computed = {};
+        Object.keys(byVenue).forEach((venueId) => {
+          computed[venueId] = { avg: byVenue[venueId].sum / byVenue[venueId].count, count: byVenue[venueId].count };
+        });
+        setRatings(computed);
+      }
+
       setLoading(false);
     }
     load();
@@ -139,6 +159,12 @@ export default function Venues() {
                 </a>
               )}
             </div>
+
+            <VenueReviews
+              venueId={v.id}
+              avgRating={ratings[v.id]?.avg || 0}
+              reviewCount={ratings[v.id]?.count || 0}
+            />
           </div>
         </div>
       ))}

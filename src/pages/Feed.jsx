@@ -1,4 +1,4 @@
-// REPERE-V5-FIX-COMPLET — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
+// REPERE-V6-CATEGORIES — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
@@ -202,7 +202,7 @@ export default function Feed() {
 
       <div style={{ padding: "20px 20px 0" }}>
 
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 18 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
         {categories.map((c) => {
           const active = activeCategory === c.id;
           return (
@@ -210,13 +210,12 @@ export default function Feed() {
               key={c.id}
               onClick={() => setActiveCategory(active ? null : c.id)}
               style={{
-                flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                border: `1.5px solid ${active ? colors.orange : colors.border}`,
-                background: active ? "rgba(240,90,25,0.1)" : colors.surface,
-                color: active ? colors.orange : colors.ink,
+                border: `1.5px solid ${colors.orange}`,
+                background: active ? colors.orange : colors.surface,
+                color: active ? "#fff" : colors.ink,
                 borderRadius: 20,
                 padding: "7px 13px",
                 fontSize: 12.5,

@@ -320,15 +320,29 @@ export default function EventDetail() {
       <div
         style={{
           margin: "10px 20px 18px",
-          minHeight: 300,
           borderRadius: 22,
           overflow: "hidden",
           position: "relative",
-          backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.08), rgba(6,43,73,.82)), url("${EVENT_IMAGES[event.category] || EVENT_IMAGES.default}")`,
-          backgroundSize: "cover",
-          backgroundPosition: "center"
+          background: colors.navy
         }}
       >
+        <img
+          src={EVENT_IMAGES[event.category] || EVENT_IMAGES.default}
+          alt=""
+          style={{
+            width: "100%",
+            aspectRatio: "16 / 10",
+            objectFit: "cover",
+            display: "block"
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(180deg, rgba(6,43,73,.04) 0%, rgba(6,43,73,.10) 38%, rgba(6,43,73,.88) 100%)"
+          }}
+        />
         <img
           src="/logo.jpg"
           alt="Spritz Connection"
@@ -336,28 +350,31 @@ export default function EventDetail() {
             position: "absolute",
             top: 14,
             left: 14,
-            width: 72,
-            height: 72,
+            width: 64,
+            height: 64,
             objectFit: "cover",
-            borderRadius: "50%"
+            borderRadius: "50%",
+            border: "3px solid rgba(255,255,255,.95)"
           }}
         />
         <div style={{ position: "absolute", left: 20, right: 20, bottom: 18, color: "#fff" }}>
           <span
             style={{
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
               fontSize: 11,
-              fontWeight: 700,
+              fontWeight: 800,
               color: colors.navy,
               background: colors.gold,
               borderRadius: 20,
-              padding: "4px 11px",
+              padding: "5px 11px",
               marginBottom: 8
             }}
           >
             {cat.label}
           </span>
-          <h1 style={{ fontFamily: fonts.display, fontSize: 28, lineHeight: 1.05, margin: "0 0 8px", textShadow: "0 3px 14px rgba(0,0,0,.3)" }}>
+          <h1 style={{ fontFamily: fonts.display, fontSize: 28, lineHeight: 1.05, margin: "0 0 8px", textShadow: "0 3px 14px rgba(0,0,0,.34)" }}>
             {event.title}
           </h1>
           {event.seats > 0 && (

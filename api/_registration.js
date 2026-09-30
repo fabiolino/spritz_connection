@@ -8,6 +8,10 @@
 
 export const MAX_GROUP = 10;
 
+// Programme de parrainage : nombre de filleuls (première participation payée) nécessaires
+// pour que le parrain gagne une entrée gratuite. Ajuste juste ce chiffre si besoin.
+export const REFERRAL_THRESHOLD = 3;
+
 // Tant que l'association n'est pas créée : quiconque réserve à l'avance paie le « tarif membre » ;
 // le « tarif non-membre » correspond au prix sur place le jour J.
 // À passer à false (ici ET dans src/lib/pricing.js) une fois l'association créée.
@@ -136,4 +140,36 @@ export async function addTaken(supabaseAdmin, eventId, delta) {
   if (!eventId || !delta) return;
   const { error } = await supabaseAdmin.rpc("add_taken", { p_event_id: eventId, p_delta: delta });
   if (error) console.error("Erreur compteur de places:", error);
+}
+
+// --- Programme de parrainage ---
+
+// Nombre d'entrées gratuites déjà gagnées mais pas encore utilisées par cet utilisateur
+export async function availableReferralCredits(supabaseAdmin, userId) {
+  if (!userId) return 0;
+  const { count } = await supabaseAdmin
+    .from("referrals")
+    .select("id", { count: "exact", head: true })
+    .eq("referrer_id", userId)
+    .eq("status", "rewarded");
+  const { data: profile } = await supabaseAdmin.from("profiles").select("referral_credits_used").eq("id", userId).maybeSingle();
+  const rewardedCount = count || 0;
+  const used = profile?.referral_credits_used || 0;
+  return Math.max(0, Math.floor(rewardedCount / REFERRAL_THRESHOLD) - used);
+}
+
+// À appeler une fois qu'une inscription vient de passer à "payée" (jamais avant, jamais deux
+// fois pour la même inscription) : marque le parrainage du filleul comme récompensé s'il
+// s'agit bien de sa première participation payée, et consomme le crédit s'il en a utilisé un.
+export async function settleReferralOnPaid(supabaseAdmin, reg) {
+  if (!reg || !reg.user_id) return;
+  await supabaseAdmin
+    .from("referrals")
+    .update({ status: "rewarded", rewarded_at: new Date().toISOString() })
+    .eq("referred_id", reg.user_id)
+    .eq("status", "pending");
+  if (reg.used_referral_credit) {
+    const { error } = await supabaseAdmin.rpc("increment_referral_credits_used", { p_user_id: reg.user_id });
+    if (error) console.error("Erreur consommation crédit parrainage:", error);
+  }
 }

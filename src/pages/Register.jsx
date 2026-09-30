@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock, Star } from "lucide-react";
+import { ChevronLeft, Lock, Star, Gift } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { startCheckout } from "../lib/sumupClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { ADVANCE_PRICE_FOR_ALL, groupEntryPrice } from "../lib/pricing";
+import { ADVANCE_PRICE_FOR_ALL, groupEntryPrice, onlineEntryPrice } from "../lib/pricing";
 import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../components/GroupForm.jsx";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
+const REFERRAL_THRESHOLD = 3; // doit rester aligné avec REFERRAL_THRESHOLD dans api/_registration.js
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -26,6 +27,8 @@ export default function Register() {
   const [addMembership, setAddMembership] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [availableReferralCredits, setAvailableReferralCredits] = useState(0);
+  const [useReferralCredit, setUseReferralCredit] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -50,6 +53,19 @@ export default function Register() {
     load();
   }, [id]);
 
+  // Programme de parrainage : combien d'entrées gratuites il reste à utiliser
+  useEffect(() => {
+    async function loadCredits() {
+      if (!user || !import.meta.env.VITE_SUPABASE_URL) return;
+      const { data: referrals } = await supabase.from("referrals").select("status").eq("referrer_id", user.id);
+      const rewardedCount = (referrals || []).filter((r) => r.status === "rewarded").length;
+      const { data: prof } = await supabase.from("profiles").select("referral_credits_used").eq("id", user.id).maybeSingle();
+      const used = prof?.referral_credits_used || 0;
+      setAvailableReferralCredits(Math.max(0, Math.floor(rewardedCount / REFERRAL_THRESHOLD) - used));
+    }
+    loadCredits();
+  }, [user]);
+
   if (authLoading || !event) return null;
 
   const isMember = !!profile?.is_member;
@@ -59,7 +75,9 @@ export default function Register() {
   const chosenOptions = eventOptions.filter((o) => (optionQty[o.id] || 0) > 0);
   const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price) * optionQty[o.id], 0);
   const withMembership = addMembership && !!user;
-  const total = Math.round((entryTotal + optionsTotal + (withMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
+  const applyReferralCredit = useReferralCredit && availableReferralCredits > 0;
+  const referralDiscount = applyReferralCredit ? Math.min(entryTotal, onlineEntryPrice(event, isMember)) : 0;
+  const total = Math.round((entryTotal - referralDiscount + optionsTotal + (withMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
   const option = withMembership ? "both" : "billet";
 
   async function handlePay() {
@@ -75,6 +93,7 @@ export default function Register() {
         eventId: id,
         option,
         optionQuantities: Object.fromEntries(chosenOptions.map((o) => [o.id, optionQty[o.id]])),
+        useReferralCredit: applyReferralCredit,
         ...groupPayload(group, user)
       });
     } catch (err) {
@@ -174,6 +193,37 @@ export default function Register() {
         </div>
       )}
 
+      {availableReferralCredits > 0 && (
+        <div
+          onClick={() => setUseReferralCredit((v) => !v)}
+          style={{
+            border: `1.5px solid ${useReferralCredit ? colors.gold : colors.border}`,
+            background: useReferralCredit ? "rgba(255,197,43,0.12)" : colors.surface,
+            borderRadius: 14,
+            padding: "14px 16px",
+            cursor: "pointer",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 20
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Gift size={18} color={colors.orange} style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>Utiliser mon entrée gratuite</div>
+              <div style={{ fontSize: 12, color: colors.muted }}>
+                Grâce au parrainage — {availableReferralCredits} disponible{availableReferralCredits > 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: colors.olive, whiteSpace: "nowrap" }}>
+            {useReferralCredit ? "− " + formatEuro(referralDiscount) : ""}
+          </span>
+        </div>
+      )}
+
       {user && !isMember && !ADVANCE_PRICE_FOR_ALL && (
         <div
           onClick={() => setAddMembership((v) => !v)}
@@ -243,7 +293,14 @@ export default function Register() {
           boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
         }}
       >
-        <Lock size={15} /> {seatsLeft === 0 ? "Complet" : loading ? "Redirection vers le paiement…" : `Payer ${formatEuro(total)} en ligne`}
+        {total === 0 ? <Gift size={15} /> : <Lock size={15} />}{" "}
+        {seatsLeft === 0
+          ? "Complet"
+          : loading
+          ? "Confirmation…"
+          : total === 0
+          ? "Confirmer mon inscription gratuite"
+          : `Payer ${formatEuro(total)} en ligne`}
       </button>
     </div>
   );

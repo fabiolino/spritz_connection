@@ -7,6 +7,7 @@ import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import { NotificationSettings } from "../components/Notifications.jsx";
+import ReferralCard from "../components/ReferralCard.jsx";
 
 const GENDERS = [
   { id: "femme", label: "Femme" },
@@ -159,6 +160,8 @@ export default function Account() {
       >
         <Ticket size={16} /> Mes billets
       </button>
+
+      <ReferralCard />
 
       {/* Photo de profil */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>

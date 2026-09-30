@@ -145,7 +145,7 @@ export default function Register() {
                 key={o.id}
                 style={{
                   border: `1.5px solid ${qty > 0 ? colors.orange : colors.border}`,
-                  background: qty > 0 ? "rgba(242,118,46,0.08)" : colors.surface,
+                  background: qty > 0 ? "rgba(240,90,25,0.08)" : colors.surface,
                   borderRadius: 12,
                   padding: "10px 12px 10px 14px",
                   display: "flex",
@@ -179,7 +179,7 @@ export default function Register() {
           onClick={() => setAddMembership((v) => !v)}
           style={{
             border: `1.5px solid ${addMembership ? colors.orange : colors.border}`,
-            background: addMembership ? "rgba(242,118,46,0.08)" : colors.surface,
+            background: addMembership ? "rgba(240,90,25,0.08)" : colors.surface,
             borderRadius: 14,
             padding: "14px 16px",
             cursor: "pointer",

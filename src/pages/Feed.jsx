@@ -103,62 +103,114 @@ export default function Feed() {
   }, [events, radius, userLocation]);
 
   return (
-    <div style={{ paddingBottom: 100 }}>
+    <div style={{ paddingBottom: 132, background: colors.bg, minHeight: "100vh" }}>
       {!isEventsPage && (
         <section
           style={{
             position: "relative",
-            overflow: "hidden",
-            background: colors.navy
+            background: colors.bg,
+            padding: "14px 14px 0",
+            overflow: "hidden"
           }}
         >
-          <img
-            src="/header.png"
-            alt="Spritz Connection"
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block"
-            }}
-          />
           <div
             style={{
               position: "absolute",
-              inset: 0,
-              background: "linear-gradient(180deg, rgba(6,43,73,.04) 0%, rgba(6,43,73,.08) 35%, rgba(6,43,73,.84) 100%)"
-            }}
-          />
-          <img
-            src="/logo.jpg"
-            alt="Spritz Connection"
-            style={{
-              position: "absolute",
-              top: 16,
-              left: 16,
-              width: 82,
-              height: 82,
-              objectFit: "cover",
+              width: 110,
+              height: 110,
               borderRadius: "50%",
-              border: "3px solid rgba(255,255,255,.95)",
-              boxShadow: "0 6px 18px rgba(0,0,0,.22)"
+              background: colors.gold,
+              right: -42,
+              top: 86,
+              opacity: 0.92
             }}
           />
           <div
             style={{
               position: "absolute",
-              left: 20,
-              right: 20,
-              bottom: 20,
-              color: "#fff"
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: colors.orange,
+              left: -34,
+              top: 150,
+              opacity: 0.9
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              borderRadius: 28,
+              overflow: "hidden",
+              background: colors.navy,
+              boxShadow: "0 12px 30px rgba(6,43,73,.18)"
             }}
           >
-            <div style={{ fontFamily: fonts.display, fontSize: 32, lineHeight: 1.02, maxWidth: 320, textShadow: "0 3px 16px rgba(0,0,0,.32)" }}>
-              Des rencontres qui ont du goût
+            <img
+              src="/header.png"
+              alt="Spritz Connection"
+              style={{
+                width: "100%",
+                aspectRatio: "1.28 / 1",
+                objectFit: "cover",
+                objectPosition: "center top",
+                display: "block"
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(180deg, rgba(6,43,73,0) 42%, rgba(6,43,73,.18) 68%, rgba(6,43,73,.48) 100%)"
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              margin: "-34px 14px 0",
+              padding: "18px 18px 20px",
+              background: colors.surface,
+              borderRadius: "22px 22px 18px 18px",
+              boxShadow: "0 8px 24px rgba(43,36,25,.10)",
+              border: `1px solid ${colors.border}`
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <img
+                src="/logo.jpg"
+                alt="Spritz Connection"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  flexShrink: 0
+                }}
+              />
+              <div>
+                <div style={{ color: colors.orange, fontSize: 10.5, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase" }}>
+                  Spritz Connection
+                </div>
+                <div style={{ color: colors.navy, fontSize: 11.5, fontWeight: 650, marginTop: 2 }}>
+                  Apéros · concerts · soirées · communauté
+                </div>
+              </div>
             </div>
-            <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 700 }}>
-              <span style={{ width: 32, height: 4, borderRadius: 99, background: colors.orange }} />
-              <span>Apéros · concerts · soirées · communauté</span>
-            </div>
+            <h1
+              style={{
+                fontFamily: fonts.display,
+                color: colors.navy,
+                fontSize: 31,
+                lineHeight: 1.02,
+                margin: 0,
+                letterSpacing: "-.02em"
+              }}
+            >
+              Des rencontres<br />qui ont du goût
+            </h1>
+            <div style={{ width: 42, height: 5, borderRadius: 99, background: colors.orange, marginTop: 14 }} />
           </div>
         </section>
       )}
@@ -170,7 +222,7 @@ export default function Feed() {
         </div>
       )}
 
-      <div style={{ background: colors.bg, padding: "16px 20px 4px" }}>
+      <div style={{ background: colors.bg, padding: "18px 20px 6px" }}>
         {!authLoading && (
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
             {user ? (
@@ -366,38 +418,36 @@ export default function Feed() {
             key={e.id}
             onClick={() => navigate(`/event/${e.id}`)}
             style={{
-              display: "flex",
-              alignItems: "stretch",
+              display: "block",
               background: colors.surface,
               border: `1px solid ${colors.border}`,
-              borderRadius: 18,
+              borderRadius: 22,
               overflow: "hidden",
-              marginBottom: 14,
+              marginBottom: 18,
               cursor: "pointer",
-              boxShadow: "0 3px 10px rgba(43,36,25,0.06)"
+              boxShadow: "0 8px 22px rgba(43,36,25,0.08)"
             }}
           >
             <div
               style={{
-                width: 108,
-                minHeight: 116,
-                flexShrink: 0,
+                width: "100%",
+                height: 148,
                 backgroundImage: `linear-gradient(180deg, rgba(6,43,73,.08), rgba(6,43,73,.62)), url("${EVENT_IMAGES[e.category] || EVENT_IMAGES.default}")`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 display: "flex",
                 alignItems: "flex-end",
-                justifyContent: "center",
-                paddingBottom: 10,
+                justifyContent: "flex-start",
+                padding: 12,
                 boxSizing: "border-box"
               }}
             >
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.94)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <CategoryIcon category={cat} size={23} />
               </div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 0, padding: 14 }}>
+            <div style={{ minWidth: 0, padding: "15px 16px 17px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
                 <span
                   style={{

@@ -19,7 +19,7 @@ const card = {
   border: `1px solid ${colors.border}`,
   borderRadius: 16,
   padding: 14,
-  boxShadow: "0 3px 10px rgba(43,36,25,0.05)"
+  boxShadow: "0 3px 10px rgba(6,43,73,0.05)"
 };
 
 function IosInstallHint() {

@@ -1,305 +1,490 @@
-// Déploiement Vercel : POST /api/create-event
-// Endpoint protégé par un mot de passe admin simple (pas d'auth utilisateur pour l'instant).
-// Un seul fichier gère plusieurs actions (create / update / duplicate / delete)
-// pour rester sous la limite de fonctions serverless du plan Vercel Hobby.
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, Check, Lock, Globe, Plus, X } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/AuthContext";
+import { colors, fonts } from "../lib/theme";
+import { useCategories } from "../lib/CategoriesContext";
+import { CategoryIcon } from "../lib/eventIcons";
 
-import { createClient } from "@supabase/supabase-js";
-import { geocodeAddress } from "./_geocode.js";
+const inputStyle = {
+  width: "100%",
+  background: colors.surface,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 12,
+  padding: "10px 12px",
+  color: colors.ink,
+  fontSize: 13.5,
+  outline: "none",
+  fontFamily: fonts.body,
+  boxSizing: "border-box"
+};
 
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 5, display: "block" };
 
-// Les champs "datetime-local" du navigateur envoient une heure sans fuseau
-// (ex. "2026-10-02T19:00"). Le serveur Vercel tourne en UTC : sans conversion,
-// 19:00 était enregistré comme 19:00 UTC, soit 21:00 à Paris.
-// On interprète donc toute heure sans fuseau comme une heure de Paris.
-function parisOffsetMs(ts) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Paris",
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).formatToParts(new Date(ts));
-  const get = (type) => Number(parts.find((p) => p.type === type).value);
-  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
-  return asUtc - Math.floor(ts / 1000) * 1000;
-}
+export default function CreateEvent() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { categories } = useCategories();
+  const [form, setForm] = useState({
+    adminSecret: "",
+    title: "",
+    organizer: "",
+    description: "",
+    event_date: "",
+    address: "",
+    phone: "",
+    price_member: "",
+    price_nonmember: "",
+    seats: "",
+    category: "autre",
+    visibility: "public",
+    venueId: "",
+    sumupLink: "",
+    coverPhotoUrl: ""
+  });
+  const [profiles, setProfiles] = useState([]);
+  const [invitedIds, setInvitedIds] = useState([]);
+  const [venues, setVenues] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-function parisToISO(value) {
-  if (!value || typeof value !== "string") return value;
-  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(value)) return value;
-  const [datePart, timePart = "00:00"] = value.split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [h, mi] = timePart.split(":").map(Number);
-  const wallClock = Date.UTC(y, m - 1, d, h || 0, mi || 0);
-  let utc = wallClock - parisOffsetMs(wallClock);
-  const check = parisOffsetMs(utc);
-  if (wallClock - check !== utc) utc = wallClock - check;
-  return new Date(utc).toISOString();
-}
+  useEffect(() => {
+    if (form.visibility === "private" && user) {
+      supabase
+        .from("profiles")
+        .select("id, name, email")
+        .neq("id", user.id)
+        .then(({ data }) => setProfiles(data || []));
+    }
+  }, [form.visibility, user]);
 
-async function replaceOptions(eventId, options) {
-  await supabaseAdmin.from("event_options").delete().eq("event_id", eventId);
-  if (Array.isArray(options) && options.length > 0) {
-    const optionRows = options
-      .filter((o) => o.label && o.price !== "")
-      .map((o) => {
-        const onsite = Number(o.onsite_price);
-        return {
-          event_id: eventId,
-          label: o.label,
-          price: Number(o.price) || 0,
-          onsite_price: onsite > 0 ? onsite : null,
-          payment_link: o.payment_link ? String(o.payment_link).trim() || null : null
-        };
+  useEffect(() => {
+    supabase
+      .from("venues")
+      .select("id, name")
+      .order("name", { ascending: true })
+      .then(({ data }) => setVenues(data || []));
+  }, []);
+
+  function update(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function toggleInvite(id) {
+    setInvitedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function addOption() {
+    setOptions((prev) => [...prev, { label: "", price: "", onsite_price: "", payment_link: "" }]);
+  }
+
+  function updateOption(index, field, value) {
+    setOptions((prev) => prev.map((o, i) => (i === index ? { ...o, [field]: value } : o)));
+  }
+
+  function removeOption(index) {
+    setOptions((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          organizerId: user?.id || null,
+          invitedUserIds: form.visibility === "private" ? invitedIds : [],
+          venueId: form.venueId || null,
+          sumupLink: form.sumupLink || null,
+          options
+        })
       });
-    if (optionRows.length > 0) {
-      const { error } = await supabaseAdmin.from("event_options").insert(optionRows);
-      if (error) console.error("Erreur insertion options:", error);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Une erreur est survenue");
+        setLoading(false);
+        return;
+      }
+      setSuccess(true);
+      setTimeout(() => navigate("/"), 1200);
+    } catch (err) {
+      setError("Impossible de contacter le serveur");
+      setLoading(false);
     }
   }
-}
 
-async function deleteEventCascade(eventId) {
-  // 1. Options choisies lors des inscriptions à cet événement
-  const { data: regs } = await supabaseAdmin
-    .from("registrations")
-    .select("id")
-    .eq("event_id", eventId);
-  const regIds = (regs || []).map((r) => r.id);
-  if (regIds.length > 0) {
-    await supabaseAdmin.from("registration_options").delete().in("registration_id", regIds);
+  if (success) {
+    return (
+      <div style={{ padding: "60px 20px", textAlign: "center" }}>
+        <Check size={40} color={colors.olive} style={{ marginBottom: 12 }} />
+        <p style={{ fontSize: 15, fontWeight: 700 }}>Événement créé !</p>
+        <p style={{ fontSize: 13, color: colors.muted }}>Retour à l'accueil…</p>
+      </div>
+    );
   }
 
-  // 2. Inscriptions
-  await supabaseAdmin.from("registrations").delete().eq("event_id", eventId);
+  return (
+    <div style={{ padding: "0 20px 60px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
+        <button onClick={() => navigate("/admin")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
+          <ChevronLeft size={22} />
+        </button>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 19, margin: 0 }}>Créer un événement</h1>
+      </div>
 
-  // 3. Options de l'événement
-  await supabaseAdmin.from("event_options").delete().eq("event_id", eventId);
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <label style={labelStyle}>Mot de passe administrateur</label>
+          <input type="password" required style={inputStyle} value={form.adminSecret} onChange={(e) => update("adminSecret", e.target.value)} />
+        </div>
 
-  // 4. Invitations et blocages
-  await supabaseAdmin.from("event_invites").delete().eq("event_id", eventId);
-  await supabaseAdmin.from("event_blocks").delete().eq("event_id", eventId);
+        <div>
+          <label style={labelStyle}>Titre de la soirée</label>
+          <input required style={inputStyle} value={form.title} onChange={(e) => update("title", e.target.value)} placeholder="Spritz al Tramonto" />
+        </div>
 
-  // 5. Photos (Storage + table)
-  const { data: files } = await supabaseAdmin.storage.from("event-photos").list(eventId);
-  if (files && files.length > 0) {
-    const paths = files.map((f) => `${eventId}/${f.name}`);
-    await supabaseAdmin.storage.from("event-photos").remove(paths);
-  }
-  await supabaseAdmin.from("event_photos").delete().eq("event_id", eventId);
+        <div>
+          <label style={labelStyle}>Organisateur</label>
+          <input required style={inputStyle} value={form.organizer} onChange={(e) => update("organizer", e.target.value)} placeholder="Fabio" />
+        </div>
 
-  // 6. L'événement lui-même
-  const { error } = await supabaseAdmin.from("events").delete().eq("id", eventId);
-  return error;
-}
+        <div>
+          <label style={labelStyle}>Type d'événement</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {categories.map((c) => {
+              const active = form.category === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => update("category", c.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    border: `1.5px solid ${active ? colors.orange : colors.border}`,
+                    background: active ? "rgba(240,90,25,0.1)" : colors.surface,
+                    color: colors.ink,
+                    borderRadius: 20,
+                    padding: "7px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  <CategoryIcon category={c} size={16} /> {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Méthode non autorisée" });
-  }
+        <div>
+          <label style={labelStyle}>Lieu (optionnel, pour la traçabilité)</label>
+          <select
+            style={inputStyle}
+            value={form.venueId}
+            onChange={(e) => update("venueId", e.target.value)}
+          >
+            <option value="">Aucun lieu partenaire</option>
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+        </div>
 
-  const {
-    adminSecret,
-    action,
-    eventId,
-    newDate,
-    title,
-    organizer,
-    description,
-    event_date,
-    address,
-    phone,
-    price_member,
-    price_nonmember,
-    seats,
-    category,
-    visibility,
-    invitedUserIds,
-    venueId,
-    sumupLink,
-    options
-  } = req.body;
+        <div>
+          <label style={labelStyle}>Visibilité</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => update("visibility", "public")}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: `1.5px solid ${form.visibility === "public" ? colors.orange : colors.border}`,
+                background: form.visibility === "public" ? "rgba(240,90,25,0.1)" : colors.surface,
+                color: colors.ink,
+                borderRadius: 12,
+                padding: "9px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Globe size={14} /> Public
+            </button>
+            <button
+              type="button"
+              onClick={() => update("visibility", "private")}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: `1.5px solid ${form.visibility === "private" ? colors.orange : colors.border}`,
+                background: form.visibility === "private" ? "rgba(240,90,25,0.1)" : colors.surface,
+                color: colors.ink,
+                borderRadius: 12,
+                padding: "9px 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Lock size={14} /> Privé (invitation)
+            </button>
+          </div>
+          {form.visibility === "private" && !user && (
+            <p style={{ fontSize: 11.5, color: colors.red, marginTop: 6 }}>
+              Connecte-toi (bouton en haut de l'accueil) pour pouvoir choisir des invités.
+            </p>
+          )}
+        </div>
 
-  if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ error: "Mot de passe administrateur incorrect" });
-  }
+        {form.visibility === "private" && user && (
+          <div>
+            <label style={labelStyle}>Inviter ({invitedIds.length} sélectionné{invitedIds.length > 1 ? "s" : ""})</label>
+            <div style={{ maxHeight: 220, overflowY: "auto", border: `1px solid ${colors.border}`, borderRadius: 12, padding: 8 }}>
+              {profiles.length === 0 && <p style={{ fontSize: 12, color: colors.muted, padding: 6 }}>Aucun autre compte trouvé pour l'instant.</p>}
+              {profiles.map((p) => (
+                <label
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "7px 6px",
+                    fontSize: 13,
+                    cursor: "pointer"
+                  }}
+                >
+                  <input type="checkbox" checked={invitedIds.includes(p.id)} onChange={() => toggleInvite(p.id)} />
+                  {p.name || p.email}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
-  try {
-    // --- SUPPRESSION ---
-    if (action === "delete") {
-      if (!eventId) {
-        return res.status(400).json({ error: "eventId manquant" });
-      }
-      const error = await deleteEventCascade(eventId);
-      if (error) {
-        console.error("Erreur suppression événement:", error);
-        return res.status(500).json({ error: "Erreur lors de la suppression de l'événement" });
-      }
-      return res.status(200).json({ success: true });
-    }
+        <div>
+          <label style={labelStyle}>Photo de couverture (URL, optionnel)</label>
+          <input
+            type="url"
+            style={inputStyle}
+            value={form.coverPhotoUrl}
+            onChange={(e) => update("coverPhotoUrl", e.target.value)}
+            placeholder="https://…"
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Affichée en fond de la carte sur l'accueil et en haut de la fiche de l'événement. Laisse vide pour garder le visuel par défaut (icône de catégorie).
+          </p>
+          {form.coverPhotoUrl && (
+            <div
+              style={{
+                marginTop: 8,
+                height: 110,
+                borderRadius: 12,
+                backgroundImage: `url(${form.coverPhotoUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                border: `1px solid ${colors.border}`
+              }}
+            />
+          )}
+        </div>
 
-    // --- DUPLICATION ---
-    if (action === "duplicate") {
-      if (!eventId || !newDate) {
-        return res.status(400).json({ error: "eventId ou newDate manquant" });
-      }
-      const { data: source, error: sourceError } = await supabaseAdmin
-        .from("events")
-        .select("*")
-        .eq("id", eventId)
-        .single();
-      if (sourceError || !source) {
-        return res.status(404).json({ error: "Événement source introuvable" });
-      }
+        <div>
+          <label style={labelStyle}>Description</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+            placeholder="Apéritif italien classique…"
+          />
+        </div>
 
-      const { data: created, error: insertError } = await supabaseAdmin
-        .from("events")
-        .insert({
-          title: source.title,
-          organizer: source.organizer,
-          description: source.description,
-          event_date: parisToISO(newDate),
-          address: source.address,
-          phone: source.phone,
-          price_member: source.price_member,
-          price_nonmember: source.price_nonmember,
-          seats: source.seats,
-          taken: 0,
-          category: source.category,
-          visibility: source.visibility,
-          venue_id: source.venue_id,
-          sumup_link: source.sumup_link,
-          latitude: source.latitude,
-          longitude: source.longitude,
-          approved: true
-        })
-        .select()
-        .single();
+        <div>
+          <label style={labelStyle}>Date et heure</label>
+          <input
+            type="datetime-local"
+            required
+            style={inputStyle}
+            value={form.event_date}
+            onChange={(e) => update("event_date", e.target.value)}
+          />
+        </div>
 
-      if (insertError) {
-        console.error("Erreur duplication événement:", insertError);
-        return res.status(500).json({ error: "Erreur lors de la duplication de l'événement" });
-      }
+        <div>
+          <label style={labelStyle}>Adresse</label>
+          <input required style={inputStyle} value={form.address} onChange={(e) => update("address", e.target.value)} placeholder="12 Quai de Valmy, 75010 Paris" />
+        </div>
 
-      const { data: sourceOptions } = await supabaseAdmin
-        .from("event_options")
-        .select("label, price, onsite_price, payment_link")
-        .eq("event_id", eventId);
-      if (sourceOptions && sourceOptions.length > 0) {
-        await replaceOptions(created.id, sourceOptions);
-      }
+        <div>
+          <label style={labelStyle}>Téléphone de contact</label>
+          <input required style={inputStyle} value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="06 12 34 56 78" />
+        </div>
 
-      return res.status(200).json({ event: created });
-    }
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Tarif membre / réservation à l'avance (€)</label>
+            <input type="number" min="0" step="0.5" required style={inputStyle} value={form.price_member} onChange={(e) => update("price_member", e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Tarif non-membre / sur place le jour J (€)</label>
+            <input type="number" min="0" step="0.5" required style={inputStyle} value={form.price_nonmember} onChange={(e) => update("price_nonmember", e.target.value)} />
+          </div>
+        </div>
 
-    // --- MODIFICATION ---
-    if (action === "update") {
-      if (!eventId) {
-        return res.status(400).json({ error: "eventId manquant" });
-      }
-      if (!title || !organizer || !event_date || !address || !phone) {
-        return res.status(400).json({ error: "Champs obligatoires manquants" });
-      }
+        <div>
+          <label style={labelStyle}>Nombre de places</label>
+          <input type="number" min="1" required style={inputStyle} value={form.seats} onChange={(e) => update("seats", e.target.value)} />
+        </div>
 
-      const { latitude, longitude } = await geocodeAddress(address);
+        <div
+          style={{
+            border: `1px solid ${colors.border}`,
+            borderRadius: 14,
+            padding: 14,
+            background: colors.surface
+          }}
+        >
+          <label style={labelStyle}>Lien de paiement SumUp (optionnel)</label>
+          <input
+            style={inputStyle}
+            value={form.sumupLink}
+            onChange={(e) => update("sumupLink", e.target.value)}
+            placeholder="https://pay.sumup.com/b2c/..."
+          />
+          <p style={{ fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 1.4 }}>
+            Si tu colles un lien ici, l'app affichera un simple bouton "Payer via SumUp" qui ouvre ce lien —
+            plus simple, mais sans gestion automatique des places. Les options ci-dessous restent affichées sur la
+            page de l'événement, chacune avec son propre lien de paiement si tu en indiques un. Laisse vide pour
+            garder le système de paiement intégré habituel.
+          </p>
+        </div>
 
-      const { data, error } = await supabaseAdmin
-        .from("events")
-        .update({
-          title,
-          organizer,
-          description: description || "",
-          event_date: parisToISO(event_date),
-          address,
-          phone,
-          price_member: Number(price_member) || 0,
-          price_nonmember: Number(price_nonmember) || 0,
-          seats: Number(seats) || 0,
-          category: category || "autre",
-          visibility: visibility === "private" ? "private" : "public",
-          venue_id: venueId || null,
-          sumup_link: sumupLink || null,
-          latitude,
-          longitude
-        })
-        .eq("id", eventId)
-        .select()
-        .single();
+        {(
+          <div>
+            <label style={labelStyle}>Options en supplément (optionnel)</label>
+            <p style={{ fontSize: 11, color: colors.muted, marginTop: 0, marginBottom: 8, lineHeight: 1.4 }}>
+              Ex. : Spritz à 5 € réservé à l'avance au lieu de 8,50 € sur place. Le « prix sur place » s'affiche
+              barré à côté du prix réduit. Laisse-le vide pour une option sans promo.
+            </p>
+            {options.map((o, i) => (
+              <div
+                key={i}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 12, padding: 10, marginBottom: 8, background: colors.bg }}
+              >
+                <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    placeholder="Ex : Spritz"
+                    value={o.label}
+                    onChange={(e) => updateOption(i, "label", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeOption(i)}
+                    style={{ background: "none", border: `1px solid ${colors.border}`, borderRadius: 10, padding: "0 10px", cursor: "pointer", color: colors.muted }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Prix à l'avance (€)</div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      style={inputStyle}
+                      placeholder="5"
+                      value={o.price}
+                      onChange={(e) => updateOption(i, "price", e.target.value)}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Prix sur place, barré (€)</div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      style={inputStyle}
+                      placeholder="8,50"
+                      value={o.onsite_price || ""}
+                      onChange={(e) => updateOption(i, "onsite_price", e.target.value)}
+                    />
+                  </div>
+                </div>
+                {form.sumupLink && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ fontSize: 10.5, color: colors.muted, marginBottom: 3 }}>Lien de paiement de cette option (optionnel)</div>
+                    <input
+                      style={inputStyle}
+                      placeholder="https://..."
+                      value={o.payment_link || ""}
+                      onChange={(e) => updateOption(i, "payment_link", e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addOption}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "none",
+                border: `1px dashed ${colors.border}`,
+                borderRadius: 10,
+                padding: "8px 12px",
+                fontSize: 12.5,
+                color: colors.orange,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+            >
+              <Plus size={14} /> Ajouter une option
+            </button>
+          </div>
+        )}
 
-      if (error) {
-        console.error("Erreur mise à jour événement:", error);
-        return res.status(500).json({ error: "Erreur lors de la mise à jour de l'événement" });
-      }
+        {error && <p style={{ color: colors.red, fontSize: 13 }}>{error}</p>}
 
-      if (visibility === "private" && Array.isArray(invitedUserIds)) {
-        await supabaseAdmin.from("event_invites").delete().eq("event_id", eventId);
-        if (invitedUserIds.length > 0) {
-          const rows = invitedUserIds.map((userId) => ({ event_id: eventId, invited_user_id: userId }));
-          const { error: inviteError } = await supabaseAdmin.from("event_invites").insert(rows);
-          if (inviteError) console.error("Erreur insertion invitations:", inviteError);
-        }
-      }
-
-      await replaceOptions(eventId, options);
-
-      return res.status(200).json({ event: data });
-    }
-
-    // --- CRÉATION (comportement par défaut) ---
-    if (!title || !organizer || !event_date || !address || !phone) {
-      return res.status(400).json({ error: "Champs obligatoires manquants" });
-    }
-
-    const { latitude, longitude } = await geocodeAddress(address);
-
-    const { data, error } = await supabaseAdmin
-      .from("events")
-      .insert({
-        title,
-        organizer,
-        description: description || "",
-        event_date: parisToISO(event_date),
-        address,
-        phone,
-        price_member: Number(price_member) || 0,
-        price_nonmember: Number(price_nonmember) || 0,
-        seats: Number(seats) || 0,
-        taken: 0,
-        category: category || "autre",
-        visibility: visibility === "private" ? "private" : "public",
-        venue_id: venueId || null,
-        sumup_link: sumupLink || null,
-        latitude,
-        longitude
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erreur insertion événement:", error);
-      return res.status(500).json({ error: "Erreur lors de la création de l'événement" });
-    }
-
-    if (visibility === "private" && Array.isArray(invitedUserIds) && invitedUserIds.length > 0) {
-      const rows = invitedUserIds.map((userId) => ({ event_id: data.id, invited_user_id: userId }));
-      const { error: inviteError } = await supabaseAdmin.from("event_invites").insert(rows);
-      if (inviteError) console.error("Erreur insertion invitations:", inviteError);
-    }
-
-    if (Array.isArray(options) && options.length > 0) {
-      await replaceOptions(data.id, options);
-    }
-
-    return res.status(200).json({ event: data });
-  } catch (err) {
-    console.error("Erreur serveur:", err);
-    return res.status(500).json({ error: "Erreur serveur" });
-  }
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: "100%",
+            background: colors.orange,
+            color: "#fff",
+            border: "none",
+            borderRadius: 14,
+            padding: 14,
+            fontWeight: 700,
+            fontSize: 15,
+            cursor: "pointer",
+            marginTop: 4,
+            boxShadow: "0 4px 12px rgba(232,95,38,0.3)"
+          }}
+        >
+          {loading ? "Création…" : "Créer l'événement"}
+        </button>
+      </form>
+    </div>
+  );
 }

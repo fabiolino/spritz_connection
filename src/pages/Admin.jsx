@@ -1112,7 +1112,7 @@ export default function Admin() {
                 onClick={() => toggleMember(m.id, m.is_member)}
                 disabled={togglingId === m.id}
                 style={{
-                  background: m.is_member ? "rgba(240,180,41,0.15)" : "none",
+                  background: m.is_member ? "rgba(255,197,43,0.15)" : "none",
                   border: `1px solid ${m.is_member ? colors.gold : colors.border}`,
                   color: m.is_member ? colors.gold : colors.muted,
                   borderRadius: 20,

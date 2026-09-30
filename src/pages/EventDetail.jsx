@@ -224,6 +224,7 @@ export default function EventDetail() {
   }
 
   const cat = getCategory(event.category);
+  const coverUrl = event.cover_photo_url || cat.default_cover_url;
 
   async function handleFreeRegister() {
     const check = groupError(group, user);
@@ -315,8 +316,8 @@ export default function EventDetail() {
           borderRadius: 20,
           overflow: "hidden",
           position: "relative",
-          background: event.cover_photo_url
-            ? `url(${event.cover_photo_url})`
+          background: coverUrl
+            ? `url(${coverUrl})`
             : "linear-gradient(155deg, rgba(240,90,25,0.28), rgba(255,197,43,0.22))",
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -324,7 +325,7 @@ export default function EventDetail() {
           textAlign: "center"
         }}
       >
-        {event.cover_photo_url && (
+        {coverUrl && (
           <>
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,43,73,0.15) 0%, rgba(6,43,73,0.55) 100%)" }} />
             <div
@@ -345,7 +346,7 @@ export default function EventDetail() {
           </>
         )}
         <div style={{ position: "relative" }}>
-          {!event.cover_photo_url && (
+          {!coverUrl && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
               <CategoryIcon category={cat} size={64} />
             </div>
@@ -369,8 +370,8 @@ export default function EventDetail() {
               fontFamily: fonts.display,
               fontSize: 22,
               margin: 0,
-              color: event.cover_photo_url ? "#fff" : colors.ink,
-              textShadow: event.cover_photo_url ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
+              color: coverUrl ? "#fff" : colors.ink,
+              textShadow: coverUrl ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
             }}
           >
             {event.title}
@@ -381,8 +382,8 @@ export default function EventDetail() {
                 marginTop: 10,
                 fontSize: 13,
                 fontWeight: 700,
-                color: full ? colors.red : event.cover_photo_url ? "#fff" : colors.ink,
-                textShadow: event.cover_photo_url ? "0 1px 4px rgba(6,43,73,0.5)" : "none",
+                color: full ? colors.red : coverUrl ? "#fff" : colors.ink,
+                textShadow: coverUrl ? "0 1px 4px rgba(6,43,73,0.5)" : "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -878,6 +879,7 @@ function Field({ icon, children }) {
 
 // Aperçu d'un événement privé pour une personne arrivée via un lien d'invitation (WhatsApp / SMS)
 function InviteLanding({ event, category, user, error, onLogin, onBack }) {
+  const coverUrl = event.cover_photo_url || category?.default_cover_url;
   return (
     <div style={{ paddingBottom: 40 }}>
       <div style={{ padding: "18px 20px 0" }}>
@@ -891,8 +893,8 @@ function InviteLanding({ event, category, user, error, onLogin, onBack }) {
           borderRadius: 20,
           overflow: "hidden",
           position: "relative",
-          background: event.cover_photo_url
-            ? `url(${event.cover_photo_url})`
+          background: coverUrl
+            ? `url(${coverUrl})`
             : "linear-gradient(155deg, rgba(240,90,25,0.28), rgba(255,197,43,0.22))",
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -900,7 +902,7 @@ function InviteLanding({ event, category, user, error, onLogin, onBack }) {
           textAlign: "center"
         }}
       >
-        {event.cover_photo_url && (
+        {coverUrl && (
           <>
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,43,73,0.15) 0%, rgba(6,43,73,0.55) 100%)" }} />
             <div
@@ -921,7 +923,7 @@ function InviteLanding({ event, category, user, error, onLogin, onBack }) {
           </>
         )}
         <div style={{ position: "relative" }}>
-          {!event.cover_photo_url && (
+          {!coverUrl && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
               <CategoryIcon category={category} size={64} />
             </div>
@@ -936,8 +938,8 @@ function InviteLanding({ event, category, user, error, onLogin, onBack }) {
               fontFamily: fonts.display,
               fontSize: 22,
               margin: 0,
-              color: event.cover_photo_url ? "#fff" : colors.ink,
-              textShadow: event.cover_photo_url ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
+              color: coverUrl ? "#fff" : colors.ink,
+              textShadow: coverUrl ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
             }}
           >
             {event.title}

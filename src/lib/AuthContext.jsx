@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { captureReferralFromUrl, takeStoredReferralCode, clearStoredReferralCode } from "./referral";
 
 const AuthContext = createContext(null);
 
@@ -13,7 +14,26 @@ export function AuthProvider({ children }) {
     setProfile(data || null);
   }
 
+  // Si la personne est arrivée via un lien de parrainage (?ref=CODE), on tente de
+  // l'enregistrer une fois connectée. Sans effet si aucun code n'a été mémorisé,
+  // si le compte a déjà un parrain, ou si le code est invalide (voir claim_referral en SQL).
+  async function claimStoredReferral() {
+    const code = takeStoredReferralCode();
+    if (!code) return;
+    clearStoredReferralCode();
+    await supabase.rpc("claim_referral", { p_code: code }).catch(() => {});
+  }
+
+  // Récupère les anciennes inscriptions faites "en invité" (avant d'avoir un compte) avec
+  // ce même email, pour qu'elles apparaissent dans "Mon compte › Mes billets". Sans risque
+  // et idempotent (rien à faire une fois déjà rattachées) — voir claim_guest_registrations en SQL.
+  async function claimGuestRegistrations() {
+    await supabase.rpc("claim_guest_registrations").catch(() => {});
+  }
+
   useEffect(() => {
+    captureReferralFromUrl();
+
     if (!import.meta.env.VITE_SUPABASE_URL) {
       setLoading(false);
       return;
@@ -22,7 +42,11 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       const sessionUser = data.session?.user || null;
       setUser(sessionUser);
-      if (sessionUser) loadProfile(sessionUser.id);
+      if (sessionUser) {
+        loadProfile(sessionUser.id);
+        claimStoredReferral();
+        claimGuestRegistrations();
+      }
       setLoading(false);
     });
 
@@ -31,6 +55,8 @@ export function AuthProvider({ children }) {
       setUser(sessionUser);
       if (sessionUser) {
         loadProfile(sessionUser.id);
+        claimStoredReferral();
+        claimGuestRegistrations();
       } else {
         setProfile(null);
       }

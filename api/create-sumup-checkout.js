@@ -40,6 +40,7 @@ import {
   ADVANCE_PRICE_FOR_ALL,
   availableReferralCredits,
   settleReferralOnPaid
+  resolveReferrer
 } from "./_registration.js";
 
 const supabaseAdmin = createClient(

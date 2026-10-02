@@ -293,7 +293,7 @@ export default function ProposeEvent() {
             <p style={{ fontSize: 12, color: colors.muted, margin: 0, lineHeight: 1.5 }}>
               <ExternalLink size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
               {isCrew
-                ? "👑 Spritz Crew : laisse le lien vide et Fabio encaisse pour toi via l'app (puis te reverse ta part, moins la commission), ou indique ton propre lien de paiement."
+                ? "👑 Spritz Crew : laisse le lien vide et Spritz Connection encaisse pour toi via l'app (puis te reverse ta part, moins la commission), ou indique ton propre lien de paiement."
                 : "Les règlements passent directement par ton propre lien de paiement — jamais par Spritz Connection."}
             </p>
 

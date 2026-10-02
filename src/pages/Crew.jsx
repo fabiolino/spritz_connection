@@ -51,7 +51,7 @@ const PERKS = [
   {
     icon: "🎉",
     title: "Co-organisateur",
-    text: "Propose tes propres soirées, gratuites ou payantes. Chaque proposition est validée par Fabio avant publication ; pour une soirée payante, Fabio encaisse via l'app et te reverse ta part."
+    text: "Propose tes propres soirées, gratuites ou payantes. Chaque proposition est validée par un administrateur avant publication ; pour une soirée payante, Spritz Connection encaisse via l'app et te reverse ta part."
   },
   {
     icon: "👑",
@@ -165,7 +165,7 @@ export default function Crew() {
               <p style={{ fontSize: 11.5, color: colors.muted, margin: "8px 0 0", lineHeight: 1.45 }}>
                 {stats.people_total} personne{stats.people_total > 1 ? "s" : ""} inscrite{stats.people_total > 1 ? "s" : ""} grâce à toi au total
                 {stats.people_total !== stats.people_counted ? ` (${stats.people_counted} déjà venue${stats.people_counted > 1 ? "s" : ""} : on compte les bons une fois la soirée passée)` : ""}.
-                {stats.vouchers_available > 0 ? " Pour utiliser un bon, montre cette page à Fabio à la soirée." : ""}
+                {stats.vouchers_available > 0 ? " Pour utiliser un bon, montre cette page à un administrateur pendant la soirée." : ""}
               </p>
             </div>
             {link && (
@@ -260,7 +260,7 @@ export default function Crew() {
         </div>
         <p style={{ fontSize: 11.5, color: colors.muted, lineHeight: 1.5, marginTop: 12 }}>
           Les personnes sont comptées une fois la soirée passée ; ta propre inscription ne compte pas ; une réservation
-          annulée est retirée. Le statut Spritz Crew est attribué par Fabio et peut être retiré en cas d'abus.
+          annulée est retirée. Le statut Spritz Crew est attribué par un administrateur et peut être retiré en cas d'abus.
         </p>
 
         {!isCrew && (
@@ -268,7 +268,7 @@ export default function Crew() {
             <Crown size={22} color={colors.orange} />
             <div style={{ fontFamily: fonts.display, fontSize: 17, fontWeight: 700, color: colors.navy, margin: "4px 0 6px" }}>Envie de rejoindre la Crew ?</div>
             <p style={{ fontSize: 12.5, color: colors.muted, lineHeight: 1.5, margin: "0 0 12px" }}>
-              Tu viens souvent et tu aimes faire découvrir nos soirées ? Écris à Fabio, ou parle-lui en à la prochaine soirée.
+              Tu viens souvent et tu aimes faire découvrir nos soirées ? Écris-nous, ou parles-en à l'équipe lors de la prochaine soirée.
             </p>
             <a
               href="mailto:fabiocasilli@gmail.com?subject=Je%20veux%20rejoindre%20la%20Spritz%20Crew"

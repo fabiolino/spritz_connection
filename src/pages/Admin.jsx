@@ -638,6 +638,41 @@ export default function Admin() {
 
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
+          <Users size={16} color={colors.orange} /> Membres &amp; Spritz Crew
+        </h2>
+
+        {members === null ? (
+          <button
+            onClick={loadMembers}
+            disabled={loadingMembers}
+            style={{
+              width: "100%",
+              background: "none",
+              border: `1px solid ${colors.border}`,
+              color: colors.ink,
+              borderRadius: 12,
+              padding: 12,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            {loadingMembers ? "Chargement…" : "Afficher les membres (app installée, activité, ambassadeurs)"}
+          </button>
+        ) : (
+          <AdminMembers
+            members={members}
+            setMembers={setMembers}
+            adminSecret={adminSecret}
+            onToggleMember={toggleMember}
+            togglingId={togglingId}
+          />
+        )}
+        {membersError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{membersError}</p>}
+      </div>
+
+      <div style={{ marginBottom: 28 }}>
+        <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
           <UserCheck size={16} color={colors.orange} /> Gérer un événement : inscriptions, invités, duplication
         </h2>
         <select
@@ -1116,41 +1151,6 @@ export default function Admin() {
           ))
         )}
         {venueStatsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{venueStatsError}</p>}
-      </div>
-
-      <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
-          <Users size={16} color={colors.orange} /> Membres &amp; Spritz Crew
-        </h2>
-
-        {members === null ? (
-          <button
-            onClick={loadMembers}
-            disabled={loadingMembers}
-            style={{
-              width: "100%",
-              background: "none",
-              border: `1px solid ${colors.border}`,
-              color: colors.ink,
-              borderRadius: 12,
-              padding: 12,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer"
-            }}
-          >
-            {loadingMembers ? "Chargement…" : "Afficher les membres (app installée, activité, ambassadeurs)"}
-          </button>
-        ) : (
-          <AdminMembers
-            members={members}
-            setMembers={setMembers}
-            adminSecret={adminSecret}
-            onToggleMember={toggleMember}
-            togglingId={togglingId}
-          />
-        )}
-        {membersError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{membersError}</p>}
       </div>
 
       <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px" }}>Co-organisateurs</h2>

@@ -9,6 +9,8 @@ import { AuthProvider } from "./lib/AuthContext";
 import { CategoriesProvider } from "./lib/CategoriesContext";
 import Feed from "./pages/Feed.jsx";
 import EventDetail from "./pages/EventDetail.jsx";
+import EventPoster from "./pages/EventPoster.jsx";
+import InstallApp from "./pages/InstallApp.jsx";
 import Register from "./pages/Register.jsx";
 import Chat from "./pages/Chat.jsx";
 import Admin from "./pages/Admin.jsx";
@@ -66,6 +68,8 @@ export default function App() {
           <Route path="/event/:id" element={<EventDetail />} />
           <Route path="/event/:id/register" element={<Register />} />
           <Route path="/event/:id/chat" element={<Chat />} />
+          <Route path="/event/:id/affichette" element={<EventPoster />} />
+          <Route path="/app" element={<InstallApp />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/create-event" element={<CreateEvent />} />
           <Route path="/admin/edit-event/:id" element={<EditEvent />} />

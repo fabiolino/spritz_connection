@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag, Square, CheckSquare } from "lucide-react";
+import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag, Square, CheckSquare, Image as ImageIcon } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
@@ -841,6 +841,31 @@ export default function EventDetail() {
         >
           <MessageCircle size={16} /> Discussion de l'événement
         </button>
+
+        {event.visibility !== "private" && user && (event.organizer_id === user.id || profile?.is_ambassador) && (
+          <button
+            onClick={() => navigate(`/event/${id}/affichette`)}
+            style={{
+              width: "100%",
+              background: "none",
+              border: `1.5px dashed ${colors.orange}`,
+              color: colors.orange,
+              borderRadius: 14,
+              padding: 12,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              marginTop: -12,
+              marginBottom: 26
+            }}
+          >
+            <ImageIcon size={16} /> Créer une affichette pour cet événement
+          </button>
+        )}
 
         {event.visibility !== "private" && new Date(event.event_date) > new Date() && (
           <InviteButtons event={event} url={eventInviteUrl(id, null, profile?.referral_code)} style={{ marginTop: -12, marginBottom: 26 }} />

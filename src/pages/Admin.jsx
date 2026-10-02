@@ -722,6 +722,31 @@ export default function Admin() {
           </button>
         )}
 
+        {selectedEventId && (
+          <button
+            onClick={() => navigate(`/event/${selectedEventId}/affichette`)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              background: "none",
+              border: `1px solid ${colors.orange}`,
+              color: colors.orange,
+              borderRadius: 12,
+              padding: 10,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginTop: -6,
+              marginBottom: 14
+            }}
+          >
+            🖼️ Affichette de l'événement (à imprimer ou à envoyer au lieu)
+          </button>
+        )}
+
         {selectedEventId &&
           (() => {
             const ev = allEvents.find((e) => e.id === selectedEventId);

@@ -39,8 +39,8 @@ import {
   roundCents,
   ADVANCE_PRICE_FOR_ALL,
   availableReferralCredits,
-  settleReferralOnPaid
-  resolveReferrer,
+  settleReferralOnPaid,
+  resolveReferrer
 } from "./_registration.js";
 
 const supabaseAdmin = createClient(

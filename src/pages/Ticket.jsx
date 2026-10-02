@@ -343,6 +343,11 @@ export default function Ticket() {
           </div>
 
           <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
+            {ticket.emailed && (
+              <span style={{ display: "block", fontWeight: 700, color: colors.ink, marginBottom: 4 }}>
+                ✉️ Ton billet t'a aussi été envoyé par email (pense à regarder dans les spams).
+              </span>
+            )}
             {ticket.guestName
               ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation. Crée un compte avec le même email pour le retrouver automatiquement plus tard dans « Mes billets »."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}

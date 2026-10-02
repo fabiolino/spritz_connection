@@ -4,6 +4,7 @@
 // serverless du plan Hobby).
 
 import { createClient } from "@supabase/supabase-js";
+import { sendRegistrationEmail } from "./_email.js";
 import { geocodeAddress } from "./_geocode.js";
 import {
   addTaken,
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ error: "eventId manquant" });
       const { data: regs, error: regsError } = await supabaseAdmin
         .from("registrations")
-        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names")
+        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at")
         .eq("event_id", eventId)
         .or("paid.eq.true,external.eq.true")
         .order("created_at", { ascending: true });
@@ -92,6 +93,8 @@ export default async function handler(req, res) {
           attendeeNames: r.attendee_names || [],
           contact: r.user_id ? profilesById[r.user_id]?.email || null : [r.guest_email, r.guest_phone].filter(Boolean).join(" · ") || null,
           withoutAccount: !r.user_id,
+          hasEmail: !!(r.guest_email || (r.user_id && profilesById[r.user_id]?.email)),
+          emailed: !!r.confirmation_sent_at,
           options: optionsByReg[r.id] || []
         }))
       });
@@ -119,6 +122,10 @@ export default async function handler(req, res) {
     if (action === "add-registration") {
       const { eventId: evId, guestName, attendeeNames, alreadyPaid } = req.body;
       const name = String(guestName || "").trim().slice(0, 80);
+      const guestEmail = String(req.body.guestEmail || "").trim().toLowerCase().slice(0, 120);
+      if (guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+        return res.status(400).json({ error: "L'adresse email ne semble pas valide" });
+      }
       if (!evId) return res.status(400).json({ error: "eventId manquant" });
       if (!name) return res.status(400).json({ error: "Indique le nom de la personne" });
       const quantity = parseQuantity(req.body.quantity);
@@ -134,6 +141,7 @@ export default async function handler(req, res) {
         event_id: evId,
         user_id: null,
         guest_name: name,
+        guest_email: guestEmail || null,
         quantity,
         attendee_names: readAttendeeNames(attendeeNames, quantity),
         option: "manuel",
@@ -143,8 +151,26 @@ export default async function handler(req, res) {
         external: !paid
       });
       await addTaken(supabaseAdmin, evId, quantity);
+      const emailed = guestEmail ? await sendRegistrationEmail(supabaseAdmin, reg.id) : false;
       const left = ev.seats ? ev.seats - (ev.taken || 0) - quantity : null;
-      return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, overbooked: left != null && left < 0 });
+      return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, emailed, overbooked: left != null && left < 0 });
+    }
+
+    // Envoyer (ou renvoyer) le billet par email — en ajoutant l'email s'il manquait
+    if (action === "send-ticket") {
+      const { registrationId } = req.body;
+      const newEmail = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
+      if (!registrationId) return res.status(400).json({ error: "registrationId manquant" });
+      if (newEmail) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return res.status(400).json({ error: "L'adresse email ne semble pas valide" });
+        await supabaseAdmin.from("registrations").update({ guest_email: newEmail }).eq("id", registrationId).is("user_id", null);
+      }
+      if (!process.env.BREVO_API_KEY) {
+        return res.status(503).json({ error: "L'envoi d'emails n'est pas encore activé (clé Brevo manquante dans Vercel)." });
+      }
+      const sent = await sendRegistrationEmail(supabaseAdmin, registrationId, { force: true });
+      if (!sent) return res.status(400).json({ error: "Email non envoyé : aucune adresse pour cette inscription, ou erreur Brevo." });
+      return res.status(200).json({ ok: true });
     }
 
     // Annuler une inscription (désistement, doublon…) : libère ses places

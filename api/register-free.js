@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { parseQuantity, readGuest, readAttendeeNames, seatsError, insertRegistration, addTaken } from "./_registration.js";
+import { sendRegistrationEmail } from "./_email.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -124,8 +125,9 @@ export default async function handler(req, res) {
     });
 
     await addTaken(supabaseAdmin, eventId, quantity);
+    const emailed = await sendRegistrationEmail(supabaseAdmin, reg.id);
 
-    return res.status(200).json({ ok: true, registrationId: reg.id, quantity });
+    return res.status(200).json({ ok: true, registrationId: reg.id, quantity, emailed });
   } catch (err) {
     console.error("Erreur inscription gratuite:", err);
     return res.status(500).json({ error: "Erreur serveur" });

@@ -13,6 +13,7 @@ import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../com
 import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
 import { NotifyPrompt } from "../components/Notifications.jsx";
+import FindTicket from "../components/FindTicket.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -795,6 +796,10 @@ export default function EventDetail() {
         )}
 
         {registered && <NotifyPrompt style={{ marginBottom: 16 }} />}
+
+        {new Date(event.event_date) > new Date(Date.now() - 24 * 3600 * 1000) && (
+          <FindTicket eventId={id} style={{ marginBottom: 18 }} />
+        )}
 
         <button
           onClick={() => navigate(`/event/${id}/chat`)}

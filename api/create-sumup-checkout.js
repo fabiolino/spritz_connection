@@ -24,6 +24,7 @@
 // n'est jamais utilisé, pour qu'un billet « payé » corresponde vraiment au bon prix.
 
 import { createClient } from "@supabase/supabase-js";
+import { sendRegistrationEmail } from "./_email.js";
 import {
   parseQuantity,
   readGuest,
@@ -71,6 +72,7 @@ async function markPaid(registrationId) {
   const reg = updated && updated[0];
   if (reg && reg.event_id) await addTaken(supabaseAdmin, reg.event_id, reg.quantity || 1);
   if (reg) await settleReferralOnPaid(supabaseAdmin, reg);
+  if (reg) await sendRegistrationEmail(supabaseAdmin, reg.id);
 }
 
 async function verifyWithSumup(checkoutId) {
@@ -91,7 +93,7 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, created_at, paid_at, external, guest_name, quantity, attendee_names")
+    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
@@ -133,6 +135,7 @@ async function handleTicket(req, res) {
       code: reg.paid || reg.external ? reg.ticket_code : null,
       external: !!reg.external,
       guestName: reg.guest_name || null,
+      emailed: !!reg.confirmation_sent_at,
       quantity: reg.quantity || 1,
       attendeeNames: reg.attendee_names || [],
       createdAt: reg.created_at,
@@ -180,6 +183,53 @@ async function handleMyTickets(req, res) {
       event: r.event_id ? eventsById[r.event_id] || null : null
     }))
   });
+}
+
+// ---------- Retrouver mon billet : renvoi par email ----------
+// Renvoie par email les billets liés à cette adresse (pour un événement, ou tous ceux à venir).
+// La réponse est toujours la même, qu'il y ait une inscription ou non : on ne révèle pas
+// à un inconnu qui est inscrit à quoi.
+async function handleResendTickets(req, res) {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const { eventId } = req.body;
+  const generic = {
+    ok: true,
+    message: "Si une inscription correspond à cet email, ton billet vient de t'être renvoyé. Pense à vérifier tes spams."
+  };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "L'adresse email ne semble pas valide." });
+  }
+
+  const { data: profiles } = await supabaseAdmin.from("profiles").select("id").ilike("email", email);
+  const userIds = (profiles || []).map((p) => p.id);
+
+  // Deux recherches simples : inscriptions sans compte (email saisi) et inscriptions des comptes
+  const lookups = [supabaseAdmin.from("registrations").select("id, event_id, paid, external, created_at").eq("guest_email", email)];
+  if (userIds.length) {
+    lookups.push(supabaseAdmin.from("registrations").select("id, event_id, paid, external, created_at").in("user_id", userIds));
+  }
+  const results = await Promise.all(lookups);
+  if (results.some((r) => r.error)) {
+    console.error("Erreur recherche billets:", results.find((r) => r.error).error);
+    return res.status(200).json(generic);
+  }
+  const regs = results
+    .flatMap((r) => r.data || [])
+    .filter((r) => r.event_id && (r.paid || r.external) && (!eventId || r.event_id === eventId))
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  // Seulement les événements pas encore passés (ou d'aujourd'hui)
+  const eventIds = [...new Set((regs || []).map((r) => r.event_id))];
+  let upcoming = new Set();
+  if (eventIds.length) {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { data: evs } = await supabaseAdmin.from("events").select("id").in("id", eventIds).gte("event_date", since);
+    upcoming = new Set((evs || []).map((e) => e.id));
+  }
+  for (const r of (regs || []).filter((r) => upcoming.has(r.event_id)).slice(0, 5)) {
+    await sendRegistrationEmail(supabaseAdmin, r.id, { force: true });
+  }
+  return res.status(200).json(generic);
 }
 
 // ---------- Réservation pour un événement à lien de paiement externe ----------
@@ -247,8 +297,9 @@ async function handleExternalReservation(req, res) {
   // La place est comptée dès la réservation : l'app ne peut pas savoir quand le lien
   // SumUp externe est payé. En cas de désistement, l'admin annule la réservation.
   await addTaken(supabaseAdmin, eventId, quantity);
+  const emailed = await sendRegistrationEmail(supabaseAdmin, reg.id);
 
-  return res.status(200).json({ registrationId: reg.id, amount });
+  return res.status(200).json({ registrationId: reg.id, amount, emailed });
 }
 
 // ---------- Création du paiement ----------
@@ -363,6 +414,7 @@ async function handleCheckout(req, res) {
     await insertOptions(supabaseAdmin, freeReg.id, chosenOptions);
     await addTaken(supabaseAdmin, eventId, quantity);
     await settleReferralOnPaid(supabaseAdmin, { user_id: user.id, used_referral_credit: true });
+    await sendRegistrationEmail(supabaseAdmin, freeReg.id);
     return res.status(200).json({ free: true, registrationId: freeReg.id });
   }
 
@@ -439,6 +491,7 @@ export default async function handler(req, res) {
     if (action === "ticket") return await handleTicket(req, res);
     if (action === "my-tickets") return await handleMyTickets(req, res);
     if (action === "external-reservation") return await handleExternalReservation(req, res);
+    if (action === "resend-tickets") return await handleResendTickets(req, res);
     return await handleCheckout(req, res);
   } catch (err) {
     console.error("Erreur serveur:", err);

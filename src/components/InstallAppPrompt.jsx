@@ -3,6 +3,7 @@ import { X, Download, Share, PlusSquare } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { isIos, isStandalone } from "../lib/push";
 import { canPromptInstall, promptInstall, onInstallAvailabilityChange } from "../lib/installPrompt";
+import { useAuth } from "../lib/AuthContext";
 
 const DISMISS_KEY = "spritz_install_dismissed";
 
@@ -18,6 +19,7 @@ function dismissed() {
 // Sur Android/Chrome, déclenche le vrai bouton d'installation natif (capturé dans
 // lib/installPrompt.js) ; sur iPhone (pas de bouton natif possible), donne la marche à suivre.
 export function InstallAppPrompt({ style }) {
+  const { user } = useAuth();
   const [closed, setClosed] = useState(dismissed);
   const [canInstall, setCanInstall] = useState(canPromptInstall());
   const [installing, setInstalling] = useState(false);
@@ -76,19 +78,19 @@ export function InstallAppPrompt({ style }) {
           paddingRight: 24
         }}
       >
-        <Download size={16} color={colors.orange} /> Installe l'app sur ton téléphone
+        <Download size={16} color={colors.orange} /> Installe l'app pour ne rater aucune soirée
       </div>
 
       {ios ? (
         <p style={{ fontSize: 12.5, color: colors.muted, lineHeight: 1.5, margin: 0 }}>
           Dans Safari, touche <Share size={13} style={{ verticalAlign: "-2px" }} /> <strong>Partager</strong> puis{" "}
-          <PlusSquare size={13} style={{ verticalAlign: "-2px" }} /> <strong>Sur l'écran d'accueil</strong> — tu retrouveras tes
-          billets et les rappels en un tap, sans repasser par le navigateur.
+          <PlusSquare size={13} style={{ verticalAlign: "-2px" }} /> <strong>Sur l'écran d'accueil</strong> : tu seras au courant de
+          tous nos événements et tu retrouveras tes billets en un tap.
         </p>
       ) : (
         <>
           <p style={{ fontSize: 12.5, color: colors.muted, margin: "0 0 10px", lineHeight: 1.5 }}>
-            Retrouve tes billets, les rappels et les nouvelles soirées directement depuis ton écran d'accueil.
+            Sois au courant de tous nos événements et retrouve tes billets directement depuis ton écran d'accueil.
           </p>
           <button
             onClick={handleInstall}
@@ -107,6 +109,15 @@ export function InstallAppPrompt({ style }) {
             {installing ? "Installation…" : "Installer l'app"}
           </button>
         </>
+      )}
+      {!user && (
+        <p style={{ fontSize: 12, color: colors.muted, margin: "10px 0 0", lineHeight: 1.5 }}>
+          Puis{" "}
+          <a href="/login" style={{ color: colors.orange, fontWeight: 700 }}>
+            crée ton compte
+          </a>{" "}
+          avec ton email pour recevoir les notifications des prochaines soirées.
+        </p>
       )}
     </div>
   );

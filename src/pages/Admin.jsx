@@ -402,6 +402,30 @@ export default function Admin() {
     }
   }
 
+  async function sendTicket(t) {
+    let email = "";
+    if (!t.hasEmail) {
+      email = (window.prompt(`Email de ${t.name} pour lui envoyer son billet :`) || "").trim();
+      if (!email) return;
+    }
+    setTicketsError("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "send-ticket", registrationId: t.id, email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTicketsError(data.error || "Envoi impossible");
+        return;
+      }
+      setEventTickets((prev) => prev.map((x) => (x.id === t.id ? { ...x, emailed: true, hasEmail: true } : x)));
+    } catch (err) {
+      setTicketsError("Impossible de contacter le serveur");
+    }
+  }
+
   async function cancelTicket(t) {
     if (!window.confirm(`Annuler l'inscription de ${t.name}${(t.quantity || 1) > 1 ? ` (${t.quantity} personnes)` : ""} ? Les places seront libérées.`)) return;
     try {
@@ -810,6 +834,25 @@ export default function Admin() {
                         ) : (
                           <div style={{ color: colors.olive, fontSize: 11, fontWeight: 700 }}>✓ Payé en ligne</div>
                         )}
+                        <button
+                          onClick={() => sendTicket(t)}
+                          style={{
+                            display: "block",
+                            marginLeft: "auto",
+                            marginTop: 5,
+                            background: t.emailed ? "rgba(107,124,79,0.12)" : "none",
+                            border: `1px solid ${t.emailed ? colors.olive : colors.blue}`,
+                            borderRadius: 20,
+                            padding: "3px 9px",
+                            color: t.emailed ? colors.olive : colors.blue,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {t.emailed ? "✓ Billet envoyé · renvoyer" : t.hasEmail ? "✉ Envoyer le billet" : "✉ Ajouter un email"}
+                        </button>
                         <button
                           onClick={() => cancelTicket(t)}
                           style={{

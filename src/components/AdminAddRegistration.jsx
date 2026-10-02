@@ -20,6 +20,7 @@ const inputStyle = {
 export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [names, setNames] = useState([]);
   const [alreadyPaid, setAlreadyPaid] = useState(false);
@@ -29,6 +30,7 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
 
   function reset() {
     setName("");
+    setEmail("");
     setQuantity(1);
     setNames([]);
     setAlreadyPaid(false);
@@ -52,6 +54,7 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
           action: "add-registration",
           eventId: event.id,
           guestName: name.trim(),
+          guestEmail: email.trim(),
           quantity,
           attendeeNames: names.slice(0, quantity - 1).map((n) => (n || "").trim()).filter(Boolean),
           alreadyPaid
@@ -65,6 +68,7 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
       }
       setNotice(
         `${name.trim()}${quantity > 1 ? ` + ${quantity - 1}` : ""} inscrit${quantity > 1 ? "s" : ""} — code ${data.code}.` +
+          (data.emailed ? " Billet envoyé par email." : "") +
           (data.overbooked ? " ⚠️ L'événement dépasse maintenant sa capacité." : "")
       );
       reset();
@@ -123,6 +127,13 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
     >
       <div style={{ fontSize: 13, fontWeight: 700 }}>Nouvelle inscription</div>
       <input placeholder="Prénom et nom *" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} autoFocus />
+      <input
+        type="email"
+        placeholder="Email (facultatif — pour lui envoyer son billet)"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={inputStyle}
+      />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span style={{ fontSize: 13 }}>Nombre de personnes</span>
         <Stepper value={quantity} min={1} max={MAX_GROUP} onChange={setQuantity} label="personnes" />

@@ -24,10 +24,11 @@ export function groupPayload(group, user) {
 }
 
 // Vérification avant envoi : renvoie un message d'erreur ou ""
-export function groupError(group, user, { requireEmail = false } = {}) {
+// L'email est obligatoire pour les inscriptions sans compte : on y envoie le billet.
+export function groupError(group, user, { requireEmail = true } = {}) {
   if (user) return "";
   if (!group.guestName.trim()) return "Indique ton prénom et ton nom.";
-  if (requireEmail && !group.guestEmail.trim()) return "Indique ton email : il sert à recevoir la confirmation du paiement.";
+  if (requireEmail && !group.guestEmail.trim()) return "Indique ton email : on t'y envoie ton billet.";
   if (group.guestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(group.guestEmail.trim())) {
     return "L'adresse email ne semble pas valide.";
   }
@@ -88,7 +89,7 @@ export function Stepper({ value, min = 0, max = 99, onChange, label }) {
 }
 
 // Nombre de personnes + prénoms des accompagnants + coordonnées si pas de compte
-export default function GroupForm({ group, onChange, user, seatsLeft, requireEmail = false, onLogin, unitLabel }) {
+export default function GroupForm({ group, onChange, user, seatsLeft, requireEmail = true, onLogin, unitLabel }) {
   const max = Math.max(1, Math.min(MAX_GROUP, seatsLeft ?? MAX_GROUP));
   const set = (patch) => onChange({ ...group, ...patch });
 
@@ -141,7 +142,7 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
           />
           <input
             type="email"
-            placeholder={requireEmail ? "Email * (pour la confirmation)" : "Email (facultatif)"}
+            placeholder={requireEmail ? "Email * (on t'y envoie ton billet)" : "Email (facultatif)"}
             autoComplete="email"
             value={group.guestEmail}
             onChange={(e) => set({ guestEmail: e.target.value })}

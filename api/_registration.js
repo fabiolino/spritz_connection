@@ -42,13 +42,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Coordonnées de la personne qui inscrit (quand elle n'a pas de compte).
 // Renvoie { error } si un champ obligatoire manque.
-export function readGuest(body, { requireEmail = false } = {}) {
+// L'email est obligatoire : c'est par là que la personne reçoit son billet.
+export function readGuest(body, { requireEmail = true } = {}) {
   const name = String(body.guestName || "").trim().slice(0, 80);
   const email = String(body.guestEmail || "").trim().toLowerCase().slice(0, 120);
   const phone = String(body.guestPhone || "").trim().slice(0, 30);
   if (!name) return { error: "Indique ton prénom et ton nom pour l'inscription." };
   if (email && !EMAIL_RE.test(email)) return { error: "L'adresse email ne semble pas valide." };
-  if (requireEmail && !email) return { error: "Indique ton email : il sert à recevoir la confirmation du paiement." };
+  if (requireEmail && !email) return { error: "Indique ton email : on t'y envoie ton billet." };
   return { name, email: email || null, phone: phone || null };
 }
 

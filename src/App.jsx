@@ -24,6 +24,7 @@ import Community from "./pages/Community.jsx";
 import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
+import Crew from "./pages/Crew.jsx";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
 function AfterLoginRedirect() {
   const { user } = useAuth();
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/help" element={<Help />} />
           <Route path="/ticket/:id" element={<Ticket />} />
           <Route path="/tickets" element={<MyTickets />} />
+          <Route path="/crew" element={<Crew />} />
       </Routes>
       </div>
       </CategoriesProvider>

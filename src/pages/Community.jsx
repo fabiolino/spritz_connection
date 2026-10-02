@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
+import CrewAvatar, { isCrewOfMonth } from "../components/CrewAvatar.jsx";
 
 export default function Community() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function Community() {
       }
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, name, photo_url, tastes, is_member")
+        .select("id, name, photo_url, tastes, is_member, is_ambassador, crew_of_month_until")
         .order("name", { ascending: true });
       if (!error && data) setMembers(data);
       setLoading(false);
@@ -60,25 +61,21 @@ export default function Community() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))", gap: 16 }}>
         {members.map((m) => (
           <div key={m.id} style={{ textAlign: "center" }}>
-            <div
-              style={{
-                width: 62,
-                height: 62,
-                borderRadius: "50%",
-                margin: "0 auto 8px",
-                background: m.photo_url ? `url(${m.photo_url}) center/cover` : colors.border,
-                border: `2px solid ${m.is_member ? colors.gold : colors.bg}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 19,
-                fontWeight: 700,
-                color: colors.muted
-              }}
-            >
-              {!m.photo_url && (m.name?.[0]?.toUpperCase() || "?")}
-            </div>
+            <CrewAvatar
+              name={m.name}
+              photoUrl={m.photo_url}
+              size={62}
+              member={m.is_member}
+              crew={m.is_ambassador}
+              crewOfMonth={isCrewOfMonth(m)}
+              style={{ margin: "0 auto 8px" }}
+            />
             <div style={{ fontSize: 12, fontWeight: 600, color: colors.ink }}>{m.name || "Anonyme"}</div>
+            {isCrewOfMonth(m) ? (
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#9A6B00", marginTop: 1 }}>CREW DU MOIS</div>
+            ) : m.is_ambassador ? (
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: colors.navy, marginTop: 1 }}>SPRITZ CREW</div>
+            ) : null}
             {m.tastes?.length > 0 && (
               <div style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>{m.tastes.slice(0, 2).join(" · ")}</div>
             )}

@@ -14,6 +14,7 @@ import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import FindTicket from "../components/FindTicket.jsx";
+import CrewAvatar from "../components/CrewAvatar.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -264,7 +265,7 @@ export default function EventDetail() {
     const result = await shareContent({
       title: event.title,
       text: `Rejoins-moi à "${event.title}" sur Spritz Connection !`,
-      url: eventInviteUrl(id)
+      url: eventInviteUrl(id, null, profile?.referral_code)
     });
     if (result === "copied") setShareMsg("Lien copié !");
     if (result === "failed") setShareMsg("Impossible de partager pour le moment.");
@@ -299,107 +300,122 @@ export default function EventDetail() {
     e.target.value = "";
   }
 
+  const dateObj = new Date(event.event_date);
+  const heroWeekday = dateObj.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase();
+  const heroDay = dateObj.toLocaleDateString("fr-FR", { day: "numeric" });
+  const heroMonth = dateObj.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase();
+  const heroTime = dateObj.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const roundBtn = {
+    width: 38,
+    height: 38,
+    borderRadius: "50%",
+    border: "none",
+    background: "rgba(255,255,255,0.92)",
+    color: colors.navy,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 2px 8px rgba(6,43,73,0.25)"
+  };
+
   return (
     <div style={{ paddingBottom: 40 }}>
-      <div style={{ padding: "18px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer", padding: 0 }}>
-          <ChevronLeft size={22} />
-        </button>
-        <button onClick={handleShare} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 6 }}>
-          <Share2 size={18} />
-        </button>
+      {/* En-tête : même langage visuel que les cartes de la page d'accueil (photo pleine largeur,
+          bloc date jaune, titre Fraunces), en grand */}
+      <div
+        style={{
+          position: "relative",
+          height: 300,
+          overflow: "hidden",
+          background: coverUrl ? `url(${coverUrl}) center/cover` : "linear-gradient(160deg, rgba(240,90,25,0.9), rgba(255,197,43,0.8))"
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: coverUrl
+              ? "linear-gradient(180deg, rgba(6,43,73,0.35) 0%, rgba(6,43,73,0.05) 35%, rgba(6,43,73,0.75) 100%)"
+              : "linear-gradient(180deg, rgba(6,43,73,0) 40%, rgba(6,43,73,0.35) 100%)"
+          }}
+        />
+        {!coverUrl && (
+          <div style={{ position: "absolute", top: "34%", left: "50%", transform: "translate(-50%, -50%)" }}>
+            <CategoryIcon category={cat} size={84} />
+          </div>
+        )}
+
+        <div style={{ position: "absolute", top: 14, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button onClick={() => navigate("/")} aria-label="Retour" style={roundBtn}>
+            <ChevronLeft size={22} />
+          </button>
+          <button onClick={handleShare} aria-label="Partager" style={roundBtn}>
+            <Share2 size={17} />
+          </button>
+        </div>
+
+        <div style={{ position: "absolute", top: 64, left: 16, right: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: colors.orange, borderRadius: 20, padding: "3px 10px" }}>{cat.label}</span>
+          {event.is_free && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 10px" }}>Gratuit</span>
+          )}
+          {event.visibility === "private" && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: colors.navy, background: colors.gold, borderRadius: 20, padding: "3px 10px" }}>🔒 Privé</span>
+          )}
+        </div>
+
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            right: 18,
+            bottom: 18,
+            display: "flex",
+            gap: 12,
+            alignItems: "flex-end",
+            color: "#fff",
+            textShadow: "0 2px 8px rgba(6,43,73,0.85), 0 1px 2px rgba(6,43,73,0.9)"
+          }}
+        >
+          <div style={{ width: 50, flexShrink: 0, textAlign: "center" }}>
+            <b style={{ display: "block", fontSize: 11, letterSpacing: "0.08em" }}>{heroWeekday}</b>
+            <strong style={{ display: "block", color: colors.gold, fontSize: 38, lineHeight: 0.95, fontFamily: fonts.display }}>{heroDay}</strong>
+            <b style={{ display: "block", fontSize: 11, letterSpacing: "0.08em" }}>{heroMonth}</b>
+          </div>
+          <div style={{ borderLeft: "1px solid rgba(255,255,255,0.45)", paddingLeft: 12, minWidth: 0, flex: 1 }}>
+            <h1 style={{ fontFamily: fonts.display, fontSize: 25, margin: "0 0 6px", lineHeight: 1.08 }}>{event.title}</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, opacity: 0.95, flexWrap: "wrap" }}>
+              <Calendar size={12} /> {heroTime}
+              <span style={{ opacity: 0.6 }}>·</span>
+              <User size={12} /> {event.organizer}
+              {event.seats > 0 && (
+                <>
+                  <span style={{ opacity: 0.6 }}>·</span>
+                  <span style={{ fontWeight: 800, color: full ? "#FFB4A6" : "#fff" }}>
+                    <Users size={12} style={{ verticalAlign: "-2px" }} /> {full ? "Complet" : `${event.taken}/${event.seats} places`}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-      {shareMsg && <p style={{ textAlign: "center", fontSize: 11.5, color: colors.muted, margin: "4px 0 0" }}>{shareMsg}</p>}
+      <div style={{ height: 6, background: colors.orange }} />
+      {shareMsg && <p style={{ textAlign: "center", fontSize: 11.5, color: colors.muted, margin: "6px 0 0" }}>{shareMsg}</p>}
 
       <div
         style={{
-          margin: "10px 20px 18px",
-          borderRadius: 20,
-          overflow: "hidden",
-          position: "relative",
-          background: coverUrl
-            ? `url(${coverUrl})`
-            : "linear-gradient(155deg, rgba(240,90,25,0.28), rgba(255,197,43,0.22))",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          padding: "26px 20px",
-          textAlign: "center"
+          backgroundImage: "linear-gradient(to bottom, rgba(240,90,25,0.12) 0%, rgba(240,90,25,0.04) 260px, transparent 520px)",
+          backgroundRepeat: "no-repeat",
+          padding: "4px 20px 0"
         }}
       >
-        {coverUrl && (
-          <>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(6,43,73,0.15) 0%, rgba(6,43,73,0.55) 100%)" }} />
-            <div
-              style={{
-                position: "absolute",
-                top: 12,
-                left: 12,
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                overflow: "hidden",
-                border: "2px solid #fff",
-                boxShadow: "0 2px 6px rgba(6,43,73,0.35)"
-              }}
-            >
-              <img src="/logo.jpg" alt="Spritz Connection" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            </div>
-          </>
+        {event.description && (
+          <p style={{ fontSize: 14.5, lineHeight: 1.65, color: colors.ink, margin: "16px 0 4px", whiteSpace: "pre-line" }}>{event.description}</p>
         )}
-        <div style={{ position: "relative" }}>
-          {!coverUrl && (
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-              <CategoryIcon category={cat} size={64} />
-            </div>
-          )}
-          <span
-            style={{
-              display: "inline-block",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#fff",
-              background: colors.orange,
-              borderRadius: 20,
-              padding: "3px 11px",
-              marginBottom: 10
-            }}
-          >
-            {cat.label}
-          </span>
-          <h1
-            style={{
-              fontFamily: fonts.display,
-              fontSize: 22,
-              margin: 0,
-              color: coverUrl ? "#fff" : colors.ink,
-              textShadow: coverUrl ? "0 2px 8px rgba(6,43,73,0.5)" : "none"
-            }}
-          >
-            {event.title}
-          </h1>
-          {event.seats > 0 && (
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 13,
-                fontWeight: 700,
-                color: full ? colors.red : coverUrl ? "#fff" : colors.ink,
-                textShadow: coverUrl ? "0 1px 4px rgba(6,43,73,0.5)" : "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6
-              }}
-            >
-              <Users size={14} /> {event.taken}/{event.seats} places
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div style={{ padding: "0 20px" }}>
-        <p style={{ fontSize: 14, lineHeight: 1.6, color: colors.muted, marginBottom: 18 }}>{event.description}</p>
-
+        <SectionTitle>Infos pratiques</SectionTitle>
         <div
           style={{
             display: "flex",
@@ -407,47 +423,46 @@ export default function EventDetail() {
             gap: 12,
             background: colors.surface,
             border: `1px solid ${colors.border}`,
-            borderRadius: 16,
+            borderRadius: 18,
             padding: 16,
-            marginBottom: 20,
-            boxShadow: "0 3px 10px rgba(6,43,73,0.05)"
+            marginBottom: 8,
+            boxShadow: "0 6px 16px rgba(6,43,73,0.07)"
           }}
         >
           <Field icon={<Calendar size={15} color={colors.orange} />}>
             {new Date(event.event_date).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}
           </Field>
           <Field icon={<User size={15} color={colors.orange} />}>Organisateur — {event.organizer}</Field>
-          <Field icon={<MapPin size={15} color={colors.orange} />}>{event.address}</Field>
-          <Field icon={<Phone size={15} color={colors.orange} />}>{event.phone}</Field>
+          {event.address && (
+            <Field icon={<MapPin size={15} color={colors.orange} />}>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: colors.navy, textDecoration: "underline", textDecorationColor: colors.border }}
+              >
+                {event.address}
+              </a>
+            </Field>
+          )}
+          {event.phone && (
+            <Field icon={<Phone size={15} color={colors.orange} />}>
+              <a href={`tel:${String(event.phone).replace(/\s/g, "")}`} style={{ color: colors.navy, textDecoration: "none" }}>
+                {event.phone}
+              </a>
+            </Field>
+          )}
         </div>
 
         {attendeeTotal > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: colors.ink, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <Users size={14} color={colors.orange} /> {attendeeTotal} participant{attendeeTotal > 1 ? "s" : ""}
-            </p>
+          <div style={{ marginBottom: 8 }}>
+            <SectionTitle>
+              {attendeeTotal} participant{attendeeTotal > 1 ? "s" : ""}
+            </SectionTitle>
             <div style={{ display: "flex", flexWrap: "wrap", gap: -6 }}>
               {attendees.slice(0, 12).map((a, i) => (
-                <div
-                  key={i}
-                  title={a.name}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    background: a.photo_url ? `url(${a.photo_url}) center/cover` : colors.border,
-                    border: `2px solid ${colors.bg}`,
-                    marginLeft: i === 0 ? 0 : -10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: colors.muted,
-                    flexShrink: 0
-                  }}
-                >
-                  {!a.photo_url && a.name?.[0]?.toUpperCase()}
+                <div key={i} title={a.name} style={{ marginLeft: i === 0 ? 0 : -10, border: `2px solid ${colors.bg}`, borderRadius: "50%" }}>
+                  <CrewAvatar name={a.name} photoUrl={a.photo_url} size={38} crew={a.crew} crewOfMonth={a.crewOfMonth} />
                 </div>
               ))}
               {attendeeTotal > 12 && (
@@ -481,6 +496,10 @@ export default function EventDetail() {
               </p>
             )}
           </div>
+        )}
+
+        {new Date(event.event_date) > new Date() && (
+          <SectionTitle>{full ? "Complet" : event.is_free ? "Je m'inscris" : "Réserver ma place"}</SectionTitle>
         )}
 
         {!full && (externalPay || (event.is_free && !registered)) && (
@@ -824,13 +843,11 @@ export default function EventDetail() {
         </button>
 
         {event.visibility !== "private" && new Date(event.event_date) > new Date() && (
-          <InviteButtons event={event} url={eventInviteUrl(id)} style={{ marginTop: -12, marginBottom: 26 }} />
+          <InviteButtons event={event} url={eventInviteUrl(id, null, profile?.referral_code)} style={{ marginTop: -12, marginBottom: 26 }} />
         )}
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-            <Images size={16} color={colors.orange} /> Souvenirs de la soirée
-          </h2>
+          <SectionTitle style={{ margin: 0 }}>Souvenirs de la soirée</SectionTitle>
           {user && (
             <label
               style={{
@@ -874,9 +891,18 @@ export default function EventDetail() {
   );
 }
 
+function SectionTitle({ children, style }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 12px", ...style }}>
+      <h2 style={{ fontFamily: fonts.display, fontSize: 19, margin: 0, color: colors.navy }}>{children}</h2>
+      <i style={{ display: "inline-block", width: 34, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
+    </div>
+  );
+}
+
 function Field({ icon, children }) {
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13 }}>
+    <div style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 13.5, color: colors.ink }}>
       {icon} {children}
     </div>
   );

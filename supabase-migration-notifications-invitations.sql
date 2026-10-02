@@ -144,3 +144,7 @@ grant execute on function public.is_app_admin() to anon, authenticated;
 
 create policy "événements privés visibles par l'admin" on public.events
   for select using (public.is_app_admin());
+
+-- (ajout) droits service_role sur les fonctions Spritz Crew appelées par les API Vercel
+grant execute on function public.crew_people(uuid, timestamptz, timestamptz, boolean) to service_role;
+grant execute on function public.award_crew_of_month() to service_role;

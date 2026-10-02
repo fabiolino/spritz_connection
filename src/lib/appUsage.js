@@ -30,6 +30,20 @@ export async function recordAppOpen(userId) {
     /* stockage indisponible : on enregistre quand même */
   }
   const { error } = await supabase.rpc("record_app_open", { p_platform: platform });
+  // Ajoute (une fois par jour au plus) l'email du compte à la liste Brevo « Spritz Connection »
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) {
+      fetch("/api/event-attendees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "subscribe-self" })
+      }).catch(() => {});
+    }
+  } catch {
+    /* rien */
+  }
   if (!error) {
     try {
       localStorage.setItem(key, stamp);

@@ -94,7 +94,8 @@ export default function Ticket() {
         >
           <ChevronLeft size={22} />
         </button>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>{isMembership ? "Mon adhésion" : "Mon billet"}</h1>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0, color: colors.navy }}>{isMembership ? "Mon adhésion" : "Mon billet"}</h1>
+        <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
 
       {error && <p style={{ color: colors.red, fontSize: 14 }}>{error}</p>}

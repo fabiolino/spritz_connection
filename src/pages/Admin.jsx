@@ -587,6 +587,14 @@ export default function Admin() {
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{e.title}</div>
               <div style={{ fontSize: 12, color: colors.muted, marginBottom: 2 }}>
                 Par {e.organizer} — {e.organizer_contact}
+                {e.organizer_id && members?.find((m) => m.id === e.organizer_id)?.is_ambassador && (
+                  <span style={{ marginLeft: 6, fontWeight: 800, color: colors.navy }}>👑 Spritz Crew</span>
+                )}
+                {!e.is_free && !e.sumup_link && (
+                  <span style={{ display: "block", color: colors.orange, fontWeight: 700 }}>
+                    Paiement via ton SumUp (dans l'app) — à reverser au co-organisateur
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: 12, color: colors.muted, marginBottom: 2 }}>
                 {new Date(e.event_date).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })} — {e.address}

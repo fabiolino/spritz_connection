@@ -10,8 +10,13 @@ export function appUrl(path = "/") {
   return base + path;
 }
 
-export function eventInviteUrl(eventId, token) {
-  return appUrl(`/event/${eventId}${token ? `?invite=${encodeURIComponent(token)}` : ""}`);
+// ref = code perso du membre qui partage (Spritz Crew : les inscriptions lui sont attribuées)
+export function eventInviteUrl(eventId, token, ref) {
+  const params = new URLSearchParams();
+  if (token) params.set("invite", token);
+  if (ref) params.set("ref", ref);
+  const q = params.toString();
+  return appUrl(`/event/${eventId}${q ? `?${q}` : ""}`);
 }
 
 export function inviteMessage(event, url) {

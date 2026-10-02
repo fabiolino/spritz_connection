@@ -174,3 +174,14 @@ export async function settleReferralOnPaid(supabaseAdmin, reg) {
     if (error) console.error("Erreur consommation crédit parrainage:", error);
   }
 }
+
+// --- Spritz Crew : qui a ramené cette inscription ---
+// Le code ?ref= du lien personnel d'un membre est renvoyé par l'app avec chaque inscription.
+// On l'attribue à ce membre (avec ou sans compte côté inscrit), sauf s'il s'inscrit lui-même.
+export async function resolveReferrer(supabaseAdmin, refCode, userId) {
+  const code = String(refCode || "").trim().slice(0, 12);
+  if (!code) return null;
+  const { data } = await supabaseAdmin.from("profiles").select("id").eq("referral_code", code).maybeSingle();
+  if (!data || (userId && data.id === userId)) return null;
+  return data.id;
+}

@@ -85,7 +85,8 @@ export default function MyTickets() {
         <button onClick={() => navigate("/account")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Mes billets</h1>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0, color: colors.navy }}>Mes billets</h1>
+        <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
 
       {!user && (

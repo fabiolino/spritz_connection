@@ -6,8 +6,11 @@
 //   POST {action:"invite-accept", eventId, token}  → ajoute la personne connectée aux invités
 //   GET  ?og=1&id=…[&invite=…]                   → page d'aperçu pour WhatsApp, Messenger, etc.
 //        (vercel.json y redirige uniquement les robots de prévisualisation)
+//   GET  ?unsubscribe=1&e=…&t=…                 → désinscription de la liste « Spritz Connection »
+//   POST {action:"subscribe-self"} + jeton        → ajoute le membre connecté à la liste Brevo
 
 import { createClient } from "@supabase/supabase-js";
+import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brevo.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -98,7 +101,30 @@ async function renderPreview(req, res) {
   return res.status(200).send(html);
 }
 
+function unsubscribePage(title, text) {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title></head><body style="margin:0;background:#FFFAF0;font-family:Helvetica,Arial,sans-serif;color:#062B49">
+<div style="max-width:440px;margin:60px auto;padding:28px 24px;background:#fff;border-radius:18px;text-align:center;border-bottom:5px solid #F05A19">
+<div style="font-size:40px">🍹</div><h1 style="font-size:21px">${title}</h1><p style="font-size:15px;line-height:1.55;color:#5C6B7A">${text}</p>
+<a href="/" style="display:inline-block;margin-top:10px;color:#F05A19;font-weight:700">Retour à Spritz Connection</a></div></body></html>`;
+}
+
 export default async function handler(req, res) {
+  if (req.method === "GET" && req.query?.unsubscribe) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    const email = String(req.query.e || "").trim().toLowerCase();
+    if (!email || !checkUnsubscribeSignature(email, String(req.query.t || ""))) {
+      return res.status(400).send(unsubscribePage("Lien invalide", "Ce lien de désinscription n'est pas valide. Réponds simplement à un de nos emails pour être retiré·e de la liste."));
+    }
+    try {
+      await unsubscribe(supabaseAdmin, email);
+      return res.status(200).send(unsubscribePage("C'est fait.", `${email} ne recevra plus nos actualités. Tu recevras seulement tes billets si tu t'inscris à une soirée. A presto !`));
+    } catch (err) {
+      console.error("Erreur désinscription:", err);
+      return res.status(500).send(unsubscribePage("Oups", "La désinscription n'a pas abouti, réessaie dans un instant."));
+    }
+  }
+
   if (req.method === "GET" && req.query?.og) {
     try {
       return await renderPreview(req, res);
@@ -113,6 +139,22 @@ export default async function handler(req, res) {
   }
 
   const { eventId, action, token } = req.body || {};
+
+  if (action === "subscribe-self") {
+    try {
+      const jwt = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+      const { data: userData } = jwt ? await supabaseAdmin.auth.getUser(jwt) : { data: null };
+      const user = userData?.user;
+      if (!user?.email) return res.status(401).json({ error: "Non connecté" });
+      const { data: profile } = await supabaseAdmin.from("profiles").select("name").eq("id", user.id).maybeSingle();
+      const ok = await addToSpritzList(supabaseAdmin, { email: user.email, name: profile?.name });
+      return res.status(200).json({ ok });
+    } catch (err) {
+      console.error("Erreur subscribe-self:", err);
+      return res.status(200).json({ ok: false });
+    }
+  }
+
   if (!eventId) {
     return res.status(400).json({ error: "eventId manquant" });
   }
@@ -176,7 +218,7 @@ export default async function handler(req, res) {
     if (userIds.length > 0) {
       const { data: profiles, error: profError } = await supabaseAdmin
         .from("profiles")
-        .select("id, name, email, photo_url")
+        .select("id, name, email, photo_url, is_ambassador, crew_of_month_until")
         .in("id", userIds);
       if (profError) throw profError;
       (profiles || []).forEach((p) => (profilesById[p.id] = p));
@@ -194,7 +236,12 @@ export default async function handler(req, res) {
         if (!seenUsers.has(r.user_id)) {
           seenUsers.add(r.user_id);
           const p = profilesById[r.user_id];
-          attendees.push({ name: p?.name || p?.email?.split("@")[0] || "Participant", photo_url: p?.photo_url || null });
+          attendees.push({
+            name: p?.name || p?.email?.split("@")[0] || "Participant",
+            photo_url: p?.photo_url || null,
+            crew: !!p?.is_ambassador,
+            crewOfMonth: !!p?.crew_of_month_until && new Date(p.crew_of_month_until) > new Date()
+          });
         }
       } else if (r.guest_name) {
         attendees.push({ name: firstName(r.guest_name), photo_url: null });

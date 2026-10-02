@@ -486,6 +486,27 @@ export default function Feed() {
         <Users2 size={15} /> Communauté
       </button>
       <button
+        onClick={() => navigate("/crew")}
+        style={{
+          width: "100%",
+          background: colors.navy,
+          border: `1px solid ${colors.navy}`,
+          color: "#fff",
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 13,
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          marginBottom: 10
+        }}
+      >
+        👑 Spritz Crew{profile?.is_ambassador ? " — mon tableau de bord" : " — les ambassadeurs"}
+      </button>
+      <button
         onClick={() => navigate("/venues")}
         style={{
           width: "100%",

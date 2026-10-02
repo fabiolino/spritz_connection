@@ -1,6 +1,7 @@
 import React from "react";
 import { Minus, Plus, Users, UserRound } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
+import { getCrewRef } from "../lib/referral";
 
 export const MAX_GROUP = 10; // aligné avec api/_registration.js
 
@@ -13,6 +14,7 @@ export function groupPayload(group, user) {
   return {
     quantity: group.quantity,
     attendeeNames: group.names.slice(0, group.quantity - 1).map((n) => n.trim()).filter(Boolean),
+    refCode: getCrewRef(), // lien perso d'un membre Spritz Crew, s'il y en a un
     ...(user
       ? {}
       : {
@@ -148,6 +150,9 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
             onChange={(e) => set({ guestEmail: e.target.value })}
             style={inputStyle}
           />
+          <p style={{ fontSize: 11, color: colors.muted, margin: "-2px 2px 0", lineHeight: 1.4 }}>
+            On t'y envoie ton billet, puis nos prochaines soirées — désinscription en un clic.
+          </p>
           <input
             type="tel"
             placeholder="Téléphone (facultatif)"

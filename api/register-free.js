@@ -4,7 +4,7 @@
 // un seul billet avec un code à montrer à l'entrée).
 
 import { createClient } from "@supabase/supabase-js";
-import { parseQuantity, readGuest, readAttendeeNames, seatsError, insertRegistration, addTaken } from "./_registration.js";
+import { parseQuantity, readGuest, readAttendeeNames, seatsError, insertRegistration, addTaken, resolveReferrer } from "./_registration.js";
 import { sendRegistrationEmail } from "./_email.js";
 
 const supabaseAdmin = createClient(
@@ -118,6 +118,7 @@ export default async function handler(req, res) {
       guest_phone: guest?.phone || null,
       quantity,
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
+      referrer_id: await resolveReferrer(supabaseAdmin, req.body.refCode, user?.id),
       option: "gratuit",
       amount: 0,
       paid: true,

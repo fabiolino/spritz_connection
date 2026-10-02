@@ -108,7 +108,8 @@ export default function Register() {
         <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Inscription</h1>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0, color: colors.navy }}>Inscription</h1>
+        <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
 
       <div

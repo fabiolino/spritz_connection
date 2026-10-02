@@ -5,6 +5,8 @@ import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import AgeRangeSlider from "../components/AgeRangeSlider";
+import { useAuth } from "../lib/AuthContext";
+import { authHeaders } from "../lib/sumupClient";
 
 const inputStyle = {
   width: "100%",
@@ -24,6 +26,10 @@ const labelStyle = { fontSize: 12, color: colors.muted, marginBottom: 5, display
 export default function ProposeEvent() {
   const navigate = useNavigate();
   const { categories } = useCategories();
+  // Spritz Crew = co-organisateurs : soirée payante possible sans lien de paiement perso
+  // (Fabio encaisse via l'app et reverse), toujours après validation par l'admin.
+  const { profile } = useAuth();
+  const isCrew = !!profile?.is_ambassador;
   const [isPaid, setIsPaid] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -54,7 +60,7 @@ export default function ProposeEvent() {
     e.preventDefault();
     setError("");
 
-    if (isPaid && !form.sumupLink) {
+    if (isPaid && !form.sumupLink && !isCrew) {
       setError("Le lien de paiement est obligatoire pour un événement payant.");
       return;
     }
@@ -73,7 +79,7 @@ export default function ProposeEvent() {
       };
       const res = await fetch("/api/create-free-event", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -286,7 +292,9 @@ export default function ProposeEvent() {
           >
             <p style={{ fontSize: 12, color: colors.muted, margin: 0, lineHeight: 1.5 }}>
               <ExternalLink size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
-              Les règlements passent directement par ton propre lien de paiement — jamais par Spritz Connection.
+              {isCrew
+                ? "👑 Spritz Crew : laisse le lien vide et Fabio encaisse pour toi via l'app (puis te reverse ta part, moins la commission), ou indique ton propre lien de paiement."
+                : "Les règlements passent directement par ton propre lien de paiement — jamais par Spritz Connection."}
             </p>
 
             <div>
@@ -314,9 +322,9 @@ export default function ProposeEvent() {
             </div>
 
             <div>
-              <label style={labelStyle}>Lien de paiement (SumUp, Lydia, PayPal…)</label>
+              <label style={labelStyle}>Lien de paiement (SumUp, Lydia, PayPal…){isCrew ? " — facultatif" : ""}</label>
               <input
-                required={isPaid}
+                required={isPaid && !isCrew}
                 type="url"
                 placeholder="https://…"
                 style={inputStyle}

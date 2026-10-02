@@ -161,6 +161,26 @@ export default function Account() {
         <Ticket size={16} /> Mes billets
       </button>
 
+      {profile?.is_ambassador && (
+        <button
+          onClick={() => navigate("/crew")}
+          style={{
+            width: "100%",
+            background: colors.navy,
+            color: "#fff",
+            border: "none",
+            borderBottom: `4px solid ${colors.orange}`,
+            borderRadius: 16,
+            padding: "14px 16px",
+            marginBottom: 16,
+            textAlign: "left",
+            cursor: "pointer"
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 800 }}>👑 Spritz Crew — mon tableau de bord</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Mon lien, mes bons Spritz, le classement du mois</div>
+        </button>
+      )}
       <ReferralCard />
 
       {/* Photo de profil */}

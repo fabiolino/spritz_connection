@@ -47,6 +47,19 @@ function Badge({ children, tone = "muted" }) {
   );
 }
 
+function voucherBtn(enabled) {
+  return {
+    background: enabled ? "rgba(255,197,43,0.18)" : "none",
+    border: `1px solid ${enabled ? colors.gold : colors.border}`,
+    color: enabled ? "#9A6B00" : colors.border,
+    borderRadius: 20,
+    padding: "3px 9px",
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: enabled ? "pointer" : "default"
+  };
+}
+
 const FILTERS = [
   { id: "all", label: "Tous" },
   { id: "installed", label: "App installée" },
@@ -61,6 +74,9 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
   const [copied, setCopied] = useState(false);
   const [crewToggling, setCrewToggling] = useState(null);
   const [error, setError] = useState("");
+  const [voucherBusy, setVoucherBusy] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
   const stats = useMemo(
     () => ({
@@ -101,6 +117,47 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
       setError("Impossible de contacter le serveur");
     }
     setCrewToggling(null);
+  }
+
+  async function applyVoucher(m, count) {
+    const label = count === 2 ? "une soirée offerte (2 bons)" : "un Spritz offert (1 bon)";
+    if (!window.confirm(`Utiliser ${label} pour ${m.name || m.email} ?`)) return;
+    setVoucherBusy(m.id + count);
+    setError("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "crew-use-voucher", profileId: m.id, count })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setError(data.error || "Impossible d'utiliser le bon");
+      else setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, vouchers_available: data.available } : x)));
+    } catch {
+      setError("Impossible de contacter le serveur");
+    }
+    setVoucherBusy(null);
+  }
+
+  async function syncBrevo() {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "brevo-sync" })
+      });
+      const data = await res.json().catch(() => ({}));
+      setSyncMsg(
+        res.ok
+          ? `✓ ${data.total} email${data.total > 1 ? "s" : ""} envoyé${data.total > 1 ? "s" : ""} vers la liste Brevo « Spritz Connection » (l'import peut prendre une minute).`
+          : data.error || "Synchronisation impossible"
+      );
+    } catch {
+      setSyncMsg("Impossible de contacter le serveur");
+    }
+    setSyncing(false);
   }
 
   async function copyEmails() {
@@ -255,10 +312,58 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
               </Badge>
             )}
             {m.last_seen_at && <Badge>vu·e {ago(m.last_seen_at)}</Badge>}
+            {m.people_brought > 0 && (
+              <Badge tone="orange">
+                👑 {m.people_brought} ramenée{m.people_brought > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
+          {m.is_ambassador && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: `1px dashed ${colors.border}`,
+                fontSize: 12
+              }}
+            >
+              <span>
+                <strong>{m.vouchers_available || 0}</strong> bon{(m.vouchers_available || 0) > 1 ? "s" : ""} dispo
+                <span style={{ color: colors.muted }}> · {m.people_counted || 0} venue{(m.people_counted || 0) > 1 ? "s" : ""}</span>
+              </span>
+              <span style={{ display: "flex", gap: 5 }}>
+                <button
+                  disabled={!m.vouchers_available || voucherBusy === m.id + 1}
+                  onClick={() => applyVoucher(m, 1)}
+                  style={voucherBtn(m.vouchers_available >= 1)}
+                >
+                  🍹 Spritz
+                </button>
+                <button
+                  disabled={(m.vouchers_available || 0) < 2 || voucherBusy === m.id + 2}
+                  onClick={() => applyVoucher(m, 2)}
+                  style={voucherBtn(m.vouchers_available >= 2)}
+                >
+                  🎟️ Soirée
+                </button>
+              </span>
+            </div>
+          )}
         </div>
       ))}
       {error && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{error}</p>}
+      <button
+        onClick={syncBrevo}
+        disabled={syncing}
+        style={{ ...chip(false), width: "100%", marginTop: 10, padding: 10, color: colors.navy, borderColor: colors.navy }}
+      >
+        {syncing ? "Synchronisation…" : "↻ Ajouter tous les emails à la liste Brevo « Spritz Connection »"}
+      </button>
+      {syncMsg && <p style={{ fontSize: 12, color: syncMsg.startsWith("✓") ? colors.olive : colors.red, marginTop: 6 }}>{syncMsg}</p>}
       <p style={{ fontSize: 11, color: colors.muted, marginTop: 8, lineHeight: 1.45 }}>
         « App installée » : détecté depuis le 2 octobre, quand un membre connecté ouvre l'app depuis son écran d'accueil (ou l'APK).
         Les membres qui l'avaient installée avant apparaîtront ici dès leur prochaine ouverture.

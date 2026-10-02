@@ -64,7 +64,8 @@ export default function Chat() {
         <button onClick={() => navigate(`/event/${id}`)} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
         </button>
-        <h1 style={{ fontFamily: fonts.display, fontSize: 20, margin: 0 }}>Discussion</h1>
+        <h1 style={{ fontFamily: fonts.display, fontSize: 22, margin: 0, color: colors.navy }}>Discussion</h1>
+        <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
       <p style={{ fontSize: 12, color: colors.muted, margin: "0 20px 14px" }}>
         Ouvert à tous : organisateur, co-organisateurs et participants inscrits.

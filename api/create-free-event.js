@@ -48,6 +48,15 @@ function parisToISO(value) {
   return new Date(utc).toISOString();
 }
 
+async function getUserFromRequest(req) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user) return null;
+  return data.user;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
@@ -77,7 +86,16 @@ export default async function handler(req, res) {
   const priceNonmember = Number(price_nonmember) || 0;
   const isPaid = priceMember > 0 || priceNonmember > 0;
 
-  if (isPaid && !sumupLink) {
+  // Spritz Crew = co-organisateurs : ils peuvent proposer une soirée payante sans lien de
+  // paiement à eux — c'est alors Fabio qui encaisse via l'app (après validation) et reverse.
+  const user = await getUserFromRequest(req);
+  let isCrew = false;
+  if (user) {
+    const { data: prof } = await supabaseAdmin.from("profiles").select("is_ambassador").eq("id", user.id).maybeSingle();
+    isCrew = !!prof?.is_ambassador;
+  }
+
+  if (isPaid && !sumupLink && !isCrew) {
     return res.status(400).json({
       error: "Pour un événement payant proposé par un autre organisateur, un lien de paiement est obligatoire."
     });
@@ -101,7 +119,8 @@ export default async function handler(req, res) {
         seats: Number(seats) || 0,
         taken: 0,
         is_free: !isPaid,
-        sumup_link: isPaid ? sumupLink : null,
+        sumup_link: isPaid && sumupLink ? sumupLink : null,
+        organizer_id: user ? user.id : null,
         cover_photo_url: coverPhotoUrl ? String(coverPhotoUrl).trim() || null : null,
         approved: false,
         category: category || "autre",

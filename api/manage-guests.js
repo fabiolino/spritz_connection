@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
+import { addManyToSpritzList } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
 import {
   addTaken,
@@ -154,6 +155,42 @@ export default async function handler(req, res) {
       const emailed = guestEmail ? await sendRegistrationEmail(supabaseAdmin, reg.id) : false;
       const left = ev.seats ? ev.seats - (ev.taken || 0) - quantity : null;
       return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, emailed, overbooked: left != null && left < 0 });
+    }
+
+    // Rattrapage : ajoute à la liste Brevo tous les emails déjà présents dans l'app
+    if (action === "brevo-sync") {
+      const [{ data: profs }, { data: guests }] = await Promise.all([
+        supabaseAdmin.from("profiles").select("email, name"),
+        supabaseAdmin.from("registrations").select("guest_email, guest_name").not("guest_email", "is", null)
+      ]);
+      const contacts = [
+        ...(profs || []).map((p) => ({ email: p.email, name: p.name })),
+        ...(guests || []).map((g) => ({ email: g.guest_email, name: g.guest_name }))
+      ];
+      try {
+        const result = await addManyToSpritzList(supabaseAdmin, contacts);
+        return res.status(200).json({ ok: true, ...result });
+      } catch (err) {
+        return res.status(502).json({ error: String(err.message || err) });
+      }
+    }
+
+    // Spritz Crew : utiliser des bons (1 = un Spritz offert, 2 = une soirée offerte)
+    if (action === "crew-use-voucher") {
+      const { profileId, count } = req.body;
+      const n = Number(count) === 2 ? 2 : 1;
+      if (!profileId) return res.status(400).json({ error: "profileId manquant" });
+      const { data: p } = await supabaseAdmin.from("profiles").select("crew_vouchers_used").eq("id", profileId).maybeSingle();
+      if (!p) return res.status(404).json({ error: "Membre introuvable" });
+      const { data: counted } = await supabaseAdmin.rpc("crew_people", { p_profile: profileId, p_from: null, p_to: null, p_past_only: true });
+      const available = Math.floor((counted || 0) / 5) - (p.crew_vouchers_used || 0);
+      if (available < n) return res.status(400).json({ error: `Pas assez de bons (${Math.max(0, available)} disponible${available > 1 ? "s" : ""})` });
+      const { error: updErr } = await supabaseAdmin
+        .from("profiles")
+        .update({ crew_vouchers_used: (p.crew_vouchers_used || 0) + n })
+        .eq("id", profileId);
+      if (updErr) throw updErr;
+      return res.status(200).json({ ok: true, available: available - n });
     }
 
     // Envoyer (ou renvoyer) le billet par email — en ajoutant l'email s'il manquait

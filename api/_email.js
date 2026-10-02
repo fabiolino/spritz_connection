@@ -9,6 +9,8 @@
 // Sans BREVO_API_KEY, rien n'est envoyé et l'inscription fonctionne normalement.
 // Un email ne bloque jamais une inscription : toute erreur est seulement journalisée.
 
+import { addToSpritzList, unsubscribeUrl } from "./_brevo.js";
+
 const DEFAULT_SENDER = "fabiocasilli@gmail.com";
 const ORANGE = "#F05A19"; // charte 30/09 : navy / orange / jaune sur crème
 const INK = "#062B49";
@@ -50,7 +52,7 @@ function button(href, label, primary = true) {
 }
 
 // Contenu de l'email pour une inscription
-export function buildTicketEmail({ reg, event, options, recipientName, hasAccount }) {
+export function buildTicketEmail({ reg, event, options, recipientName, hasAccount, recipientEmail }) {
   const quantity = reg.quantity || 1;
   const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
@@ -113,6 +115,11 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   </td></tr>
   <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
     Garde cet email : il vaut billet. Une question ? Réponds simplement à ce message.<br>A presto ! — Fabio, Spritz Connection
+    ${
+      recipientEmail
+        ? `<br><br>Tu reçois aussi nos prochaines soirées par email. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>`
+        : ""
+    }
   </td></tr>
 </table>
 </td></tr></table>
@@ -128,7 +135,8 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
     toPay && event.sumup_link ? `Payer : ${event.sumup_link}` : "",
     `Ton billet : ${ticketUrl}`,
     "",
-    `Installe l'app pour être au courant de tous nos événements : ${appUrl()}`
+    `Installe l'app pour être au courant de tous nos événements : ${appUrl()}`,
+    recipientEmail ? `\nSe désinscrire de nos actualités : ${unsubscribeUrl(recipientEmail)}` : ""
   ]
     .filter(Boolean)
     .join("\n");
@@ -136,7 +144,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   return { subject, html, text };
 }
 
-async function sendViaBrevo({ to, toName, subject, html, text }) {
+async function sendViaBrevo({ to, toName, subject, html, text, unsubscribe }) {
   const key = process.env.BREVO_API_KEY;
   if (!key) return { skipped: "no-key" };
   const controller = new AbortController();
@@ -152,7 +160,8 @@ async function sendViaBrevo({ to, toName, subject, html, text }) {
         subject,
         htmlContent: html,
         textContent: text,
-        tags: ["billet"]
+        tags: ["billet"],
+        ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe}>` } } : {})
       }),
       signal: controller.signal
     });
@@ -224,8 +233,11 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
       .select("label, quantity")
       .eq("registration_id", reg.id);
 
-    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id });
-    const result = await sendViaBrevo({ to, toName: name, ...content });
+    // Ajout automatique à la liste Brevo « Spritz Connection » (sauf si la personne s'est désinscrite)
+    await addToSpritzList(supabaseAdmin, { email: to, name });
+
+    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id, recipientEmail: to });
+    const result = await sendViaBrevo({ to, toName: name, ...content, unsubscribe: unsubscribeUrl(to) });
     if (!result.ok) {
       console.error("Email billet non envoyé:", result.error || result.skipped);
       await release();

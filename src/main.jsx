@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App.jsx";
+// Police manuscrite des affichettes (même style que le slogan de la bannière), servie par l'app
+import "@fontsource/caveat-brush/400.css";
 
 // Enregistrement du service worker avec vérification active des mises à jour :
 // - vérifie immédiatement au chargement

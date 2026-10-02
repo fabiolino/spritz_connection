@@ -15,6 +15,8 @@ const CREAM = "#FFFAF0";
 const MUTED = "#5C6B7A";
 const DISPLAY = "Fraunces";
 const BODY = "'Space Grotesk'";
+// Écriture au pinceau du slogan de la bannière (« Apéros, Concerts… ») : Caveat Brush, auto-hébergée
+const HAND = "'Caveat Brush'";
 
 export function loadImage(src) {
   return new Promise((resolve) => {
@@ -33,7 +35,8 @@ export async function loadPosterFonts() {
     document.fonts.load(`700 80px ${DISPLAY}`),
     document.fonts.load(`600 40px ${DISPLAY}`),
     document.fonts.load(`700 40px ${BODY}`),
-    document.fonts.load(`500 40px ${BODY}`)
+    document.fonts.load(`500 40px ${BODY}`),
+    document.fonts.load(`400 40px ${HAND}`)
   ]).catch(() => {});
 }
 
@@ -347,8 +350,8 @@ export function drawPoster(canvas, formatKey, data) {
 
   // Sticker « SCANNE-MOI ! » sur le coin de la carte
   ctx.save();
-  ctx.font = `700 ${24 * u}px ${BODY}`;
-  const sticker = "SCANNE-MOI !";
+  ctx.font = `400 ${34 * u}px ${HAND}`;
+  const sticker = "Scanne-moi !";
   const sw = ctx.measureText(sticker).width + 34 * u;
   ctx.translate(qrCx - qrBox / 2 + 18 * u, qrCy - qrBox / 2 - 6 * u);
   ctx.rotate(-0.14);
@@ -361,7 +364,7 @@ export function drawPoster(canvas, formatKey, data) {
   ctx.fillStyle = NAVY;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
-  ctx.fillText(sticker, 0, 2 * u);
+  ctx.fillText(sticker, 0, 3 * u);
   ctx.restore();
 
   // Textes
@@ -371,24 +374,21 @@ export function drawPoster(canvas, formatKey, data) {
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = `700 ${23 * u}px ${BODY}`;
-  const kicker = "EN COLLABORATION AVEC";
-  if ("letterSpacing" in ctx) ctx.letterSpacing = `${3 * u}px`;
-  ctx.fillText(kicker, textX, mid - 46 * u, textW);
-  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.font = `400 ${40 * u}px ${HAND}`;
+  ctx.fillText("En collaboration avec", textX, mid - 42 * u, textW);
 
   // Nom de marque avec un coup de surligneur doré
-  let brandSize = 58 * u;
-  ctx.font = `700 ${brandSize}px ${DISPLAY}`;
-  while (ctx.measureText("Spritz Connection").width > textW && brandSize > 30 * u) {
+  let brandSize = 72 * u;
+  ctx.font = `400 ${brandSize}px ${HAND}`;
+  while (ctx.measureText("Spritz Connection").width > textW && brandSize > 34 * u) {
     brandSize -= 2 * u;
-    ctx.font = `700 ${brandSize}px ${DISPLAY}`;
+    ctx.font = `400 ${brandSize}px ${HAND}`;
   }
   const brandW = ctx.measureText("Spritz Connection").width;
   // Trait doré sous le nom (comme un coup de pinceau)
   ctx.save();
-  ctx.translate(textX, mid + 24 * u);
+  ctx.translate(textX + 4 * u, mid + 26 * u);
   ctx.rotate(-0.02);
   roundRect(ctx, 0, 0, Math.min(brandW * 0.55, 220 * u), 10 * u, 5 * u);
   ctx.fillStyle = GOLD;
@@ -398,7 +398,7 @@ export function drawPoster(canvas, formatKey, data) {
   ctx.fillText("Spritz Connection", textX, mid + 14 * u);
 
   // Pastille d'appel à l'action
-  ctx.font = `700 ${24 * u}px ${BODY}`;
+  ctx.font = `400 ${33 * u}px ${HAND}`;
   const cta = "Télécharge l'app & réserve ta place  →";
   let ctaText = cta;
   while (ctx.measureText(ctaText).width + 40 * u > textW && ctaText.length > 10) ctaText = ctaText.slice(0, -2);
@@ -409,7 +409,7 @@ export function drawPoster(canvas, formatKey, data) {
   ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.textBaseline = "middle";
-  ctx.fillText(ctaText, textX + 20 * u, mid + 75 * u);
+  ctx.fillText(ctaText, textX + 20 * u, mid + 77 * u);
   ctx.textBaseline = "alphabetic";
 
   return canvas;

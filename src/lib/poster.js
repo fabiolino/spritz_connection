@@ -164,7 +164,7 @@ export function drawPoster(canvas, formatKey, data) {
 
   // Contenu (titre, accroche, infos) : on réduit la taille jusqu'à ce que tout tienne
   const top = coverH + 90 * u;
-  const bottom = bandY - 40 * u;
+  const bottom = bandY - 70 * u;
   const width = W - 2 * pad;
   const infos = [
     ["Lieu", [data.place, data.address].filter(Boolean).join(" — ")],
@@ -241,46 +241,176 @@ export function drawPoster(canvas, formatKey, data) {
     }
   }
 
-  // Bandeau « En collaboration avec Spritz Connection »
-  ctx.fillStyle = NAVY;
-  ctx.fillRect(0, bandY, W, bandH);
-  ctx.fillStyle = ORANGE;
-  ctx.fillRect(0, bandY, W, 10 * u);
+  // Bandeau « En collaboration avec Spritz Connection » : bord incliné, dégradé orange,
+  // confettis, logo en pastille, QR code en carte penchée avec un sticker « Scanne-moi ».
+  const slant = 34 * u;
+  const edge = (x) => bandY + slant - (2 * slant * x) / W; // haut du bandeau, incliné vers la droite
 
-  const logoSize = bandH - 90 * u;
-  const logoX = pad;
-  const logoY = bandY + (bandH - logoSize) / 2 + 5 * u;
+  // Liseré doré décalé au-dessus
+  ctx.beginPath();
+  ctx.moveTo(0, edge(0) - 16 * u);
+  ctx.lineTo(W, edge(W) - 16 * u);
+  ctx.lineTo(W, edge(W));
+  ctx.lineTo(0, edge(0));
+  ctx.closePath();
+  ctx.fillStyle = GOLD;
+  ctx.fill();
+
+  // Fond en dégradé
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, edge(0));
+  ctx.lineTo(W, edge(W));
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  const bg = ctx.createLinearGradient(0, bandY, W, H);
+  bg.addColorStop(0, ORANGE);
+  bg.addColorStop(0.55, "#E4471C");
+  bg.addColorStop(1, "#C7361A");
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.clip();
+
+  // Confettis (toujours aux mêmes endroits)
+  let seed = 7;
+  const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  const confetti = ["rgba(255,197,43,0.9)", "rgba(255,250,240,0.75)", "rgba(6,43,73,0.55)"];
+  for (let i = 0; i < 34; i++) {
+    // Le long du bord incliné et tout en bas : jamais sur les textes, le logo ou le QR code
+    const cx = rand() * W;
+    const band = rand();
+    const cy = band < 0.7 ? edge(cx) + (6 + rand() * 46) * u : H - (6 + rand() * 22) * u;
+    ctx.fillStyle = confetti[i % 3];
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rand() * Math.PI);
+    if (i % 2) {
+      ctx.beginPath();
+      ctx.arc(0, 0, (4 + rand() * 6) * u, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      roundRect(ctx, -10 * u, -3 * u, 20 * u, 6 * u, 3 * u);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  // Grand cercle décoratif en transparence
+  ctx.beginPath();
+  ctx.arc(W * 0.62, H + bandH * 0.15, bandH * 0.9, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.07)";
+  ctx.fill();
+  ctx.restore();
+
+  // Logo en pastille ronde, légèrement surélevée
+  const logoSize = bandH * 0.62;
+  const logoCx = pad + logoSize / 2;
+  const logoCy = bandY + bandH * 0.52;
+  ctx.save();
+  ctx.shadowColor = "rgba(6,43,73,0.35)";
+  ctx.shadowBlur = 22 * u;
+  ctx.shadowOffsetY = 8 * u;
+  ctx.beginPath();
+  ctx.arc(logoCx, logoCy, logoSize / 2 + 9 * u, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.restore();
   if (data.logo) {
     ctx.save();
-    roundRect(ctx, logoX, logoY, logoSize, logoSize, logoSize * 0.22);
+    ctx.beginPath();
+    ctx.arc(logoCx, logoCy, logoSize / 2, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(data.logo, logoX, logoY, logoSize, logoSize);
+    ctx.translate(logoCx, logoCy);
+    ctx.rotate(-0.08);
+    const ls = logoSize * 1.12; // recadre l'orange autour du rond du logo
+    ctx.drawImage(data.logo, -ls / 2, -ls / 2, ls, ls);
     ctx.restore();
   }
 
-  const qrSize = bandH - 70 * u;
-  const qrBox = qrSize + 24 * u;
-  const qrX = W - pad - qrBox;
-  const qrY = bandY + (bandH - qrBox) / 2 + 5 * u;
-  roundRect(ctx, qrX, qrY, qrBox, qrBox, 18 * u);
+  // QR code : carte blanche penchée
+  const qrSize = bandH * 0.66;
+  const qrBox = qrSize + 26 * u;
+  const qrCx = W - pad - qrBox / 2;
+  const qrCy = bandY + bandH * 0.53;
+  ctx.save();
+  ctx.translate(qrCx, qrCy);
+  ctx.rotate(0.05);
+  ctx.shadowColor = "rgba(6,43,73,0.35)";
+  ctx.shadowBlur = 24 * u;
+  ctx.shadowOffsetY = 10 * u;
+  roundRect(ctx, -qrBox / 2, -qrBox / 2, qrBox, qrBox, 22 * u);
   ctx.fillStyle = "#fff";
   ctx.fill();
-  if (data.qr) ctx.drawImage(data.qr, qrX + 12 * u, qrY + 12 * u, qrSize, qrSize);
+  ctx.shadowColor = "transparent";
+  if (data.qr) ctx.drawImage(data.qr, -qrSize / 2, -qrSize / 2, qrSize, qrSize);
+  ctx.restore();
 
-  const textX = logoX + logoSize + 34 * u;
-  const textW = qrX - 30 * u - textX;
-  const mid = bandY + bandH / 2;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = `500 ${28 * u}px ${BODY}`;
-  ctx.fillText("En collaboration avec", textX, mid - 34 * u, textW);
+  // Sticker « SCANNE-MOI ! » sur le coin de la carte
+  ctx.save();
+  ctx.font = `700 ${24 * u}px ${BODY}`;
+  const sticker = "SCANNE-MOI !";
+  const sw = ctx.measureText(sticker).width + 34 * u;
+  ctx.translate(qrCx - qrBox / 2 + 18 * u, qrCy - qrBox / 2 - 6 * u);
+  ctx.rotate(-0.14);
+  ctx.shadowColor = "rgba(6,43,73,0.3)";
+  ctx.shadowBlur = 10 * u;
+  roundRect(ctx, -sw / 2, -24 * u, sw, 48 * u, 24 * u);
   ctx.fillStyle = GOLD;
-  ctx.font = `700 ${52 * u}px ${DISPLAY}`;
-  ctx.fillText("Spritz Connection", textX, mid + 22 * u, textW);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = NAVY;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  ctx.fillText(sticker, 0, 2 * u);
+  ctx.restore();
+
+  // Textes
+  const textX = pad + logoSize + 46 * u;
+  const textW = qrCx - qrBox / 2 - 36 * u - textX;
+  const mid = bandY + bandH * 0.52;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = `700 ${23 * u}px ${BODY}`;
+  const kicker = "EN COLLABORATION AVEC";
+  if ("letterSpacing" in ctx) ctx.letterSpacing = `${3 * u}px`;
+  ctx.fillText(kicker, textX, mid - 46 * u, textW);
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+
+  // Nom de marque avec un coup de surligneur doré
+  let brandSize = 58 * u;
+  ctx.font = `700 ${brandSize}px ${DISPLAY}`;
+  while (ctx.measureText("Spritz Connection").width > textW && brandSize > 30 * u) {
+    brandSize -= 2 * u;
+    ctx.font = `700 ${brandSize}px ${DISPLAY}`;
+  }
+  const brandW = ctx.measureText("Spritz Connection").width;
+  // Trait doré sous le nom (comme un coup de pinceau)
+  ctx.save();
+  ctx.translate(textX, mid + 24 * u);
+  ctx.rotate(-0.02);
+  roundRect(ctx, 0, 0, Math.min(brandW * 0.55, 220 * u), 10 * u, 5 * u);
+  ctx.fillStyle = GOLD;
+  ctx.fill();
+  ctx.restore();
   ctx.fillStyle = "#fff";
-  ctx.font = `600 ${24 * u}px ${BODY}`;
-  ctx.fillText("Scanne le QR code : télécharge l'app", textX, mid + 62 * u, textW);
-  ctx.fillText("et réserve ta place →", textX, mid + 92 * u, textW);
+  ctx.fillText("Spritz Connection", textX, mid + 14 * u);
+
+  // Pastille d'appel à l'action
+  ctx.font = `700 ${24 * u}px ${BODY}`;
+  const cta = "Télécharge l'app & réserve ta place  →";
+  let ctaText = cta;
+  while (ctx.measureText(ctaText).width + 40 * u > textW && ctaText.length > 10) ctaText = ctaText.slice(0, -2);
+  if (ctaText !== cta) ctaText = "Télécharge l'app  →";
+  const ctaW = Math.min(ctx.measureText(ctaText).width + 40 * u, textW);
+  roundRect(ctx, textX, mid + 48 * u, ctaW, 52 * u, 26 * u);
+  ctx.fillStyle = NAVY;
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.textBaseline = "middle";
+  ctx.fillText(ctaText, textX + 20 * u, mid + 75 * u);
+  ctx.textBaseline = "alphabetic";
 
   return canvas;
 }

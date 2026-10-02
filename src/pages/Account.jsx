@@ -314,6 +314,16 @@ export default function Account() {
       >
         <Shield size={15} /> Espace administrateur
       </button>
+      <p style={{ textAlign: "center", fontSize: 11, color: colors.muted, margin: "0 0 12px" }}>
+        Version de l'app :{" "}
+        {new Date(__BUILD_TIME__).toLocaleString("fr-FR", {
+          timeZone: "Europe/Paris",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit"
+        })}
+      </p>
 
       <button
         onClick={handleLogout}

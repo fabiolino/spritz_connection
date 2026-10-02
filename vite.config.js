@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Date de la version, affichée en bas de « Mon compte » pour vérifier qu'on a la dernière mise à jour
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString())
+  },
   plugins: [
     react(),
     VitePWA({

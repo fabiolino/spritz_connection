@@ -37,7 +37,7 @@ export function RescheduleTicket({ registrationId, onMoved, style }) {
   async function confirm() {
     const target = info?.events.find((e) => e.id === choice);
     if (!target) return;
-    if (!window.confirm(`Reporter ta participation au ${formatDate(target.event_date)} ? Ton billet actuel sera remplacé par celui de cette date.`)) return;
+    if (!window.confirm(`Reporter ta participation au ${formatDate(target.event_date)} ? Ton billet actuel sera remplacé par celui de cette date.\n\nUn billet ne peut être reporté qu'une seule fois : tu ne pourras plus changer de date ensuite.`)) return;
     setBusy(true);
     setError("");
     try {
@@ -82,7 +82,7 @@ export function RescheduleTicket({ registrationId, onMoved, style }) {
           <CheckCircle2 size={16} /> Participation reportée
         </div>
         <p style={{ margin: "6px 0 0" }}>
-          Ton billet est maintenant valable pour le <strong>{formatDate(done.event_date)}</strong>. Ton code ne change pas.
+          Ton billet est maintenant valable pour le <strong>{formatDate(done.event_date)}</strong>. Ton code ne change pas. Ce billet ne pourra plus être reporté.
           {done.emailed ? " Le billet mis à jour t'a été envoyé par email." : ""}
         </p>
       </div>
@@ -111,6 +111,7 @@ export function RescheduleTicket({ registrationId, onMoved, style }) {
       <p style={{ margin: "6px 0 10px", color: colors.muted }}>
         Tu peux reporter ta participation sur une autre date au même tarif et au même endroit
         {deadline ? <>, jusqu'au <strong style={{ color: colors.ink }}>{deadline}</strong></> : null}.
+        {" "}Attention : un billet ne peut être reporté <strong style={{ color: colors.ink }}>qu'une seule fois</strong>.
       </p>
 
       {info.events.length === 0 ? (

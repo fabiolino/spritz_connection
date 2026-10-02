@@ -61,7 +61,7 @@ async function handleCancel(req, res) {
 
 
 // --- Report d'une inscription payante vers une autre date ---
-// Règles : événement payant, au plus tard 24 h avant le début, vers un événement à venir
+// Règles : événement payant, une seule fois par billet, au plus tard 24 h avant le début, vers un événement à venir
 // au même tarif (membre et non-membre) et au même endroit (même lieu, ou même adresse).
 // Les options choisies (ex. dîner) doivent exister au même prix dans le nouvel événement.
 // Le billet garde son code ; il est renvoyé par email avec la nouvelle date.
@@ -85,13 +85,16 @@ const EVENT_FIELDS = "id, title, event_date, address, venue_id, price_member, pr
 // Charge l'inscription et vérifie qu'elle peut être reportée. Renvoie { error, status } ou { reg, event, options }.
 async function loadReschedulable(registrationId) {
   if (!registrationId) return { error: "Billet introuvable", status: 400 };
-  const { data: reg } = await supabaseAdmin
+  const { data: reg, error: regError } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, user_id, quantity, paid, external")
+    .select("id, event_id, user_id, quantity, paid, external, rescheduled_at")
     .eq("id", registrationId)
     .maybeSingle();
+  // Colonne rescheduled_at absente (migration pas encore passée) : report désactivé.
+  if (regError && regError.code === "42703") return { error: "Le report de billet sera bientôt disponible.", status: 503 };
   if (!reg || !reg.event_id) return { error: "Billet introuvable", status: 404 };
   if (!reg.paid && !reg.external) return { error: "Ce billet n'est pas encore payé.", status: 400 };
+  if (reg.rescheduled_at) return { error: "Ce billet a déjà été reporté une fois : un billet ne peut être reporté qu'une seule fois.", status: 400 };
 
   const { data: event } = await supabaseAdmin.from("events").select(EVENT_FIELDS).eq("id", reg.event_id).maybeSingle();
   if (!event) return { error: "Événement introuvable", status: 404 };
@@ -197,9 +200,10 @@ async function handleReschedule(req, res) {
     // Déplacement conditionnel : si le billet a déjà changé d'événement entre-temps, rien ne bouge.
     const { data: moved, error: moveError } = await supabaseAdmin
       .from("registrations")
-      .update({ event_id: targetId })
+      .update({ event_id: targetId, rescheduled_from: event.id, rescheduled_at: new Date().toISOString() })
       .eq("id", reg.id)
       .eq("event_id", event.id)
+      .is("rescheduled_at", null)
       .select("id");
     if (moveError) throw moveError;
     if (!moved || moved.length === 0) {

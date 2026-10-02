@@ -21,7 +21,7 @@ const FAQ = [
       },
       {
         q: "Un imprévu : je peux changer de date pour un événement payant ?",
-        a: "Oui, jusqu'à 24 h avant le début. Ouvre ton billet (Mon compte › Mes billets) et touche « Reporter ma participation » : tu choisis une autre date au même tarif et au même endroit, dans la limite des places disponibles. Ton code de billet ne change pas et le billet mis à jour t'est renvoyé par email. À moins de 24 h de l'événement, le report n'est plus possible."
+        a: "Oui, une seule fois par billet, jusqu'à 24 h avant le début. Ouvre ton billet (Mon compte › Mes billets) et touche « Reporter ma participation » : tu choisis une autre date au même tarif et au même endroit, dans la limite des places disponibles. Ton code de billet ne change pas et le billet mis à jour t'est renvoyé par email. À moins de 24 h de l'événement, le report n'est plus possible."
       },
       {
         q: "Je ne trouve pas mon paiement, que faire ?",

@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
 import InviteButtons from "../components/InviteButtons.jsx";
 import AdminVenues from "../components/AdminVenues.jsx";
+import AdminMembers from "../components/AdminMembers.jsx";
 import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
@@ -1111,7 +1112,7 @@ export default function Admin() {
 
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
-          <Users size={16} color={colors.orange} /> Membres
+          <Users size={16} color={colors.orange} /> Membres &amp; Spritz Crew
         </h2>
 
         {members === null ? (
@@ -1130,49 +1131,16 @@ export default function Admin() {
               cursor: "pointer"
             }}
           >
-            {loadingMembers ? "Chargement…" : "Afficher les comptes inscrits"}
+            {loadingMembers ? "Chargement…" : "Afficher les membres (app installée, activité, ambassadeurs)"}
           </button>
         ) : (
-          members.map((m) => (
-            <div
-              key={m.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: colors.surface,
-                border: `1px solid ${colors.border}`,
-                borderRadius: 12,
-                padding: "10px 12px",
-                marginBottom: 8
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name || m.email}</div>
-                <div style={{ fontSize: 11, color: colors.muted }}>{m.email}</div>
-              </div>
-              <button
-                onClick={() => toggleMember(m.id, m.is_member)}
-                disabled={togglingId === m.id}
-                style={{
-                  background: m.is_member ? "rgba(255,197,43,0.15)" : "none",
-                  border: `1px solid ${m.is_member ? colors.gold : colors.border}`,
-                  color: m.is_member ? colors.gold : colors.muted,
-                  borderRadius: 20,
-                  padding: "5px 12px",
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  whiteSpace: "nowrap"
-                }}
-              >
-                <Star size={11} /> {m.is_member ? "Membre" : "Non-membre"}
-              </button>
-            </div>
-          ))
+          <AdminMembers
+            members={members}
+            setMembers={setMembers}
+            adminSecret={adminSecret}
+            onToggleMember={toggleMember}
+            togglingId={togglingId}
+          />
         )}
         {membersError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{membersError}</p>}
       </div>

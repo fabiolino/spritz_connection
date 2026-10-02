@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { captureReferralFromUrl, takeStoredReferralCode, clearStoredReferralCode } from "./referral";
+import { recordAppOpen } from "./appUsage";
 
 const AuthContext = createContext(null);
 
@@ -21,14 +22,23 @@ export function AuthProvider({ children }) {
     const code = takeStoredReferralCode();
     if (!code) return;
     clearStoredReferralCode();
-    await supabase.rpc("claim_referral", { p_code: code }).catch(() => {});
+    // (les requêtes Supabase n'ont pas de .catch : on attend le résultat, sans planter)
+    try {
+      await supabase.rpc("claim_referral", { p_code: code });
+    } catch {
+      /* rien */
+    }
   }
 
   // Récupère les anciennes inscriptions faites "en invité" (avant d'avoir un compte) avec
   // ce même email, pour qu'elles apparaissent dans "Mon compte › Mes billets". Sans risque
   // et idempotent (rien à faire une fois déjà rattachées) — voir claim_guest_registrations en SQL.
   async function claimGuestRegistrations() {
-    await supabase.rpc("claim_guest_registrations").catch(() => {});
+    try {
+      await supabase.rpc("claim_guest_registrations");
+    } catch {
+      /* rien */
+    }
   }
 
   useEffect(() => {
@@ -46,6 +56,7 @@ export function AuthProvider({ children }) {
         loadProfile(sessionUser.id);
         claimStoredReferral();
         claimGuestRegistrations();
+        recordAppOpen(sessionUser.id);
       }
       setLoading(false);
     });
@@ -57,6 +68,7 @@ export function AuthProvider({ children }) {
         loadProfile(sessionUser.id);
         claimStoredReferral();
         claimGuestRegistrations();
+        recordAppOpen(sessionUser.id);
       } else {
         setProfile(null);
       }

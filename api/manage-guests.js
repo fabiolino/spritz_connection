@@ -5,7 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
-import { addManyToSpritzList } from "./_brevo.js";
+import { addManyToSpritzList, unsubscribe } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
 import {
   addTaken,
@@ -155,6 +155,41 @@ export default async function handler(req, res) {
       const emailed = guestEmail ? await sendRegistrationEmail(supabaseAdmin, reg.id) : false;
       const left = ev.seats ? ev.seats - (ev.taken || 0) - quantity : null;
       return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, emailed, overbooked: left != null && left < 0 });
+    }
+
+    // Supprimer un compte membre. Ses inscriptions et messages sont gardés (billets valables,
+    // historique des soirées) mais détachés du compte : le nom et l'email restent sur l'inscription.
+    if (action === "delete-member") {
+      const { profileId, removeFromList } = req.body;
+      if (!profileId) return res.status(400).json({ error: "profileId manquant" });
+
+      const { data: cfg } = await supabaseAdmin.from("private_config").select("value").eq("key", "admin_user_ids").maybeSingle();
+      const admins = String(cfg?.value || "").split(",").map((x) => x.trim());
+      if (admins.includes(profileId)) return res.status(400).json({ error: "Impossible de supprimer un compte administrateur." });
+
+      const { data: prof } = await supabaseAdmin.from("profiles").select("id, name, email").eq("id", profileId).maybeSingle();
+      if (!prof) return res.status(404).json({ error: "Membre introuvable" });
+
+      // Inscriptions : on garde le nom et l'email sur l'inscription avant de la détacher
+      const { data: regs } = await supabaseAdmin.from("registrations").select("id, guest_name, guest_email").eq("user_id", profileId);
+      for (const r of regs || []) {
+        await supabaseAdmin
+          .from("registrations")
+          .update({ user_id: null, guest_name: r.guest_name || prof.name || prof.email, guest_email: r.guest_email || prof.email })
+          .eq("id", r.id);
+      }
+      await supabaseAdmin.from("messages").update({ user_id: null }).eq("user_id", profileId);
+      await supabaseAdmin.from("events").update({ organizer_id: null }).eq("organizer_id", profileId);
+      await supabaseAdmin.from("co_organizer_requests").delete().eq("user_id", profileId);
+
+      // Supprime le compte (et, en cascade : profil, amis, invitations, notifications, avis, parrainages)
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(profileId);
+      if (delErr) {
+        console.error("Suppression compte:", delErr);
+        return res.status(500).json({ error: "La suppression du compte a échoué." });
+      }
+      if (removeFromList && prof.email) await unsubscribe(supabaseAdmin, prof.email);
+      return res.status(200).json({ ok: true, keptRegistrations: (regs || []).length });
     }
 
     // Rattrapage : ajoute à la liste Brevo tous les emails déjà présents dans l'app

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, LogOut, Star, Camera, Ticket } from "lucide-react";
+import { ChevronLeft, LogOut, Star, Camera, Ticket, Shield } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
@@ -292,6 +292,28 @@ export default function Account() {
       </button>
 
       <NotificationSettings />
+
+      <button
+        onClick={() => navigate("/admin")}
+        style={{
+          width: "100%",
+          background: "none",
+          border: `1px solid ${colors.border}`,
+          color: colors.muted,
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 13,
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          cursor: "pointer",
+          marginBottom: 12
+        }}
+      >
+        <Shield size={15} /> Espace administrateur
+      </button>
 
       <button
         onClick={handleLogout}

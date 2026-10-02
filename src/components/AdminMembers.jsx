@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Star, Smartphone, Bell, Copy, Check, Crown } from "lucide-react";
+import { Star, Smartphone, Bell, Copy, Check, Crown, Trash2, Search } from "lucide-react";
 import { colors } from "../lib/theme";
 
 const PLATFORM_LABEL = {
@@ -77,6 +77,9 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
   const [voucherBusy, setVoucherBusy] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState(null);
+  const [notice, setNotice] = useState("");
 
   const stats = useMemo(
     () => ({
@@ -89,7 +92,9 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
   );
 
   const list = useMemo(() => {
+    const q = search.trim().toLowerCase();
     let l = members.filter((m) => {
+      if (q && !`${m.name || ""} ${m.email || ""}`.toLowerCase().includes(q)) return false;
       if (filter === "installed") return !!m.app_installed_at;
       if (filter === "crew") return !!m.is_ambassador;
       if (filter === "not-installed") return !m.app_installed_at;
@@ -100,7 +105,32 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
     if (sort === "recent") l = [...l].sort((a, b) => (b.last_seen_at || b.created_at || "").localeCompare(a.last_seen_at || a.created_at || ""));
     if (sort === "name") l = [...l].sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || "", "fr"));
     return l;
-  }, [members, filter, sort]);
+  }, [members, filter, sort, search]);
+
+  async function deleteMember(m) {
+    const who = m.name || m.email;
+    if (!window.confirm(`Supprimer définitivement le compte de ${who} ?\n\nSes inscriptions restent valables (son nom et son email y sont conservés), mais son profil, ses amis et ses réglages sont effacés.`)) return;
+    const removeFromList = window.confirm(`Retirer aussi ${m.email} de la liste emails Brevo « Spritz Connection » ?\n\nOK = oui, Annuler = non (il continue à recevoir les annonces des soirées).`);
+    setDeleting(m.id);
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/manage-guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminSecret, action: "delete-member", profileId: m.id, removeFromList })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setError(data.error || "Suppression impossible");
+      else {
+        setMembers((prev) => prev.filter((x) => x.id !== m.id));
+        setNotice(`Compte de ${who} supprimé${data.keptRegistrations ? ` — ${data.keptRegistrations} inscription(s) conservée(s)` : ""}.`);
+      }
+    } catch {
+      setError("Impossible de contacter le serveur");
+    }
+    setDeleting(null);
+  }
 
   async function toggleCrew(m) {
     setCrewToggling(m.id);
@@ -199,6 +229,27 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
         ))}
       </div>
 
+      <div style={{ position: "relative", marginBottom: 8 }}>
+        <Search size={14} color={colors.muted} style={{ position: "absolute", left: 11, top: 11 }} />
+        <input
+          placeholder="Rechercher un nom ou un email…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            background: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 10,
+            padding: "8px 10px 8px 32px",
+            fontSize: 13,
+            color: colors.ink,
+            outline: "none"
+          }}
+        />
+      </div>
+      {notice && <p style={{ fontSize: 12, color: colors.olive, margin: "0 0 8px" }}>{notice}</p>}
+
       <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>
         {FILTERS.map((f) => (
           <button key={f.id} onClick={() => setFilter(f.id)} style={chip(filter === f.id)}>
@@ -287,6 +338,27 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
                 }}
               >
                 <Star size={11} /> {m.is_member ? "Membre" : "Non-membre"}
+              </button>
+              <button
+                onClick={() => deleteMember(m)}
+                disabled={deleting === m.id}
+                aria-label={`Supprimer ${m.name || m.email}`}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.red}`,
+                  color: colors.red,
+                  borderRadius: 20,
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                <Trash2 size={11} /> {deleting === m.id ? "…" : "Supprimer"}
               </button>
             </div>
           </div>

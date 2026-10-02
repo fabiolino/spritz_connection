@@ -25,6 +25,7 @@ import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
 import Crew from "./pages/Crew.jsx";
+import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
 function AfterLoginRedirect() {
   const { user } = useAuth();
@@ -37,6 +38,12 @@ function AfterLoginRedirect() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
   return null;
+}
+
+// Laisse la place à la barre de navigation du bas pour que rien ne soit caché dessous
+function PageSpace() {
+  const visible = useBottomNavVisible();
+  return visible ? <div style={{ height: `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` }} /> : null;
 }
 
 export default function App() {
@@ -74,6 +81,8 @@ export default function App() {
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/crew" element={<Crew />} />
       </Routes>
+        <PageSpace />
+        <BottomNav />
       </div>
       </CategoriesProvider>
     </AuthProvider>

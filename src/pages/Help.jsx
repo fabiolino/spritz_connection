@@ -17,7 +17,11 @@ const FAQ = [
       },
       {
         q: "Comment annuler ma participation ?",
-        a: "Contacte l'organisateur de l'événement via le téléphone affiché sur la fiche — les annulations ne se font pas encore automatiquement dans l'app."
+        a: "Pour un événement gratuit, ouvre ton billet (Mon compte › Mes billets) et touche « Annuler mon inscription ». Pour un événement payant, contacte l'organisateur via le téléphone affiché sur la fiche — ou reporte ta participation (question suivante)."
+      },
+      {
+        q: "Un imprévu : je peux changer de date pour un événement payant ?",
+        a: "Oui, jusqu'à 24 h avant le début. Ouvre ton billet (Mon compte › Mes billets) et touche « Reporter ma participation » : tu choisis une autre date au même tarif et au même endroit, dans la limite des places disponibles. Ton code de billet ne change pas et le billet mis à jour t'est renvoyé par email. À moins de 24 h de l'événement, le report n'est plus possible."
       },
       {
         q: "Je ne trouve pas mon paiement, que faire ?",

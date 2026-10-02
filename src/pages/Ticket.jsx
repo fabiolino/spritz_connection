@@ -4,6 +4,7 @@ import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket a
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import { InstallAppPrompt } from "../components/InstallAppPrompt.jsx";
+import { RescheduleTicket } from "../components/RescheduleTicket.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -21,6 +22,7 @@ export default function Ticket() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [isCancelled, setIsCancelled] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   async function handleCancelRegistration() {
     if (!window.confirm("Confirmer l'annulation de ton inscription ? Tes places seront libérées pour d'autres personnes.")) return;
@@ -78,7 +80,7 @@ export default function Ticket() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   const isMembership = ticket && !ticket.event;
   const isFree = ticket && !isMembership && Number(ticket.amount) === 0;
@@ -353,6 +355,10 @@ export default function Ticket() {
               ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation. Crée un compte avec le même email pour le retrouver automatiquement plus tard dans « Mes billets »."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
+
+          {!isMembership && !isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
+            <RescheduleTicket registrationId={ticket.id} onMoved={() => setReloadKey((k) => k + 1)} style={{ marginTop: 14 }} />
+          )}
 
           {isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
             <div style={{ textAlign: "center", marginTop: 10 }}>

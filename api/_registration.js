@@ -74,9 +74,9 @@ export function entryTotal(event, { isMember, quantity, advancePriceForAll }) {
   return nonMember * quantity;
 }
 
-// Options choisies, avec leur quantité. Accepte le nouveau format { optionQuantities: {id: n} }
+// Quantités demandées par option. Accepte le nouveau format { optionQuantities: {id: n} }
 // et l'ancien { selectedOptionIds: [id, …] } (quantité 1), pour les versions de l'app en cache.
-export async function loadChosenOptions(supabaseAdmin, eventId, body) {
+function readWantedOptions(body) {
   const wanted = {};
   if (body.optionQuantities && typeof body.optionQuantities === "object") {
     for (const [id, n] of Object.entries(body.optionQuantities)) {
@@ -86,6 +86,57 @@ export async function loadChosenOptions(supabaseAdmin, eventId, body) {
   } else if (Array.isArray(body.selectedOptionIds)) {
     body.selectedOptionIds.forEach((id) => (wanted[id] = 1));
   }
+  return wanted;
+}
+
+// --- Événements « à formules » (voir isFormulaEvent dans src/lib/pricing.js) ---
+// Pas de billet d'entrée séparé : chaque ligne de event_options est une formule complète
+// (price = prix de prévente, onsite_price = prix sur place). Le nombre de personnes est le
+// total des quantités choisies.
+export function isFormulaEvent(event, allOptions) {
+  if (!event || event.is_free) return false;
+  const noEntry = (Number(event.price_member) || 0) === 0 && (Number(event.price_nonmember) || 0) === 0;
+  return noEntry && Array.isArray(allOptions) && allOptions.length > 0;
+}
+
+// Toutes les lignes d'un événement
+export async function loadEventOptions(supabaseAdmin, eventId) {
+  const { data } = await supabaseAdmin
+    .from("event_options")
+    .select("id, label, price, onsite_price")
+    .eq("event_id", eventId);
+  return data || [];
+}
+
+// Lignes choisies (avec quantité), prises dans la liste complète de l'événement
+export function pickOptions(allOptions, body) {
+  const wanted = readWantedOptions(body);
+  return allOptions
+    .filter((o) => wanted[o.id])
+    .map((o) => ({ id: o.id, label: o.label, price: o.price, quantity: wanted[o.id] }));
+}
+
+// Comptes SumUp : chaque lieu peut encaisser sur son propre compte.
+//   - sans compte (account vide) : compte de Spritz Connection (SUMUP_API_KEY / SUMUP_MERCHANT_CODE)
+//   - compte « latteria » : variables SUMUP_API_KEY_LATTERIA et SUMUP_MERCHANT_CODE_LATTERIA
+// Si le compte d'un lieu est demandé mais pas configuré, on renvoie null : jamais de repli
+// sur le compte de Spritz Connection, pour que l'argent n'arrive pas sur le mauvais compte.
+export function sumupCredentials(account) {
+  const name = String(account || "").trim();
+  if (!name) {
+    const apiKey = process.env.SUMUP_API_KEY;
+    const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+    return apiKey && merchantCode ? { apiKey, merchantCode, account: null } : null;
+  }
+  const suffix = name.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+  const apiKey = process.env["SUMUP_API_KEY_" + suffix];
+  const merchantCode = process.env["SUMUP_MERCHANT_CODE_" + suffix];
+  return apiKey && merchantCode ? { apiKey, merchantCode, account: name } : null;
+}
+
+// Options choisies, avec leur quantité (lecture directe en base)
+export async function loadChosenOptions(supabaseAdmin, eventId, body) {
+  const wanted = readWantedOptions(body);
   const ids = Object.keys(wanted);
   if (ids.length === 0) return [];
   const { data } = await supabaseAdmin

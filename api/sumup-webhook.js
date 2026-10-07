@@ -4,7 +4,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
-import { addTaken, settleReferralOnPaid } from "./_registration.js";
+import { addTaken, settleReferralOnPaid, sumupCredentials } from "./_registration.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -23,8 +23,20 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Quel compte SumUp a encaissé ce paiement ? (compte du lieu, ou compte de Spritz Connection)
+    const { data: known } = await supabaseAdmin
+      .from("registrations")
+      .select("sumup_account")
+      .eq("sumup_checkout_id", checkoutId)
+      .maybeSingle();
+    const creds = sumupCredentials(known?.sumup_account);
+    if (!creds) {
+      console.error("Webhook SumUp : compte non configuré pour", known?.sumup_account || "(compte par défaut)");
+      return res.status(200).json({ received: true, verified: false });
+    }
+
     const verifyRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
-      headers: { Authorization: `Bearer ${process.env.SUMUP_API_KEY}` }
+      headers: { Authorization: `Bearer ${creds.apiKey}` }
     });
     const checkout = await verifyRes.json();
 

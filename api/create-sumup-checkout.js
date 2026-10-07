@@ -19,6 +19,12 @@
 //                                 ⚠️ Ne JAMAIS préfixer cette variable par VITE_ — elle doit
 //                                 rester strictement côté serveur.
 //
+// Chaque lieu peut encaisser sur son propre compte SumUp (colonne venues.sumup_account, par
+// exemple « latteria ») : les clés de ce compte sont alors dans SUMUP_API_KEY_LATTERIA et
+// SUMUP_MERCHANT_CODE_LATTERIA. Sans compte renseigné, c'est le compte de Spritz Connection.
+// Le compte utilisé est mémorisé sur l'inscription (registrations.sumup_account) pour que la
+// vérification du paiement (page billet, webhook) interroge le bon compte.
+//
 // Le montant est TOUJOURS recalculé ici, côté serveur, à partir des prix enregistrés
 // (tarif membre / non-membre, options, adhésion) : le montant envoyé par le navigateur
 // n'est jamais utilisé, pour qu'un billet « payé » corresponde vraiment au bon prix.
@@ -26,6 +32,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
 import {
+  MAX_GROUP,
   parseQuantity,
   readGuest,
   readAttendeeNames,
@@ -40,7 +47,11 @@ import {
   ADVANCE_PRICE_FOR_ALL,
   availableReferralCredits,
   settleReferralOnPaid,
-  resolveReferrer
+  resolveReferrer,
+  isFormulaEvent,
+  loadEventOptions,
+  pickOptions,
+  sumupCredentials
 } from "./_registration.js";
 
 const supabaseAdmin = createClient(
@@ -76,9 +87,10 @@ async function markPaid(registrationId) {
   if (reg) await sendRegistrationEmail(supabaseAdmin, reg.id);
 }
 
-async function verifyWithSumup(checkoutId) {
+async function verifyWithSumup(checkoutId, apiKey) {
+  if (!apiKey) return null;
   const verifyRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
-    headers: { Authorization: `Bearer ${process.env.SUMUP_API_KEY}` }
+    headers: { Authorization: `Bearer ${apiKey}` }
   });
   if (!verifyRes.ok) return null;
   const checkout = await verifyRes.json();
@@ -94,7 +106,7 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
+    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
@@ -104,7 +116,8 @@ async function handleTicket(req, res) {
   // Le webhook SumUp peut arriver quelques secondes après le retour sur l'app :
   // on vérifie directement auprès de SumUp si le paiement n'est pas encore confirmé.
   if (!reg.paid && !reg.external && reg.sumup_checkout_id) {
-    const status = await verifyWithSumup(reg.sumup_checkout_id);
+    const creds = sumupCredentials(reg.sumup_account);
+    const status = await verifyWithSumup(reg.sumup_checkout_id, creds?.apiKey);
     if (status === "PAID") {
       await markPaid(reg.id);
       reg = { ...reg, paid: true };
@@ -329,18 +342,19 @@ async function handleCheckout(req, res) {
     isMember = !!profile?.is_member;
   }
 
-  const quantity = isMembership ? 1 : parseQuantity(req.body.quantity);
+  let quantity = isMembership ? 1 : parseQuantity(req.body.quantity);
   let amount = 0;
   let chosenOptions = [];
   let description = "Spritz Connection — adhésion";
   let usedReferralCredit = false;
+  let sumupAccount = null; // compte SumUp du lieu (null = compte de Spritz Connection)
 
   if (isMembership) {
     amount = MEMBERSHIP_PRICE;
   } else {
     const { data: event, error: eventError } = await supabaseAdmin
       .from("events")
-      .select("id, title, price_member, price_nonmember, is_free, sumup_link, seats, taken, approved")
+      .select("id, title, price_member, price_nonmember, is_free, sumup_link, seats, taken, approved, venue_id")
       .eq("id", eventId)
       .maybeSingle();
     if (eventError || !event || !event.approved) {
@@ -349,6 +363,26 @@ async function handleCheckout(req, res) {
     if (event.sumup_link) {
       return res.status(400).json({ error: "Cet événement se règle via son propre lien de paiement." });
     }
+
+    // Compte SumUp du lieu, s'il en a un
+    if (event.venue_id) {
+      const { data: venue } = await supabaseAdmin.from("venues").select("sumup_account").eq("id", event.venue_id).maybeSingle();
+      sumupAccount = venue?.sumup_account || null;
+    }
+
+    // Événement « à formules » : pas de billet d'entrée, le nombre de personnes est le total
+    // des quantités de formules choisies.
+    const allOptions = await loadEventOptions(supabaseAdmin, eventId);
+    const formulaMode = isFormulaEvent(event, allOptions);
+    chosenOptions = pickOptions(allOptions, req.body);
+    if (formulaMode) {
+      quantity = chosenOptions.reduce((sum, o) => sum + o.quantity, 0);
+      if (quantity < 1) return res.status(400).json({ error: "Choisis au moins une formule." });
+      if (quantity > MAX_GROUP) {
+        return res.status(400).json({ error: `Une réservation est limitée à ${MAX_GROUP} personnes.` });
+      }
+    }
+
     const full = seatsError(event, quantity);
     if (full) return res.status(409).json({ error: full });
 
@@ -364,19 +398,23 @@ async function handleCheckout(req, res) {
       }
     }
 
-    chosenOptions = await loadChosenOptions(supabaseAdmin, eventId, req.body);
-    amount = entryTotal(event, { isMember, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }) + optionsTotal(chosenOptions);
+    amount =
+      (formulaMode ? 0 : entryTotal(event, { isMember, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL })) +
+      optionsTotal(chosenOptions);
 
     if (option === "both" && user && !isMember && !ADVANCE_PRICE_FOR_ALL) {
       amount += MEMBERSHIP_PRICE;
     }
 
     // Programme de parrainage : une entrée gratuite réduit le total du prix d'une place
-    // (jamais les options ni l'adhésion), à condition d'en avoir vraiment gagné une.
+    // (jamais l'adhésion), à condition d'en avoir vraiment gagné une.
+    // Événement à formules : une place = la formule la moins chère parmi celles choisies.
     if (user && req.body.useReferralCredit) {
       const available = await availableReferralCredits(supabaseAdmin, user.id);
-      if (available > 0) {
-        const unitEntryPrice = entryTotal(event, { isMember, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL });
+      const unitEntryPrice = formulaMode
+        ? Math.min(...chosenOptions.map((o) => Number(o.price) || 0))
+        : entryTotal(event, { isMember, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL });
+      if (available > 0 && unitEntryPrice > 0) {
         amount = Math.max(0, amount - unitEntryPrice);
         usedReferralCredit = true;
       }
@@ -421,6 +459,13 @@ async function handleCheckout(req, res) {
     return res.status(200).json({ free: true, registrationId: freeReg.id });
   }
 
+  // Clés SumUp du bon compte (celui du lieu, ou celui de Spritz Connection)
+  const creds = sumupCredentials(sumupAccount);
+  if (!creds) {
+    console.error("Compte SumUp non configuré :", sumupAccount || "(compte par défaut)");
+    return res.status(503).json({ error: "Le paiement en ligne n'est pas encore disponible pour cet événement." });
+  }
+
   // 1. On crée l'inscription d'abord (non payée), pour connaître son identifiant
   //    et y renvoyer le participant après le paiement.
   let reg;
@@ -437,7 +482,8 @@ async function handleCheckout(req, res) {
       option,
       amount,
       paid: false,
-      used_referral_credit: usedReferralCredit
+      used_referral_credit: usedReferralCredit,
+      ...(creds.account ? { sumup_account: creds.account } : {})
     });
   } catch (err) {
     console.error("Erreur insertion registration:", err);
@@ -451,13 +497,13 @@ async function handleCheckout(req, res) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SUMUP_API_KEY}`
+      Authorization: `Bearer ${creds.apiKey}`
     },
     body: JSON.stringify({
       checkout_reference: `${reg.id}`,
       amount,
       currency: "EUR",
-      merchant_code: process.env.SUMUP_MERCHANT_CODE,
+      merchant_code: creds.merchantCode,
       description,
       redirect_url: `${process.env.PUBLIC_APP_URL}/ticket/${reg.id}`,
       return_url: `${process.env.PUBLIC_APP_URL}/api/sumup-webhook`,

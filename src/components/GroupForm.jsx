@@ -90,10 +90,23 @@ export function Stepper({ value, min = 0, max = 99, onChange, label }) {
   );
 }
 
-// Nombre de personnes + prénoms des accompagnants + coordonnées si pas de compte
-export default function GroupForm({ group, onChange, user, seatsLeft, requireEmail = true, onLogin, unitLabel }) {
+// Nombre de personnes + prénoms des accompagnants + coordonnées si pas de compte.
+// hideQuantity : événement à formules, où le nombre de personnes vient des formules choisies
+// (group.quantity est alors piloté par l'écran qui contient le formulaire).
+export default function GroupForm({ group, onChange, user, seatsLeft, requireEmail = true, onLogin, unitLabel, hideQuantity = false }) {
   const max = Math.max(1, Math.min(MAX_GROUP, seatsLeft ?? MAX_GROUP));
   const set = (patch) => onChange({ ...group, ...patch });
+  // Sans le bloc « nombre de personnes », la première section visible n'a pas de trait au-dessus
+  const sectionStyle = (first) => ({
+    borderTop: first ? "none" : `1px solid ${colors.border}`,
+    marginTop: first ? 0 : 12,
+    paddingTop: first ? 0 : 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8
+  });
+  const contactIsFirst = hideQuantity;
+  const namesIsFirst = hideQuantity && !!user;
 
   function setName(i, value) {
     const names = [...group.names];
@@ -111,6 +124,7 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
         marginBottom: 14
       }}
     >
+      {!hideQuantity && (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div>
           <div style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
@@ -124,14 +138,15 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
         </div>
         <Stepper value={group.quantity} min={1} max={max} onChange={(q) => set({ quantity: q })} label="personnes" />
       </div>
-      {seatsLeft != null && seatsLeft <= MAX_GROUP && group.quantity >= max && (
+      )}
+      {!hideQuantity && seatsLeft != null && seatsLeft <= MAX_GROUP && group.quantity >= max && (
         <p style={{ fontSize: 11.5, color: colors.muted, margin: "8px 0 0" }}>
           {seatsLeft} place{seatsLeft > 1 ? "s" : ""} restante{seatsLeft > 1 ? "s" : ""}.
         </p>
       )}
 
       {!user && (
-        <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={sectionStyle(contactIsFirst)}>
           <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
             <UserRound size={14} color={colors.orange} /> {group.quantity > 1 ? "Qui inscrit le groupe ?" : "Tes coordonnées"}
           </div>
@@ -180,7 +195,7 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
       )}
 
       {group.quantity > 1 && (
-        <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={sectionStyle(namesIsFirst)}>
           <div style={{ fontSize: 13, fontWeight: 700 }}>
             Tes accompagnants <span style={{ fontWeight: 400, color: colors.muted, fontSize: 11.5 }}>(facultatif, facilite l'accueil)</span>
           </div>

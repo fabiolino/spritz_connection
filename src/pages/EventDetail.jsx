@@ -8,7 +8,7 @@ import { CategoryIcon } from "../lib/eventIcons";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
-import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice, groupEntryPrice } from "../lib/pricing";
+import { ADVANCE_PRICE_FOR_ALL, onlineEntryPrice, groupEntryPrice, isFormulaEvent, cheapestFormulaPrice } from "../lib/pricing";
 import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../components/GroupForm.jsx";
 import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
@@ -97,7 +97,8 @@ export default function EventDetail() {
         .from("event_options")
         .select("id, label, price, onsite_price, payment_link")
         .eq("event_id", id)
-        .order("price", { ascending: true });
+        .order("price", { ascending: true })
+        .order("created_at", { ascending: true });
       if (optionRows) setEventOptions(optionRows);
 
       const res = await fetch("/api/event-attendees", {
@@ -182,6 +183,11 @@ export default function EventDetail() {
   // Événement réglé par un lien de paiement externe : l'app calcule le montant à payer
   // (entrée + suppléments cochés) pour que le participant sache quoi régler.
   const externalPay = !!event.sumup_link && !event.is_free;
+  // Événement à formules (ex. Aperitivo Italiano) : pas de billet d'entrée, chaque ligne est une
+  // formule complète avec son prix de prévente et son prix sur place (voir src/lib/pricing.js).
+  const formulaMode = isFormulaEvent(event, eventOptions);
+  const formulaFrom = cheapestFormulaPrice(eventOptions);
+  const formulaOnsiteFrom = Math.min(...eventOptions.map((o) => Number(o.onsite_price) || Infinity));
   const isMember = !!profile?.is_member;
   const entryPrice = onlineEntryPrice(event, isMember);
   const groupEntry = groupEntryPrice(event, isMember, group.quantity);
@@ -524,10 +530,12 @@ export default function EventDetail() {
             }}
           >
             <div style={{ fontFamily: fonts.display, fontSize: 15, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-              <Tag size={15} color={colors.orange} /> En supplément, moins cher à l'avance
+              <Tag size={15} color={colors.orange} /> {formulaMode ? "Nos formules" : "En supplément, moins cher à l'avance"}
             </div>
             <p style={{ fontSize: 11.5, color: colors.muted, margin: "0 0 10px", lineHeight: 1.4 }}>
-              {event.sumup_link
+              {formulaMode
+                ? "Réserve à l'avance pour payer moins cher que sur place. Tu choisis ta ou tes formules à l'étape suivante."
+                : event.sumup_link
                 ? `Ajoute-les à ton paiement${group.quantity > 1 ? " (pour tout le groupe)" : ""} et profite du prix réduit (prix barré = prix sur place).`
                 : "À ajouter lors de l'inscription pour profiter du prix réduit (prix barré = prix sur place)."}
             </p>
@@ -549,7 +557,14 @@ export default function EventDetail() {
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
-                    <div style={{ fontSize: 13.5, marginTop: 2 }}>
+                    {formulaMode && (
+                      <div style={{ fontSize: 13.5, marginTop: 2 }}>
+                        <strong style={{ color: colors.orange }}>{formatEuro(o.price)}</strong>
+                        <span style={{ color: colors.muted }}> en prévente</span>
+                        {promo && <span style={{ color: colors.muted }}> · {formatEuro(o.onsite_price)} sur place</span>}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 13.5, marginTop: 2, display: formulaMode ? "none" : undefined }}>
                       {promo && (
                         <span style={{ textDecoration: "line-through", color: colors.muted, marginRight: 6 }}>
                           {formatEuro(o.onsite_price)}
@@ -802,11 +817,19 @@ export default function EventDetail() {
                 boxShadow: full ? "none" : "0 4px 12px rgba(232,95,38,0.3)"
               }}
             >
-              {full ? "Complet" : `S'inscrire — dès ${Math.min(event.price_member, event.price_nonmember)} €`}
+              {full
+                ? "Complet"
+                : formulaMode
+                ? `Réserver — dès ${formatEuro(formulaFrom)}`
+                : `S'inscrire — dès ${Math.min(event.price_member, event.price_nonmember)} €`}
             </button>
             {!full && (
               <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: -4, marginBottom: 16 }}>
-                {ADVANCE_PRICE_FOR_ALL
+                {formulaMode
+                  ? Number.isFinite(formulaOnsiteFrom) && formulaOnsiteFrom > formulaFrom
+                    ? `Prévente dès ${formatEuro(formulaFrom)} · dès ${formatEuro(formulaOnsiteFrom)} sur place le jour J`
+                    : `Prévente dès ${formatEuro(formulaFrom)}`
+                  : ADVANCE_PRICE_FOR_ALL
                   ? `${formatEuro(event.price_member)} en réservant à l'avance · ${formatEuro(event.price_nonmember)} sur place le jour J`
                   : `${formatEuro(event.price_member)} membres · ${formatEuro(event.price_nonmember)} non-membres`}
               </p>

@@ -8,6 +8,23 @@
 // api/create-sumup-checkout.js) : le tarif membre sera alors réservé aux membres.
 export const ADVANCE_PRICE_FOR_ALL = true;
 
+// Événement « à formules » (ex. Aperitivo Italiano) : pas de billet d'entrée séparé, chaque
+// ligne de event_options est une formule complète (price = prévente, onsite_price = sur place)
+// que le participant choisit avec une quantité. Le nombre de personnes = total des quantités.
+// Règle : événement payant dont l'entrée est à 0 € (prévente ET sur place) et qui a des lignes.
+// Même règle côté serveur (api/_registration.js : isFormulaEvent).
+export function isFormulaEvent(event, options) {
+  if (!event || event.is_free) return false;
+  const noEntry = (Number(event.price_member) || 0) === 0 && (Number(event.price_nonmember) || 0) === 0;
+  return noEntry && Array.isArray(options) && options.length > 0;
+}
+
+// Prix le plus bas parmi les formules (pour « dès X € »)
+export function cheapestFormulaPrice(options) {
+  const prices = (options || []).map((o) => Number(o.price) || 0);
+  return prices.length ? Math.min(...prices) : 0;
+}
+
 export function onlineEntryPrice(event, isMember) {
   if (!event) return 0;
   const useMemberPrice = ADVANCE_PRICE_FOR_ALL || isMember;

@@ -5,8 +5,8 @@ import { supabase } from "../lib/supabaseClient";
 import { startCheckout } from "../lib/sumupClient";
 import { useAuth } from "../lib/AuthContext";
 import { colors, fonts } from "../lib/theme";
-import { ADVANCE_PRICE_FOR_ALL, groupEntryPrice, onlineEntryPrice } from "../lib/pricing";
-import GroupForm, { Stepper, emptyGroup, groupPayload, groupError } from "../components/GroupForm.jsx";
+import { ADVANCE_PRICE_FOR_ALL, groupEntryPrice, onlineEntryPrice, isFormulaEvent } from "../lib/pricing";
+import GroupForm, { Stepper, emptyGroup, groupPayload, groupError, MAX_GROUP } from "../components/GroupForm.jsx";
 
 const MEMBERSHIP_PRICE = 25; // doit rester aligné avec Join.jsx
 const REFERRAL_THRESHOLD = 3; // doit rester aligné avec REFERRAL_THRESHOLD dans api/_registration.js
@@ -38,17 +38,20 @@ export default function Register() {
       }
       const { data } = await supabase
         .from("events")
-        .select("price_member, price_nonmember, seats, taken")
+        .select("price_member, price_nonmember, is_free, seats, taken")
         .eq("id", id)
         .single();
-      setEvent(data);
 
+      // Les lignes (options / formules) sont chargées avant d'afficher l'écran, pour savoir
+      // dès le premier affichage s'il s'agit d'un événement à formules.
       const { data: options } = await supabase
         .from("event_options")
         .select("id, label, price, onsite_price")
         .eq("event_id", id)
-        .order("price", { ascending: true });
+        .order("price", { ascending: true })
+        .order("created_at", { ascending: true });
       if (options) setEventOptions(options);
+      setEvent(data);
     }
     load();
   }, [id]);
@@ -66,21 +69,44 @@ export default function Register() {
     loadCredits();
   }, [user]);
 
+  // Événement à formules (ex. Aperitivo Italiano) : pas de billet séparé, le participant choisit
+  // une ou plusieurs formules avec une quantité ; le nombre de personnes en découle.
+  const formulaMode = isFormulaEvent(event, eventOptions);
+  const people = formulaMode ? eventOptions.reduce((sum, o) => sum + (optionQty[o.id] || 0), 0) : 0;
+  useEffect(() => {
+    if (!formulaMode) return;
+    const q = Math.max(1, people);
+    setGroup((g) => (g.quantity === q ? g : { ...g, quantity: q }));
+  }, [formulaMode, people]);
+
   if (authLoading || !event) return null;
 
   const isMember = !!profile?.is_member;
   const seatsLeft = event.seats > 0 ? Math.max(0, event.seats - (event.taken || 0)) : null;
-  const entryTotal = groupEntryPrice(event, isMember, group.quantity);
+  const maxPeople = Math.max(1, Math.min(MAX_GROUP, seatsLeft ?? MAX_GROUP));
+  const entryTotal = formulaMode ? 0 : groupEntryPrice(event, isMember, group.quantity);
 
   const chosenOptions = eventOptions.filter((o) => (optionQty[o.id] || 0) > 0);
   const optionsTotal = chosenOptions.reduce((sum, o) => sum + Number(o.price) * optionQty[o.id], 0);
+  // Ce que ces mêmes formules coûteraient sur place le jour J
+  const onsiteTotal = chosenOptions.reduce((sum, o) => sum + (Number(o.onsite_price) || Number(o.price)) * optionQty[o.id], 0);
   const withMembership = addMembership && !!user;
   const applyReferralCredit = useReferralCredit && availableReferralCredits > 0;
-  const referralDiscount = applyReferralCredit ? Math.min(entryTotal, onlineEntryPrice(event, isMember)) : 0;
+  // Entrée gratuite de parrainage : une place offerte (à formules : la formule la moins chère choisie)
+  const referralUnit = formulaMode
+    ? chosenOptions.length
+      ? Math.min(...chosenOptions.map((o) => Number(o.price) || 0))
+      : 0
+    : onlineEntryPrice(event, isMember);
+  const referralDiscount = applyReferralCredit ? Math.min(formulaMode ? optionsTotal : entryTotal, referralUnit) : 0;
   const total = Math.round((entryTotal - referralDiscount + optionsTotal + (withMembership ? MEMBERSHIP_PRICE : 0)) * 100) / 100;
   const option = withMembership ? "both" : "billet";
 
   async function handlePay() {
+    if (formulaMode && people < 1) {
+      setError("Choisis au moins une formule.");
+      return;
+    }
     const check = groupError(group, user, { requireEmail: true });
     if (check) {
       setError(check);
@@ -112,6 +138,7 @@ export default function Register() {
         <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
 
+      {!formulaMode && (
       <div
         style={{
           display: "flex",
@@ -141,18 +168,79 @@ export default function Register() {
           )}
         </div>
       </div>
+      )}
 
-      <GroupForm
-        group={group}
-        onChange={setGroup}
-        user={user}
-        seatsLeft={seatsLeft}
-        requireEmail
-        unitLabel="un seul paiement"
-        onLogin={() => navigate(`/login?next=${encodeURIComponent(`/event/${id}/register`)}`)}
-      />
+      {formulaMode && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2, fontFamily: fonts.display }}>Choisis ta formule</div>
+          <div style={{ fontSize: 11.5, color: colors.muted, marginBottom: 8, lineHeight: 1.4 }}>
+            Une ligne par personne : indique combien de personnes prennent chaque formule. Le prix de prévente est celui que tu paies ici, le prix sur place est celui du jour J.
+          </div>
+          {eventOptions.map((o) => {
+            const qty = optionQty[o.id] || 0;
+            const onsite = Number(o.onsite_price) || 0;
+            return (
+              <div
+                key={o.id}
+                style={{
+                  border: `1.5px solid ${qty > 0 ? colors.orange : colors.border}`,
+                  background: qty > 0 ? "rgba(240,90,25,0.08)" : colors.surface,
+                  borderRadius: 12,
+                  padding: "10px 12px 10px 14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                  marginBottom: 8
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.3 }}>{o.label}</div>
+                  <div style={{ fontSize: 13, marginTop: 3 }}>
+                    <strong style={{ color: colors.orange }}>{formatEuro(o.price)}</strong>
+                    <span style={{ color: colors.muted }}> en prévente</span>
+                    {onsite > Number(o.price) && (
+                      <span style={{ color: colors.muted }}> · {formatEuro(onsite)} sur place</span>
+                    )}
+                  </div>
+                  {qty > 1 && (
+                    <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                      {qty} × {formatEuro(o.price)} = {formatEuro(Number(o.price) * qty)}
+                    </div>
+                  )}
+                </div>
+                <Stepper
+                  value={qty}
+                  min={0}
+                  max={Math.max(qty, qty + (maxPeople - people))}
+                  onChange={(n) => setOptionQty((p) => ({ ...p, [o.id]: n }))}
+                  label={o.label}
+                />
+              </div>
+            );
+          })}
+          {seatsLeft != null && seatsLeft <= MAX_GROUP && people >= maxPeople && (
+            <p style={{ fontSize: 11.5, color: colors.muted, margin: "2px 0 0" }}>
+              {seatsLeft} place{seatsLeft > 1 ? "s" : ""} restante{seatsLeft > 1 ? "s" : ""}.
+            </p>
+          )}
+        </div>
+      )}
 
-      {eventOptions.length > 0 && (
+      {(!formulaMode || !user || group.quantity > 1) && (
+        <GroupForm
+          group={group}
+          onChange={setGroup}
+          user={user}
+          seatsLeft={seatsLeft}
+          requireEmail
+          unitLabel="un seul paiement"
+          hideQuantity={formulaMode}
+          onLogin={() => navigate(`/login?next=${encodeURIComponent(`/event/${id}/register`)}`)}
+        />
+      )}
+
+      {!formulaMode && eventOptions.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Options en supplément</div>
           <div style={{ fontSize: 11.5, color: colors.muted, marginBottom: 8 }}>
@@ -225,7 +313,7 @@ export default function Register() {
         </div>
       )}
 
-      {user && !isMember && !ADVANCE_PRICE_FOR_ALL && (
+      {user && !isMember && !ADVANCE_PRICE_FOR_ALL && !formulaMode && (
         <div
           onClick={() => setAddMembership((v) => !v)}
           style={{
@@ -261,22 +349,33 @@ export default function Register() {
         }}
       >
         <span>
-          Total{group.quantity > 1 ? ` · ${group.quantity} personnes` : ""}
-          {group.quantity > 1 && (
+          Total{formulaMode ? (people > 0 ? ` · ${people} personne${people > 1 ? "s" : ""}` : "") : group.quantity > 1 ? ` · ${group.quantity} personnes` : ""}
+          {!formulaMode && group.quantity > 1 && (
             <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: colors.muted }}>
               Entrées {formatEuro(entryTotal)}
               {optionsTotal > 0 ? ` + options ${formatEuro(optionsTotal)}` : ""}
             </span>
           )}
+          {formulaMode &&
+            chosenOptions.map((o) => (
+              <span key={o.id} style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: colors.muted }}>
+                {optionQty[o.id]} × {o.label}
+              </span>
+            ))}
         </span>
         <span>{formatEuro(total)}</span>
       </div>
+      {formulaMode && onsiteTotal > optionsTotal && (
+        <p style={{ fontSize: 12, color: colors.olive, fontWeight: 600, padding: "0 4px", margin: "-6px 0 14px" }}>
+          Tu économises {formatEuro(onsiteTotal - optionsTotal)} par rapport au prix sur place ({formatEuro(onsiteTotal)}).
+        </p>
+      )}
 
       {error && <p style={{ color: colors.red, fontSize: 13, marginBottom: 10 }}>{error}</p>}
 
       <button
         onClick={handlePay}
-        disabled={loading || seatsLeft === 0}
+        disabled={loading || seatsLeft === 0 || (formulaMode && people < 1)}
         style={{
           width: "100%",
           background: colors.orange,
@@ -299,6 +398,8 @@ export default function Register() {
           ? "Complet"
           : loading
           ? "Confirmation…"
+          : formulaMode && people < 1
+          ? "Choisis au moins une formule"
           : total === 0
           ? "Confirmer mon inscription gratuite"
           : `Payer ${formatEuro(total)} en ligne`}

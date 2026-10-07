@@ -1,0 +1,6 @@
+FORMULES APERITIVO + PAIEMENT SUR LE COMPTE DU LIEU
+
+1. Dossiers "api" et "src" : les 7 fichiers modifiés de l'app (à envoyer sur GitHub, voir la marche à suivre dans le chat).
+2. supabase-migration-sumup-account.sql : déjà appliquée dans Supabase (à garder dans le dépôt pour la trace).
+3. ACTIVATION-formules-aperitivo.sql : à lancer SEULEMENT après le déploiement ET l'ajout des clés SumUp de La Latteria dans Vercel.
+4. RETOUR-ARRIERE.sql : à lancer uniquement si on veut revenir à l'ancien fonctionnement.

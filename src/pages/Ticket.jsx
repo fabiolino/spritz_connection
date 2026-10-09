@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut, Printer } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import { InstallAppPrompt } from "../components/InstallAppPrompt.jsx";
@@ -86,6 +86,10 @@ export default function Ticket() {
   const isFree = ticket && !isMembership && Number(ticket.amount) === 0;
   const quantity = ticket?.quantity || 1;
   const optionLine = (o) => Number(o.price || 0) * (o.quantity || 1);
+  const optionsSum = ticket ? ticket.options.reduce((s, o) => s + optionLine(o), 0) : 0;
+  // Montant des entrées : 0 pour une formule (Aperitivo), où tout est dans les lignes de commande
+  const entryAmount = ticket ? Math.round((Number(ticket.amount) - optionsSum) * 100) / 100 : 0;
+  const holderName = ticket ? ticket.payerName || ticket.guestName : null;
 
   return (
     <div style={{ padding: "0 20px 40px" }}>
@@ -227,9 +231,9 @@ export default function Ticket() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <MapPin size={14} color={colors.orange} /> {ticket.event.address}
                 </div>
-                {ticket.guestName && (
+                {holderName && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                    <User size={14} color={colors.orange} /> {ticket.guestName}
+                    <User size={14} color={colors.orange} /> Au nom de <strong>{holderName}</strong>
                   </div>
                 )}
                 {quantity > 1 && (
@@ -308,21 +312,20 @@ export default function Ticket() {
 
             {!isFree && (
             <div style={{ padding: "12px 18px 16px", fontSize: 13 }}>
-              {!isMembership && (
+              {!isMembership && entryAmount > 0.004 && (
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
                   <span>
                     {quantity > 1 ? `${quantity} entrées` : "Entrée"}
                     {ticket.option === "both" ? " + adhésion" : ""}
                   </span>
-                  <span style={{ color: colors.muted }}>
-                    {formatEuro(Number(ticket.amount) - ticket.options.reduce((s, o) => s + optionLine(o), 0))}
-                  </span>
+                  <span style={{ color: colors.muted }}>{formatEuro(entryAmount)}</span>
                 </div>
               )}
               {ticket.options.map((o, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
                   <span>
-                    + {(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}
+                    {entryAmount > 0.004 ? "+ " : ""}
+                    {(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}
                     {o.label}
                   </span>
                   <span style={{ color: colors.muted }}>{formatEuro(optionLine(o))}</span>
@@ -341,9 +344,40 @@ export default function Ticket() {
                 <span>{ticket.paid ? "Total payé" : "Total à régler"}</span>
                 <span>{formatEuro(ticket.amount)}</span>
               </div>
+              {ticket.paid && ticket.paidAt && (
+                <div style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
+                  Payé le{" "}
+                  {new Date(ticket.paidAt).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {ticket.venueName ? ` · encaissé par ${ticket.venueName}` : ""}
+                </div>
+              )}
             </div>
             )}
           </div>
+
+          {ticket.paid && !isFree && (
+            <div style={{ textAlign: "center", marginTop: 12 }} className="no-print">
+              <button
+                onClick={() => window.print()}
+                style={{
+                  background: "none",
+                  border: `1px solid ${colors.border}`,
+                  color: colors.ink,
+                  borderRadius: 14,
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <Printer size={14} /> Imprimer / enregistrer le reçu en PDF
+              </button>
+              <style>{"@media print { .no-print, button, nav { display: none !important; } }"}</style>
+            </div>
+          )}
 
           <p style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 14, lineHeight: 1.5 }}>
             {ticket.emailed && (

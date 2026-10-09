@@ -299,10 +299,84 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
   }
 }
 
+// Bloc « Prochaines soirées » (2 événements publics à venir)
+function nextEventsHtml(nextEvents) {
+  if (!nextEvents || nextEvents.length === 0) return "";
+  const items = nextEvents
+    .map(
+      (e) => `<tr><td style="padding:8px 0;border-top:1px solid #EADFC4">
+        <div style="font-size:15px;font-weight:700">${esc(e.title)}</div>
+        <div style="font-size:13px;color:${MUTED}">📅 ${esc(parisDate(e.event_date))}${e.address ? `<br>📍 ${esc(e.address)}` : ""}</div>
+        <div style="margin-top:6px"><a href="${esc(`${appUrl()}/event/${e.id}`)}" style="color:${ORANGE};font-weight:700;font-size:13px;text-decoration:none">Voir et réserver →</a></div>
+      </td></tr>`
+    )
+    .join("");
+  return `<tr><td style="padding:14px 22px 0">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">🍹 Les prochaines soirées</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${items}</table>
+  </td></tr>`;
+}
+
+function nextEventsText(nextEvents) {
+  if (!nextEvents || nextEvents.length === 0) return "";
+  return ["Les prochaines soirées :", ...nextEvents.map((e) => `- ${e.title} — ${parisDate(e.event_date)} : ${appUrl()}/event/${e.id}`)].join("\n");
+}
+
+// ---------- Rappel avant l'événement (J-3) ----------
+export function buildReminderEmail({ reg, event, recipientName, recipientEmail, hasAccount }) {
+  const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
+  const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
+  const quantity = reg.quantity || 1;
+  const subject = `Dans 3 jours : ${event.title}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr"><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:${INK}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:24px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:18px;overflow:hidden">
+  <tr><td style="background:${INK};color:#ffffff;padding:18px 22px;border-bottom:5px solid ${ORANGE}">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.9">Spritz Connection</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px">${esc(event.title)}</div>
+  </td></tr>
+  <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.55">
+    <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} ! 🍹</p>
+    <p style="margin:0 0 14px">C'est dans <strong>3 jours</strong>, on a hâte de ${quantity > 1 ? "vous" : "te"} voir.</p>
+    <p style="margin:0 0 4px">📅 ${esc(parisDate(event.event_date))}</p>
+    ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}</p>` : ""}
+    ${quantity > 1 ? `<p style="margin:0 0 4px">👥 ${quantity} personnes</p>` : ""}
+  </td></tr>
+  <tr><td align="center" style="padding:14px 22px 6px">
+    <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">Code à présenter à l'entrée</div>
+      <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
+    </div>
+  </td></tr>
+  <tr><td align="center" style="padding:16px 22px 4px">${button(ticketUrl, "Voir mon billet")}</td></tr>
+  <tr><td style="padding:12px 22px 0;font-size:13px;line-height:1.5;color:${MUTED}">Un imprévu ? Tu peux reporter ta place depuis la page de ton billet, jusqu'à 24 h avant. Et pourquoi ne pas amener un ami ? Partage simplement le lien de l'événement.</td></tr>
+  <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
+    A presto ! — Fabio, Spritz Connection
+    ${recipientEmail ? `<br><br>Tu reçois ce rappel car tu es inscrit·e à cet événement. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+  const text = [
+    `Ciao${firstName ? " " + firstName : ""} !`,
+    `C'est dans 3 jours : ${event.title}`,
+    `${parisDate(event.event_date)}`,
+    event.address ? `Lieu : ${event.address}` : "",
+    `Code à présenter : ${reg.ticket_code}`,
+    `Ton billet : ${ticketUrl}`,
+    recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { subject, html, text };
+}
+
 // ---------- Message de remerciement après l'événement ----------
 export const GOOGLE_REVIEW_URL = process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQoIqirTJtVGEBM/review";
 
-export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail }) {
+export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents }) {
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
   const subject = `Merci d'être venu·e — ${event.title}`;
   const html = `<!DOCTYPE html>
@@ -320,6 +394,7 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     <p style="margin:0 0 6px">Un petit coup de pouce nous aiderait énormément : un avis Google prend 30 secondes et permet à d'autres de nous découvrir.</p>
   </td></tr>
   <tr><td align="center" style="padding:10px 22px 8px">${button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
+  ${nextEventsHtml(nextEvents)}
   <tr><td style="padding:18px 22px 6px">
     <div style="background:${CREAM};border-radius:14px;padding:16px">
       <div style="font-size:16px;font-weight:700;margin-bottom:6px">📲 Ne rate aucune soirée</div>
@@ -345,6 +420,8 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     `Ciao${firstName ? " " + firstName : ""} !`,
     `Merci d'avoir partagé ${event.title} avec nous.`,
     `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    "",
+    nextEventsText(nextEvents),
     "",
     `Installe l'app pour connaître nos prochains événements : ${appUrl()}`,
     recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""

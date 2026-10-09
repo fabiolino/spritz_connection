@@ -52,7 +52,7 @@ function button(href, label, primary = true) {
 }
 
 // Contenu de l'email pour une inscription
-export function buildTicketEmail({ reg, event, options, recipientName, hasAccount, recipientEmail }) {
+export function buildTicketEmail({ reg, event, options, recipientName, hasAccount, recipientEmail, payerName, venueName }) {
   const quantity = reg.quantity || 1;
   const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
@@ -69,6 +69,36 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   const optionLines = (options || [])
     .map((o) => `${(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}${esc(o.label)}`)
     .join(", ");
+
+  // Reçu : détail de la commande ligne par ligne, avec les montants
+  const lineTotal = (o) => (Number(o.price) || 0) * (o.quantity || 1);
+  const optionsSum = (options || []).reduce((sum, o) => sum + lineTotal(o), 0);
+  const entryAmount = Math.round((Number(reg.amount) - optionsSum) * 100) / 100; // 0 pour une formule
+  const row = (left, right, bold = false) =>
+    `<tr><td style="padding:5px 0;font-size:14px;${bold ? "font-weight:700;" : ""}">${left}</td><td align="right" style="padding:5px 0 5px 12px;font-size:14px;white-space:nowrap;${
+      bold ? "font-weight:700;" : `color:${MUTED};`
+    }">${right}</td></tr>`;
+  const receiptRows = [
+    entryAmount > 0.004 ? row(quantity > 1 ? `${quantity} entrées` : "Entrée", euro(entryAmount)) : "",
+    ...(options || []).map((o) => row(`${(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}${esc(o.label)}`, euro(lineTotal(o))))
+  ].join("");
+  const paidOn = reg.paid_at ? parisDate(reg.paid_at) : null;
+  const receiptHtml =
+    isFree || (!receiptRows && !Number(reg.amount))
+      ? ""
+      : `<tr><td style="padding:12px 22px 0">
+    <div style="border:1px solid #EADFC4;border-radius:14px;padding:14px 16px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED};margin-bottom:6px">${toPay ? "Récapitulatif de la réservation" : "Reçu de paiement"}</div>
+      ${payerName ? `<div style="font-size:14px;margin-bottom:2px"><strong>Au nom de :</strong> ${esc(payerName)}</div>` : ""}
+      ${paidOn && !toPay ? `<div style="font-size:13px;color:${MUTED};margin-bottom:6px">Payé le ${esc(paidOn)}</div>` : ""}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px">
+        ${receiptRows}
+        <tr><td colspan="2" style="border-top:1px solid #EADFC4;padding-top:2px"></td></tr>
+        ${row(toPay ? "Total à régler" : "Total payé", euro(reg.amount), true)}
+      </table>
+      ${venueName && !toPay ? `<div style="font-size:12px;color:${MUTED};margin-top:8px">Paiement encaissé par ${esc(venueName)}.</div>` : ""}
+    </div>
+  </td></tr>`;
 
   const subject = `${toPay ? "Ta réservation" : "Ton billet"} — ${event.title} (code ${reg.ticket_code})`;
 
@@ -87,7 +117,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
     <p style="margin:0 0 4px">📅 ${esc(parisDate(event.event_date))}</p>
     ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}</p>` : ""}
     ${quantity > 1 ? `<p style="margin:0 0 4px">👥 Billet pour ${quantity} personnes${names.length ? ` — avec ${esc(names.join(", "))}` : ""}</p>` : ""}
-    ${optionLines ? `<p style="margin:0 0 4px">➕ ${optionLines}</p>` : ""}
+    ${optionLines && !receiptHtml ? `<p style="margin:0 0 4px">➕ ${optionLines}</p>` : ""}
   </td></tr>
   <tr><td align="center" style="padding:14px 22px 6px">
     <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
@@ -95,6 +125,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
       <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
     </div>
   </td></tr>
+  ${receiptHtml}
   <tr><td align="center" style="padding:16px 22px 4px">
     ${toPay && event.sumup_link ? `<div style="margin-bottom:10px">${button(event.sumup_link, `Payer ${euro(reg.amount)} via SumUp`)}</div>` : ""}
     ${button(ticketUrl, "Voir mon billet", !(toPay && event.sumup_link))}
@@ -131,6 +162,14 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
     `${event.title} — ${parisDate(event.event_date)}`,
     event.address ? `Lieu : ${event.address}` : "",
     quantity > 1 ? `Billet pour ${quantity} personnes${names.length ? ` (avec ${names.join(", ")})` : ""}` : "",
+    ...(receiptHtml
+      ? [
+          payerName ? `Au nom de : ${payerName}` : "",
+          ...(entryAmount > 0.004 ? [`${quantity > 1 ? `${quantity} entrées` : "Entrée"} : ${euro(entryAmount)}`] : []),
+          ...(options || []).map((o) => `${(o.quantity || 1) > 1 ? `${o.quantity} × ` : ""}${o.label} : ${euro(lineTotal(o))}`),
+          `${toPay ? "Total à régler" : "Total payé"} : ${euro(reg.amount)}`
+        ]
+      : []),
     `Code : ${reg.ticket_code}`,
     toPay && event.sumup_link ? `Payer : ${event.sumup_link}` : "",
     `Ton billet : ${ticketUrl}`,
@@ -144,7 +183,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   return { subject, html, text };
 }
 
-async function sendViaBrevo({ to, toName, subject, html, text, unsubscribe }) {
+export async function sendViaBrevo({ to, toName, subject, html, text, unsubscribe, tag = "billet" }) {
   const key = process.env.BREVO_API_KEY;
   if (!key) return { skipped: "no-key" };
   const controller = new AbortController();
@@ -160,7 +199,7 @@ async function sendViaBrevo({ to, toName, subject, html, text, unsubscribe }) {
         subject,
         htmlContent: html,
         textContent: text,
-        tags: ["billet"],
+        tags: [tag],
         ...(unsubscribe ? { headers: { "List-Unsubscribe": `<${unsubscribe}>` } } : {})
       }),
       signal: controller.signal
@@ -221,7 +260,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
 
     const { data: event } = await supabaseAdmin
       .from("events")
-      .select("title, event_date, address, sumup_link")
+      .select("title, event_date, address, sumup_link, venue_id")
       .eq("id", reg.event_id)
       .maybeSingle();
     if (!event) {
@@ -230,13 +269,20 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     }
     const { data: options } = await supabaseAdmin
       .from("registration_options")
-      .select("label, quantity")
+      .select("label, price, quantity")
       .eq("registration_id", reg.id);
+
+    // Lieu qui a encaissé (uniquement s'il a son propre compte SumUp)
+    let venueName = null;
+    if (event.venue_id) {
+      const { data: venue } = await supabaseAdmin.from("venues").select("name, sumup_account").eq("id", event.venue_id).maybeSingle();
+      if (venue?.sumup_account) venueName = venue.name;
+    }
 
     // Ajout automatique à la liste Brevo « Spritz Connection » (sauf si la personne s'est désinscrite)
     await addToSpritzList(supabaseAdmin, { email: to, name });
 
-    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id, recipientEmail: to });
+    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id, recipientEmail: to, payerName: name, venueName });
     const result = await sendViaBrevo({ to, toName: name, ...content, unsubscribe: unsubscribeUrl(to) });
     if (!result.ok) {
       console.error("Email billet non envoyé:", result.error || result.skipped);
@@ -251,4 +297,59 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     console.error("Erreur email billet:", err);
     return false;
   }
+}
+
+// ---------- Message de remerciement après l'événement ----------
+export const GOOGLE_REVIEW_URL = process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQoIqirTJtVGEBM/review";
+
+export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail }) {
+  const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
+  const subject = `Merci d'être venu·e — ${event.title}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr"><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:${INK}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:24px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:18px;overflow:hidden">
+  <tr><td style="background:${INK};color:#ffffff;padding:18px 22px;border-bottom:5px solid ${ORANGE}">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.9">Spritz Connection</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px">Grazie mille ! 🍹</div>
+  </td></tr>
+  <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.6">
+    <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} !</p>
+    <p style="margin:0 0 12px">Merci d'avoir partagé <strong>${esc(event.title)}</strong> avec nous. On espère que tu as passé un super moment et que tu as fait de belles rencontres.</p>
+    <p style="margin:0 0 6px">Un petit coup de pouce nous aiderait énormément : un avis Google prend 30 secondes et permet à d'autres de nous découvrir.</p>
+  </td></tr>
+  <tr><td align="center" style="padding:10px 22px 8px">${button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
+  <tr><td style="padding:18px 22px 6px">
+    <div style="background:${CREAM};border-radius:14px;padding:16px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📲 Ne rate aucune soirée</div>
+      <div style="font-size:14px;line-height:1.55">
+        Installe l'app Spritz Connection pour connaître tous nos prochains événements, retrouver tes billets et gagner des entrées avec le parrainage.
+        ${hasAccount ? "" : " Crée ton compte en 10 secondes (juste ton email)."}
+      </div>
+      <div style="font-size:13px;line-height:1.5;color:${MUTED};margin-top:8px">
+        <strong>iPhone :</strong> ouvre le lien dans Safari, touche « Partager » puis « Sur l'écran d'accueil ».<br>
+        <strong>Android :</strong> ouvre le lien dans Chrome, puis « Installer l'application ».
+      </div>
+      <div style="margin-top:12px">${button(`${appUrl()}/${hasAccount ? "" : "login"}`, hasAccount ? "Ouvrir l'app" : "Installer l'app et créer mon compte", false)}</div>
+    </div>
+  </td></tr>
+  <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
+    A presto ! — Fabio, Spritz Connection
+    ${recipientEmail ? `<br><br>Tu reçois ce message car tu étais inscrit·e à cet événement. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+  const text = [
+    `Ciao${firstName ? " " + firstName : ""} !`,
+    `Merci d'avoir partagé ${event.title} avec nous.`,
+    `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    "",
+    `Installe l'app pour connaître nos prochains événements : ${appUrl()}`,
+    recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { subject, html, text };
 }

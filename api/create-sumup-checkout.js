@@ -106,7 +106,7 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
+    .select("id, event_id, user_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
@@ -135,15 +135,30 @@ async function handleTicket(req, res) {
   if (reg.event_id) {
     const { data: ev } = await supabaseAdmin
       .from("events")
-      .select("id, title, event_date, address, sumup_link")
+      .select("id, title, event_date, address, sumup_link, venue_id")
       .eq("id", reg.event_id)
       .maybeSingle();
     event = ev;
   }
 
+  // Lieu qui a encaissé (seulement s'il a son propre compte SumUp) : affiché sur le reçu
+  let venueName = null;
+  if (event?.venue_id) {
+    const { data: venue } = await supabaseAdmin.from("venues").select("name, sumup_account").eq("id", event.venue_id).maybeSingle();
+    if (venue?.sumup_account) venueName = venue.name;
+  }
+
+  // Nom de la personne : celui saisi à l'inscription, sinon celui de son compte
+  let payerName = reg.guest_name || null;
+  if (!payerName && reg.user_id) {
+    const { data: profile } = await supabaseAdmin.from("profiles").select("name").eq("id", reg.user_id).maybeSingle();
+    payerName = profile?.name || null;
+  }
+
   return res.status(200).json({
     ticket: {
       id: reg.id,
+      payerName,
       paid: !!reg.paid,
       failed: !!reg.failed,
       code: reg.paid || reg.external ? reg.ticket_code : null,
@@ -153,6 +168,8 @@ async function handleTicket(req, res) {
       quantity: reg.quantity || 1,
       attendeeNames: reg.attendee_names || [],
       createdAt: reg.created_at,
+      paidAt: reg.paid_at || null,
+      venueName,
       option: reg.option,
       amount: reg.amount,
       options: options || [],

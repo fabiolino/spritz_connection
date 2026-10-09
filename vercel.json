@@ -22,6 +22,20 @@
       ],
       "destination": "/api/event-attendees?og=1"
     },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/send-thanks",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "functions": {
+    "api/send-thanks.js": {
+      "maxDuration": 60
+    }
+  }
 }

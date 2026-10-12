@@ -509,7 +509,8 @@ async function handleCheckout(req, res) {
   await insertOptions(supabaseAdmin, reg.id, chosenOptions);
 
   // 2. Création du paiement SumUp
-  const customerEmail = user?.email || guest?.email;
+  // Pas de customer_id : SumUp attend l'identifiant d'un client SumUp, pas un e-mail
+  // (l'envoyer renvoyait « Validation error / customer_id » et bloquait tous les paiements).
   const response = await fetch("https://api.sumup.com/v0.1/checkouts", {
     method: "POST",
     headers: {
@@ -524,8 +525,7 @@ async function handleCheckout(req, res) {
       description,
       redirect_url: `${process.env.PUBLIC_APP_URL}/ticket/${reg.id}`,
       return_url: `${process.env.PUBLIC_APP_URL}/api/sumup-webhook`,
-      hosted_checkout: { enabled: true },
-      ...(customerEmail ? { customer_id: customerEmail } : {})
+      hosted_checkout: { enabled: true }
     })
   });
 

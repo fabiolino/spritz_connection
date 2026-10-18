@@ -227,7 +227,8 @@ export default function Register() {
         </div>
       )}
 
-      {(!formulaMode || !user || group.quantity > 1) && (
+      {/* Toujours affiché : le mobile est obligatoire, même pour une personne connectée */}
+      {(
         <GroupForm
           group={group}
           onChange={setGroup}

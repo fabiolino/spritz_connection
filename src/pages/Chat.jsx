@@ -15,7 +15,17 @@ export default function Chat() {
   const { user, profile, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState(DEMO_MESSAGES);
   const [draft, setDraft] = useState("");
+  const [venueName, setVenueName] = useState(null); // renseigné si le compte connecté est celui du lieu de l'événement
   const bottomRef = useRef(null);
+
+  // Si l'utilisateur connecté est le compte du lieu de cet événement, il écrit sous le nom du lieu
+  useEffect(() => {
+    setVenueName(null);
+    if (!user || !import.meta.env.VITE_SUPABASE_URL) return;
+    supabase.rpc("my_venue_for_event", { p_event_id: id }).then(({ data }) => {
+      if (typeof data === "string" && data) setVenueName(data);
+    });
+  }, [id, user]);
 
   useEffect(() => {
     if (!import.meta.env.VITE_SUPABASE_URL) return;
@@ -46,8 +56,8 @@ export default function Chat() {
 
   async function send() {
     if (!draft.trim() || !user) return;
-    const name = profile?.name || user.email.split("@")[0];
-    const role = profile?.is_member ? "membre" : "participant";
+    const name = venueName || profile?.name || user.email.split("@")[0];
+    const role = venueName ? "lieu" : profile?.is_member ? "membre" : "participant";
 
     if (!import.meta.env.VITE_SUPABASE_URL) {
       setMessages((prev) => [...prev, { id: Date.now(), name, role, text: draft }]);
@@ -68,7 +78,7 @@ export default function Chat() {
         <i style={{ display: "inline-block", width: 30, height: 6, background: colors.orange, borderRadius: 99, transform: "rotate(-6deg)" }} />
       </div>
       <p style={{ fontSize: 12, color: colors.muted, margin: "0 20px 14px" }}>
-        Ouvert à tous : organisateur, co-organisateurs et participants inscrits.
+        Ouvert à tous : organisateur, co-organisateurs, lieu et participants inscrits.
       </p>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "0 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -83,9 +93,18 @@ export default function Chat() {
               maxWidth: "80%"
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, color: colors.orange, marginBottom: 2 }}>
-              {m.name} · {m.role}
-            </div>
+            {m.role === "lieu" ? (
+              <div style={{ fontSize: 11, fontWeight: 700, color: colors.navy, marginBottom: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                {m.name}
+                <span style={{ background: colors.orange, color: "#fff", borderRadius: 99, padding: "1px 8px", fontSize: 10, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                  Lieu
+                </span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, fontWeight: 700, color: colors.orange, marginBottom: 2 }}>
+                {m.name} · {m.role}
+              </div>
+            )}
             <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>{m.text}</div>
           </div>
         ))}

@@ -14,6 +14,7 @@ import { eventInviteUrl } from "../lib/invite";
 import InviteButtons from "../components/InviteButtons.jsx";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import FindTicket from "../components/FindTicket.jsx";
+import CommunityOnEvent from "../components/CommunityOnEvent.jsx";
 import CrewAvatar from "../components/CrewAvatar.jsx";
 
 function formatEuro(n) {
@@ -889,6 +890,8 @@ export default function EventDetail() {
             <ImageIcon size={16} /> Créer une affichette pour cet événement
           </button>
         )}
+
+        {user && new Date(event.event_date) > new Date() && <CommunityOnEvent eventId={id} />}
 
         {event.visibility !== "private" && new Date(event.event_date) > new Date() && (
           <InviteButtons event={event} url={eventInviteUrl(id, null, profile?.referral_code)} style={{ marginTop: -12, marginBottom: 26 }} />

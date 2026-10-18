@@ -35,6 +35,7 @@ import {
   MAX_GROUP,
   parseQuantity,
   readGuest,
+  readPhone,
   readAttendeeNames,
   entryTotal,
   loadChosenOptions,
@@ -270,9 +271,15 @@ async function handleExternalReservation(req, res) {
 
   const user = await getUserFromRequest(req);
   let guest = null;
+  let phone = null;
   if (!user) {
     guest = readGuest(req.body);
     if (guest.error) return res.status(400).json({ error: guest.error });
+    phone = guest.phone;
+  } else {
+    const p = readPhone(req.body.guestPhone);
+    if (p.error) return res.status(400).json({ error: p.error });
+    phone = p.phone;
   }
   const quantity = parseQuantity(req.body.quantity);
 
@@ -312,7 +319,7 @@ async function handleExternalReservation(req, res) {
       user_id: user ? user.id : null,
       guest_name: guest?.name || null,
       guest_email: guest?.email || null,
-      guest_phone: guest?.phone || null,
+      guest_phone: phone,
       quantity,
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
       referrer_id: await resolveReferrer(supabaseAdmin, req.body.refCode, user?.id),
@@ -347,10 +354,16 @@ async function handleCheckout(req, res) {
 
   // Sans compte : possible pour un événement (pas pour l'adhésion), avec nom + email
   let guest = null;
+  let phone = null;
   if (!user) {
     if (isMembership) return res.status(401).json({ error: "Connecte-toi pour adhérer en ligne" });
     guest = readGuest(req.body, { requireEmail: true });
     if (guest.error) return res.status(400).json({ error: guest.error });
+    phone = guest.phone;
+  } else if (!isMembership) {
+    const p = readPhone(req.body.guestPhone);
+    if (p.error) return res.status(400).json({ error: p.error });
+    phone = p.phone;
   }
 
   let isMember = false;
@@ -456,6 +469,7 @@ async function handleCheckout(req, res) {
       freeReg = await insertRegistration(supabaseAdmin, {
         event_id: eventId,
         user_id: user.id,
+        guest_phone: phone,
         quantity,
         attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
         referrer_id: await resolveReferrer(supabaseAdmin, req.body.refCode, user?.id),
@@ -492,7 +506,7 @@ async function handleCheckout(req, res) {
       user_id: user ? user.id : null,
       guest_name: guest?.name || null,
       guest_email: guest?.email || null,
-      guest_phone: guest?.phone || null,
+      guest_phone: phone,
       quantity,
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
       referrer_id: isMembership ? null : await resolveReferrer(supabaseAdmin, req.body.refCode, user?.id),

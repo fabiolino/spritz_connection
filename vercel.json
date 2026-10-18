@@ -31,10 +31,21 @@
     {
       "path": "/api/send-thanks",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/venue-recap",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/venue-recap",
+      "schedule": "0 13 * * *"
     }
   ],
   "functions": {
     "api/send-thanks.js": {
+      "maxDuration": 60
+    },
+    "api/venue-recap.js": {
       "maxDuration": 60
     }
   }

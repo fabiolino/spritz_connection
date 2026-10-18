@@ -7,11 +7,12 @@
 //   invite     → invitation à un événement privé        (préférence invites)
 //   chat       → message de l'organisateur / de Fabio   (préférence chat, inscrits seulement)
 //   reminders  → rappel la veille de l'événement        (préférence reminders, inscrits seulement)
+//   community_going → un membre de ta communauté a réservé (préférence community)
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
-type Prefs = "new_events" | "invites" | "chat" | "reminders";
+type Prefs = "new_events" | "invites" | "chat" | "reminders" | "community";
 
 const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -129,6 +130,31 @@ async function handle(msg: any) {
       body: `${m.name || "L'organisateur"} : ${text}`,
       url: `/event/${ev.id}/chat`,
       tag: `chat-${ev.id}`
+    });
+  }
+
+  if (msg.type === "community_going") {
+    const { data: reg } = await supabase.from("registrations").select("id, event_id, user_id").eq("id", msg.registration_id).single();
+    if (!reg || !reg.event_id || !reg.user_id) return 0;
+    const { data: ev } = await supabase.from("events").select("id, title, event_date, visibility").eq("id", reg.event_id).single();
+    if (!ev || ev.visibility === "private" || new Date(ev.event_date) < new Date()) return 0;
+    const { data: me } = await supabase.from("profiles").select("name").eq("id", reg.user_id).single();
+    // Ses communautés où il accepte de montrer sa présence, puis leurs autres membres
+    const { data: mine } = await supabase.from("community_members").select("community_id").eq("user_id", reg.user_id).eq("share_presence", true);
+    const cids = (mine || []).map((m) => m.community_id);
+    if (cids.length === 0) return 0;
+    const { data: peers } = await supabase.from("community_members").select("user_id").in("community_id", cids).neq("user_id", reg.user_id);
+    const already = new Set(await registrantIds(ev.id));
+    const { data: blocks } = await supabase.from("event_blocks").select("blocked_user_id").eq("event_id", ev.id);
+    const blocked = new Set((blocks || []).map((b) => b.blocked_user_id));
+    let ids = [...new Set((peers || []).map((p) => p.user_id as string))].filter((id) => !already.has(id) && !blocked.has(id));
+    ids = await filterByPref(ids, "community");
+    const first = String(me?.name || "Un ami").trim().split(/\s+/)[0];
+    return sendTo(ids, {
+      title: `🍹 ${first} va à ${ev.title}`,
+      body: `${parisDate(ev.event_date)} — viens avec ta communauté !`,
+      url: `/event/${ev.id}`,
+      tag: `community-${ev.id}`
     });
   }
 

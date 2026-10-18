@@ -8,7 +8,8 @@ export const PREF_LABELS = [
   { key: "new_events", label: "Nouveaux événements", hint: "Dès qu'une soirée est publiée" },
   { key: "invites", label: "Invitations", hint: "Quand tu es invité·e à un événement privé" },
   { key: "chat", label: "Infos de l'organisateur", hint: "Messages de dernière minute sur tes événements" },
-  { key: "reminders", label: "Rappel la veille", hint: "Pour les événements où tu es inscrit·e" }
+  { key: "reminders", label: "Rappel la veille", hint: "Pour les événements où tu es inscrit·e" },
+  { key: "community", label: "Ma communauté", hint: "Quand un ami de ta communauté réserve une soirée" }
 ];
 
 export function isIos() {
@@ -87,7 +88,8 @@ export async function loadPrefs(userId) {
     new_events: data?.new_events ?? true,
     invites: data?.invites ?? true,
     chat: data?.chat ?? true,
-    reminders: data?.reminders ?? true
+    reminders: data?.reminders ?? true,
+    community: data?.community ?? true
   };
 }
 

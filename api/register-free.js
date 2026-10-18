@@ -4,7 +4,7 @@
 // un seul billet avec un code à montrer à l'entrée).
 
 import { createClient } from "@supabase/supabase-js";
-import { parseQuantity, readGuest, readAttendeeNames, seatsError, insertRegistration, addTaken, resolveReferrer } from "./_registration.js";
+import { parseQuantity, readGuest, readPhone, readAttendeeNames, seatsError, insertRegistration, addTaken, resolveReferrer } from "./_registration.js";
 import { sendRegistrationEmail } from "./_email.js";
 
 const supabaseAdmin = createClient(
@@ -246,9 +246,15 @@ export default async function handler(req, res) {
     // L'identité vient du jeton de connexion (et plus d'un userId envoyé par le navigateur)
     const user = await getUserFromRequest(req);
     let guest = null;
+    let phone = null;
     if (!user) {
       guest = readGuest(req.body);
       if (guest.error) return res.status(400).json({ error: guest.error });
+      phone = guest.phone;
+    } else {
+      const p = readPhone(req.body.guestPhone);
+      if (p.error) return res.status(400).json({ error: p.error });
+      phone = p.phone;
     }
     const quantity = parseQuantity(req.body.quantity);
 
@@ -284,7 +290,7 @@ export default async function handler(req, res) {
       user_id: user ? user.id : null,
       guest_name: guest?.name || null,
       guest_email: guest?.email || null,
-      guest_phone: guest?.phone || null,
+      guest_phone: phone,
       quantity,
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
       referrer_id: await resolveReferrer(supabaseAdmin, req.body.refCode, user?.id),

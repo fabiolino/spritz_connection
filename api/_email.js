@@ -10,6 +10,7 @@
 // Un email ne bloque jamais une inscription : toute erreur est seulement journalisée.
 
 import { addToSpritzList, unsubscribeUrl } from "./_brevo.js";
+import { notifyRegistration } from "./_notify.js";
 
 const DEFAULT_SENDER = "fabiocasilli@gmail.com";
 const ORANGE = "#F05A19"; // charte 30/09 : navy / orange / jaune sur crème
@@ -260,13 +261,15 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
 
     const { data: event } = await supabaseAdmin
       .from("events")
-      .select("title, event_date, address, sumup_link, venue_id")
+      .select("id, title, event_date, address, sumup_link, venue_id, seats")
       .eq("id", reg.event_id)
       .maybeSingle();
     if (!event) {
       await release();
       return false;
     }
+    // Notification à l'équipe (et mail individuel au lieu pour un retardataire) — une seule fois
+    if (!force) await notifyRegistration(supabaseAdmin, reg, event);
     const { data: options } = await supabaseAdmin
       .from("registration_options")
       .select("label, price, quantity")

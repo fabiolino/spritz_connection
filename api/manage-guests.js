@@ -92,7 +92,7 @@ export default async function handler(req, res) {
           name: profilesById[r.user_id]?.name || profilesById[r.user_id]?.email || r.guest_name || "—",
           quantity: r.quantity || 1,
           attendeeNames: r.attendee_names || [],
-          contact: r.user_id ? profilesById[r.user_id]?.email || null : [r.guest_email, r.guest_phone].filter(Boolean).join(" · ") || null,
+          contact: (r.user_id ? [profilesById[r.user_id]?.email, r.guest_phone] : [r.guest_email, r.guest_phone]).filter(Boolean).join(" · ") || null,
           withoutAccount: !r.user_id,
           hasEmail: !!(r.guest_email || (r.user_id && profilesById[r.user_id]?.email)),
           emailed: !!r.confirmation_sent_at,

@@ -5,35 +5,61 @@ import { getCrewRef } from "../lib/referral";
 
 export const MAX_GROUP = 10; // aligné avec api/_registration.js
 
-export function emptyGroup() {
-  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: "" };
+const PHONE_KEY = "spritz_phone";
+
+// Le mobile saisi une fois est gardé sur l'appareil pour préremplir les inscriptions suivantes
+function savedPhone() {
+  try {
+    return localStorage.getItem(PHONE_KEY) || "";
+  } catch {
+    return "";
+  }
 }
+
+export function emptyGroup() {
+  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: savedPhone() };
+}
+
+const PHONE_OK = (v) => {
+  const digits = String(v || "").replace(/\D/g, "");
+  return digits.length >= 9 && digits.length <= 15 && /^[+\d\s().-]+$/.test(String(v).trim());
+};
 
 // Données à envoyer au serveur
 export function groupPayload(group, user) {
+  try {
+    if (group.guestPhone.trim()) localStorage.setItem(PHONE_KEY, group.guestPhone.trim());
+  } catch {
+    /* stockage indisponible : sans importance */
+  }
   return {
     quantity: group.quantity,
+    guestPhone: group.guestPhone.trim(), // mobile obligatoire, avec ou sans compte
     attendeeNames: group.names.slice(0, group.quantity - 1).map((n) => n.trim()).filter(Boolean),
     refCode: getCrewRef(), // lien perso d'un membre Spritz Crew, s'il y en a un
     ...(user
       ? {}
       : {
           guestName: group.guestName.trim(),
-          guestEmail: group.guestEmail.trim(),
-          guestPhone: group.guestPhone.trim()
+          guestEmail: group.guestEmail.trim()
         })
   };
 }
 
 // Vérification avant envoi : renvoie un message d'erreur ou ""
 // L'email est obligatoire pour les inscriptions sans compte : on y envoie le billet.
+// Le mobile est obligatoire pour tout le monde (avec ou sans compte) : il sert à te joindre
+// en cas de problème le jour de la soirée.
 export function groupError(group, user, { requireEmail = true } = {}) {
-  if (user) return "";
-  if (!group.guestName.trim()) return "Indique ton prénom et ton nom.";
-  if (requireEmail && !group.guestEmail.trim()) return "Indique ton email : on t'y envoie ton billet.";
-  if (group.guestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(group.guestEmail.trim())) {
-    return "L'adresse email ne semble pas valide.";
+  if (!user) {
+    if (!group.guestName.trim()) return "Indique ton prénom et ton nom.";
+    if (requireEmail && !group.guestEmail.trim()) return "Indique ton email : on t'y envoie ton billet.";
+    if (group.guestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(group.guestEmail.trim())) {
+      return "L'adresse email ne semble pas valide.";
+    }
   }
+  if (!group.guestPhone.trim()) return "Indique ton numéro de mobile : on ne t'appelle qu'en cas de problème.";
+  if (!PHONE_OK(group.guestPhone)) return "Le numéro de mobile ne semble pas valide.";
   return "";
 }
 
@@ -170,12 +196,15 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
           </p>
           <input
             type="tel"
-            placeholder="Téléphone (facultatif)"
+            placeholder="Mobile * (pour te joindre en cas de problème)"
             autoComplete="tel"
             value={group.guestPhone}
             onChange={(e) => set({ guestPhone: e.target.value })}
             style={inputStyle}
           />
+          <p style={{ fontSize: 11, color: colors.muted, margin: "-2px 2px 0", lineHeight: 1.4 }}>
+            Ton mobile est transmis au lieu de la soirée, uniquement pour te joindre si besoin le jour J.
+          </p>
           <p style={{ fontSize: 11.5, color: colors.muted, margin: 0, lineHeight: 1.45 }}>
             Pas besoin de compte ni de télécharger l'app.
             {onLogin && (
@@ -194,8 +223,27 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
         </div>
       )}
 
+      {user && (
+        <div style={sectionStyle(contactIsFirst)}>
+          <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+            <UserRound size={14} color={colors.orange} /> Ton mobile
+          </div>
+          <input
+            type="tel"
+            placeholder="Mobile * (pour te joindre en cas de problème)"
+            autoComplete="tel"
+            value={group.guestPhone}
+            onChange={(e) => set({ guestPhone: e.target.value })}
+            style={inputStyle}
+          />
+          <p style={{ fontSize: 11, color: colors.muted, margin: "-2px 2px 0", lineHeight: 1.4 }}>
+            Transmis au lieu de la soirée, uniquement pour te joindre si besoin le jour J.
+          </p>
+        </div>
+      )}
+
       {group.quantity > 1 && (
-        <div style={sectionStyle(namesIsFirst)}>
+        <div style={sectionStyle(namesIsFirst && !user)}>
           <div style={{ fontSize: 13, fontWeight: 700 }}>
             Tes accompagnants <span style={{ fontWeight: 400, color: colors.muted, fontSize: 11.5 }}>(facultatif, facilite l'accueil)</span>
           </div>

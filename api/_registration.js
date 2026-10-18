@@ -40,17 +40,35 @@ export function parseQuantity(value) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Mobile : obligatoire pour toute inscription (pour pouvoir recontacter la personne en cas de problème).
+// On accepte les formats français et internationaux ; on exige au moins 9 chiffres.
+export function readPhone(value) {
+  const phone = String(value || "").trim().slice(0, 30);
+  if (!phone) return { error: "Indique ton numéro de mobile : on ne t'appelle qu'en cas de problème le jour de la soirée." };
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 9 || digits.length > 15 || !/^[+\d\s().-]+$/.test(phone)) {
+    return { error: "Le numéro de mobile ne semble pas valide." };
+  }
+  return { phone };
+}
+
 // Coordonnées de la personne qui inscrit (quand elle n'a pas de compte).
 // Renvoie { error } si un champ obligatoire manque.
 // L'email est obligatoire : c'est par là que la personne reçoit son billet.
-export function readGuest(body, { requireEmail = true } = {}) {
+// Le mobile est obligatoire aussi (requirePhone, vrai par défaut).
+export function readGuest(body, { requireEmail = true, requirePhone = true } = {}) {
   const name = String(body.guestName || "").trim().slice(0, 80);
   const email = String(body.guestEmail || "").trim().toLowerCase().slice(0, 120);
-  const phone = String(body.guestPhone || "").trim().slice(0, 30);
   if (!name) return { error: "Indique ton prénom et ton nom pour l'inscription." };
   if (email && !EMAIL_RE.test(email)) return { error: "L'adresse email ne semble pas valide." };
   if (requireEmail && !email) return { error: "Indique ton email : on t'y envoie ton billet." };
-  return { name, email: email || null, phone: phone || null };
+  let phone = String(body.guestPhone || "").trim().slice(0, 30) || null;
+  if (requirePhone || phone) {
+    const p = readPhone(body.guestPhone);
+    if (p.error) return { error: p.error };
+    phone = p.phone;
+  }
+  return { name, email: email || null, phone };
 }
 
 // Prénoms des autres personnes du groupe (facultatifs) — au plus quantity - 1 noms

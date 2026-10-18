@@ -27,6 +27,8 @@ import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
 import Crew from "./pages/Crew.jsx";
+import Communities from "./pages/Communities.jsx";
+import CommunityJoin from "./pages/CommunityJoin.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
 function AfterLoginRedirect() {
@@ -84,6 +86,8 @@ export default function App() {
           <Route path="/ticket/:id" element={<Ticket />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/crew" element={<Crew />} />
+          <Route path="/communities" element={<Communities />} />
+          <Route path="/c/:code" element={<CommunityJoin />} />
       </Routes>
         <PageSpace />
         <BottomNav />

@@ -28,12 +28,12 @@ const btn = {
 };
 
 // Boutons "Inviter par WhatsApp / SMS / autre" pour un événement
-export default function InviteButtons({ event, url, title = "Inviter des amis", subtitle, style }) {
+export default function InviteButtons({ event, url, title = "Inviter des amis", subtitle, style, message, shareTitle }) {
   const [msg, setMsg] = useState("");
-  const text = inviteMessage(event, url);
+  const text = message || inviteMessage(event, url);
 
   async function handleOther() {
-    const result = await shareContent({ title: event?.title, text, url });
+    const result = await shareContent({ title: shareTitle || event?.title, text, url });
     if (result === "copied") setMsg("Lien copié !");
     if (result === "failed") setMsg("Copie impossible — sélectionne le lien à la main.");
     if (result === "copied" || result === "failed") setTimeout(() => setMsg(""), 2500);

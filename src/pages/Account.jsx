@@ -161,6 +161,29 @@ export default function Account() {
         <Ticket size={16} /> Mes billets
       </button>
 
+      <button
+        onClick={() => navigate("/communities")}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          background: colors.surface,
+          border: `1.5px solid ${colors.navy}`,
+          color: colors.navy,
+          borderRadius: 14,
+          padding: 12,
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          marginBottom: 18,
+          marginTop: -6
+        }}
+      >
+        👥 Mes communautés
+      </button>
+
       {profile?.is_ambassador && (
         <button
           onClick={() => navigate("/crew")}

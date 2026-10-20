@@ -140,6 +140,83 @@ export default async function handler(req, res) {
 
   const { eventId, action, token } = req.body || {};
 
+  // Espace lieu (/lieu/<token>) : les soirées du lieu et leurs inscrits, sans compte.
+  // Le lien privé (venues.access_token) est donné au lieu par l'admin. Jamais l'email des participants.
+  if (action === "venue-space") {
+    try {
+      const tok = String(token || "").trim();
+      if (!/^[0-9a-f]{16,64}$/.test(tok)) return res.status(404).json({ error: "Lien invalide" });
+      const { data: venue } = await supabaseAdmin
+        .from("venues")
+        .select("id, name, address")
+        .eq("access_token", tok)
+        .maybeSingle();
+      if (!venue) return res.status(404).json({ error: "Lien invalide ou désactivé" });
+
+      const since = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
+      const { data: events } = await supabaseAdmin
+        .from("events")
+        .select("id, title, event_date, seats, taken")
+        .eq("venue_id", venue.id)
+        .eq("approved", true)
+        .gte("event_date", since)
+        .order("event_date", { ascending: true });
+
+      const out = [];
+      for (const ev of events || []) {
+        const { data: regs } = await supabaseAdmin
+          .from("registrations")
+          .select("id, user_id, guest_name, guest_phone, quantity, attendee_names, amount, paid, external, created_at")
+          .eq("event_id", ev.id)
+          .or("paid.eq.true,external.eq.true")
+          .order("created_at", { ascending: true });
+        const list = regs || [];
+        const userIds = [...new Set(list.map((r) => r.user_id).filter(Boolean))];
+        const names = {};
+        if (userIds.length) {
+          const { data: profs } = await supabaseAdmin.from("profiles").select("id, name, email").in("id", userIds);
+          (profs || []).forEach((p) => (names[p.id] = p.name || (p.email ? p.email.split("@")[0] : null)));
+        }
+        const regIds = list.map((r) => r.id);
+        const opts = {};
+        if (regIds.length) {
+          const { data: o } = await supabaseAdmin.from("registration_options").select("registration_id, label, quantity").in("registration_id", regIds);
+          (o || []).forEach((x) => (opts[x.registration_id] = opts[x.registration_id] || []).push(`${(x.quantity || 1) > 1 ? `${x.quantity} × ` : ""}${x.label}`));
+        }
+        const participants = list.map((r) => {
+          const total = Math.round((Number(r.amount) || 0) * 100) / 100;
+          const paid = total > 0 && r.paid ? total : 0;
+          return {
+            name: r.guest_name || names[r.user_id] || "—",
+            phone: r.guest_phone || null,
+            quantity: r.quantity || 1,
+            with: r.attendee_names || [],
+            detail: opts[r.id] || [],
+            status: total === 0 ? "Gratuit" : r.paid ? "Réglé en prévente" : "À régler sur place",
+            paid,
+            due: total - paid,
+            at: r.created_at
+          };
+        });
+        out.push({
+          id: ev.id,
+          title: ev.title,
+          event_date: ev.event_date,
+          seats: ev.seats,
+          places: participants.reduce((n, p) => n + p.quantity, 0),
+          paid: participants.reduce((n, p) => n + p.paid, 0),
+          due: participants.reduce((n, p) => n + p.due, 0),
+          participants
+        });
+      }
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ venue: { name: venue.name, address: venue.address }, events: out });
+    } catch (err) {
+      console.error("Erreur espace lieu:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
   if (action === "subscribe-self") {
     try {
       const jwt = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");

@@ -27,6 +27,7 @@ import Help from "./pages/Help.jsx";
 import Ticket from "./pages/Ticket.jsx";
 import MyTickets from "./pages/MyTickets.jsx";
 import Crew from "./pages/Crew.jsx";
+import VenueSpace from "./pages/VenueSpace.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
@@ -86,6 +87,7 @@ export default function App() {
           <Route path="/ticket/:id" element={<Ticket />} />
           <Route path="/tickets" element={<MyTickets />} />
           <Route path="/crew" element={<Crew />} />
+          <Route path="/lieu/:token" element={<VenueSpace />} />
           <Route path="/communities" element={<Communities />} />
           <Route path="/c/:code" element={<CommunityJoin />} />
       </Routes>

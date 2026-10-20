@@ -9,7 +9,7 @@ import { useAuth } from "../lib/AuthContext";
 export const NAV_HEIGHT = 64;
 
 // Pages où la barre est masquée (la discussion a sa propre zone de saisie en bas d'écran)
-const HIDDEN = [/^\/event\/[^/]+\/chat/];
+const HIDDEN = [/^\/lieu\//, /^\/event\/[^/]+\/chat/];
 
 export function useBottomNavVisible() {
   const { pathname } = useLocation();

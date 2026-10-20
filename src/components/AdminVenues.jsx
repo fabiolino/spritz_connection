@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Building2, Plus, Pencil, Trash2, MapPin, AlertTriangle, MessageSquare } from "lucide-react";
+import { Building2, Plus, Pencil, Trash2, MapPin, AlertTriangle, MessageSquare, Link2 } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import StarRating from "./StarRating";
 
@@ -338,6 +338,22 @@ export default function AdminVenues({ adminSecret }) {
                   </button>
                 </div>
               </div>
+              {v.access_token && (
+                <button
+                  onClick={async () => {
+                    const url = `${window.location.origin.startsWith("https://") ? window.location.origin : "https://spritz-connection.vercel.app"}/lieu/${v.access_token}`;
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setNotice(`Lien de l'espace « ${v.name} » copié : envoyez-le au lieu (il voit ses soirées et ses inscrits, sans compte).`);
+                    } catch {
+                      window.prompt(`Lien de l'espace ${v.name} :`, url);
+                    }
+                  }}
+                  style={{ ...smallBtn, marginTop: 8, color: colors.navy, borderColor: colors.navy }}
+                >
+                  <Link2 size={12} /> Copier le lien « espace lieu »
+                </button>
+              )}
               {confirmDeleteId === v.id && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${colors.border}` }}>
                   <p style={{ fontSize: 12, margin: "0 0 8px" }}>

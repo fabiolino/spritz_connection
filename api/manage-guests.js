@@ -8,6 +8,7 @@ import { sendRegistrationEmail } from "./_email.js";
 import { notifyRegistration } from "./_notify.js";
 import { addManyToSpritzList, unsubscribe } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
+import { ingest, listLinks, setLink } from "./_external.js";
 import {
   addTaken,
   parseQuantity,
@@ -28,12 +29,44 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  const { adminSecret, action, eventId, userId, value } = req.body;
+  const { adminSecret, action, eventId, userId, value } = req.body || {};
+
+  // Collecte automatique des réservations faites sur d'autres applications :
+  // appelé par le script Gmail de l'organisateur avec sa clé d'import (pas le mot de passe admin)
+  if (action === "external-ingest") {
+    try {
+      const { data: setting } = await supabaseAdmin.from("app_settings").select("value").eq("key", "import_secret").maybeSingle();
+      if (!setting?.value || req.body.importSecret !== setting.value) {
+        return res.status(401).json({ error: "Clé d'import incorrecte" });
+      }
+      const result = await ingest(supabaseAdmin, req.body.messages);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (err) {
+      console.error("external-ingest:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
   if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
     return res.status(401).json({ error: "Mot de passe administrateur incorrect" });
   }
 
   try {
+    // --- Réservations venues d'autres applications ---
+    if (action === "external-links") {
+      return res.status(200).json({ links: await listLinks(supabaseAdmin) });
+    }
+    if (action === "external-link-set") {
+      const { source, externalId, ignore } = req.body;
+      if (!source || !externalId) return res.status(400).json({ error: "Annonce manquante" });
+      const applied = await setLink(supabaseAdmin, { source, externalId, eventId: req.body.linkEventId || null, ignore: !!ignore });
+      return res.status(200).json({ ok: true, applied });
+    }
+    if (action === "external-setup") {
+      const { data: setting } = await supabaseAdmin.from("app_settings").select("value").eq("key", "import_secret").maybeSingle();
+      return res.status(200).json({ importSecret: setting?.value || null });
+    }
+
     if (action === "co-requests-list") {
       const { data, error } = await supabaseAdmin
         .from("co_organizer_requests")

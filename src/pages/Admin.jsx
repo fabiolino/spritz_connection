@@ -7,6 +7,7 @@ import InviteButtons from "../components/InviteButtons.jsx";
 import AdminVenues from "../components/AdminVenues.jsx";
 import AdminMembers from "../components/AdminMembers.jsx";
 import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
+import AdminExternalImports from "../components/AdminExternalImports.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
@@ -1126,6 +1127,8 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      <AdminExternalImports adminSecret={adminSecret} events={allEvents} />
 
       <AdminVenues adminSecret={adminSecret} />
 

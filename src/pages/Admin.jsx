@@ -873,6 +873,7 @@ export default function Admin() {
                           <div style={{ color: colors.muted, fontSize: 11.5 }}>avec {t.attendeeNames.join(", ")}</div>
                         )}
                         {t.options.length > 0 && <div style={{ color: colors.muted, fontSize: 11.5 }}>+ {t.options.join(", ")}</div>}
+                        {t.source && <div style={{ color: colors.muted, fontSize: 11 }}>via {t.source}</div>}
                         {t.withoutAccount && t.contact && (
                           <div style={{ color: colors.muted, fontSize: 11 }}>sans compte · {t.contact}</div>
                         )}

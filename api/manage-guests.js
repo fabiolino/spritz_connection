@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
+import { notifyRegistration } from "./_notify.js";
 import { addManyToSpritzList, unsubscribe } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
 import {
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ error: "eventId manquant" });
       const { data: regs, error: regsError } = await supabaseAdmin
         .from("registrations")
-        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at")
+        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at, source")
         .eq("event_id", eventId)
         .or("paid.eq.true,external.eq.true")
         .order("created_at", { ascending: true });
@@ -94,6 +95,7 @@ export default async function handler(req, res) {
           attendeeNames: r.attendee_names || [],
           contact: (r.user_id ? [profilesById[r.user_id]?.email, r.guest_phone] : [r.guest_email, r.guest_phone]).filter(Boolean).join(" · ") || null,
           withoutAccount: !r.user_id,
+          source: r.source || null,
           hasEmail: !!(r.guest_email || (r.user_id && profilesById[r.user_id]?.email)),
           emailed: !!r.confirmation_sent_at,
           options: optionsByReg[r.id] || []
@@ -132,10 +134,12 @@ export default async function handler(req, res) {
       const quantity = parseQuantity(req.body.quantity);
       const { data: ev } = await supabaseAdmin
         .from("events")
-        .select("id, is_free, price_member, price_nonmember, seats, taken")
+        .select("id, title, event_date, venue_id, is_free, price_member, price_nonmember, seats, taken")
         .eq("id", evId)
         .maybeSingle();
       if (!ev) return res.status(404).json({ error: "Événement introuvable" });
+      const guestPhone = String(req.body.guestPhone || "").trim().slice(0, 30);
+      const source = String(req.body.source || "").trim().slice(0, 40);
       const amount = ev.is_free ? 0 : roundCents(entryTotal(ev, { isMember: false, quantity, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }));
       const paid = ev.is_free || !!alreadyPaid;
       const reg = await insertRegistration(supabaseAdmin, {
@@ -143,6 +147,8 @@ export default async function handler(req, res) {
         user_id: null,
         guest_name: name,
         guest_email: guestEmail || null,
+        guest_phone: guestPhone || null,
+        source: source || null,
         quantity,
         attendee_names: readAttendeeNames(attendeeNames, quantity),
         option: "manuel",
@@ -152,6 +158,8 @@ export default async function handler(req, res) {
         external: !paid
       });
       await addTaken(supabaseAdmin, evId, quantity);
+      // Le lieu est prévenu si la soirée est aujourd'hui après 14 h (email ou pas) ; pas d'email à l'équipe
+      await notifyRegistration(supabaseAdmin, reg, ev, { skipTeam: true });
       const emailed = guestEmail ? await sendRegistrationEmail(supabaseAdmin, reg.id) : false;
       const left = ev.seats ? ev.seats - (ev.taken || 0) - quantity : null;
       return res.status(200).json({ ok: true, registrationId: reg.id, code: reg.ticket_code, emailed, overbooked: left != null && left < 0 });

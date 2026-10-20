@@ -157,7 +157,8 @@ function buildTeamEmail({ event, row, totals }) {
 
 // À appeler quand une inscription vient d'être confirmée (une seule fois par inscription).
 // reg = ligne complète de registrations ; event = { id, title, event_date, venue_id, seats }
-export async function notifyRegistration(supabaseAdmin, reg, event) {
+// skipTeam : pas d'email à l'équipe (ex. inscription saisie par l'admin lui-même)
+export async function notifyRegistration(supabaseAdmin, reg, event, { skipTeam = false } = {}) {
   try {
     if (!process.env.BREVO_API_KEY || !reg?.id || !event) return;
 
@@ -184,9 +185,11 @@ export async function notifyRegistration(supabaseAdmin, reg, event) {
     };
 
     const team = notifyEmail();
-    const content = buildTeamEmail({ event, row, totals });
-    const sent = await sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
-    if (!sent.ok) console.error("Notification équipe non envoyée:", sent.error || sent.skipped);
+    if (!skipTeam) {
+      const content = buildTeamEmail({ event, row, totals });
+      const sent = await sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
+      if (!sent.ok) console.error("Notification équipe non envoyée:", sent.error || sent.skipped);
+    }
 
     // Retardataire : événement aujourd'hui (Paris) et 14 h passées -> email individuel au lieu
     const now = parisParts();

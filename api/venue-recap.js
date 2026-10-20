@@ -1,10 +1,11 @@
-// Récapitulatif du jour J pour les lieux — tâche planifiée Vercel (vercel.json "crons").
-// Envoie à 14 h (heure de Paris) à chaque lieu la liste à jour des participants de ses événements
-// du jour : prénom/nom, mobile, places, montant réglé en prévente, montant à régler sur place.
-// Jamais l'email des participants. Les retardataires sont signalés ensuite un par un (api/_notify.js).
+// Récapitulatif pour les lieux, LA VEILLE de l'événement à 14 h (heure de Paris) — tâche planifiée Vercel
+// (vercel.json "crons"). Chaque lieu reçoit la liste à jour des participants de ses événements du lendemain :
+// prénom/nom, mobile, places, montant réglé en prévente, montant à régler sur place, pour organiser la cuisine.
+// Jamais l'email des participants. Les inscriptions suivantes sont envoyées au fur et à mesure, avec le
+// tableau à jour (api/_notify.js).
 //
 // Vercel planifie en UTC : deux déclenchements (12 h et 13 h UTC) et ce code n'envoie que
-// lorsqu'il est 14 h à Paris (été comme hiver). Un événement n'est récapitulé qu'une fois par jour
+// lorsqu'il est 14 h à Paris (été comme hiver). Un événement n'est récapitulé qu'une fois
 // (clé venue_recap:<id>:<jour> dans private_config).
 // Accès réservé : Vercel envoie "Authorization: Bearer <CRON_SECRET>".
 //   ?dry=1   : montre ce qui serait envoyé, sans rien envoyer
@@ -12,7 +13,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendViaBrevo } from "./_email.js";
-import { buildVenueRecap, loadEventRows, parisParts, RECAP_HOUR } from "./_notify.js";
+import { buildVenueRecap, loadEventRows, parisParts, parisTomorrow, RECAP_HOUR } from "./_notify.js";
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -30,9 +31,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Événements dont le jour (Paris) est aujourd'hui : fenêtre large puis filtre précis
-    const from = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-    const to = new Date(Date.now() + 36 * 3600 * 1000).toISOString();
+    // Événements dont le jour (Paris) est DEMAIN : fenêtre large puis filtre précis
+    const from = new Date(Date.now()).toISOString();
+    const to = new Date(Date.now() + 60 * 3600 * 1000).toISOString();
     const { data: events } = await supabaseAdmin
       .from("events")
       .select("id, title, event_date, venue_id")
@@ -40,11 +41,12 @@ export default async function handler(req, res) {
       .not("venue_id", "is", null)
       .gte("event_date", from)
       .lte("event_date", to);
-    const today = (events || []).filter((e) => parisParts(new Date(e.event_date)).day === now.day);
+    const tomorrowDay = parisTomorrow();
+    const tomorrow = (events || []).filter((e) => parisParts(new Date(e.event_date)).day === tomorrowDay);
 
-    const out = { day: now.day, dry, events: [] };
-    for (const event of today) {
-      const key = `venue_recap:${event.id}:${now.day}`;
+    const out = { day: now.day, eventsDay: tomorrowDay, dry, events: [] };
+    for (const event of tomorrow) {
+      const key = `venue_recap:${event.id}`;
       const { data: done } = await supabaseAdmin.from("private_config").select("key").eq("key", key).maybeSingle();
       if (done && !force) {
         out.events.push({ event: event.title, skipped: "déjà envoyé" });

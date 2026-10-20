@@ -2,9 +2,10 @@
 //
 //  1. À CHAQUE inscription confirmée : un email à l'équipe (NOTIFY_EMAIL, par défaut
 //     fabiocasilli@gmail.com) avec nom, email, mobile, places, montants et statut de paiement.
-//  2. RETARDATAIRES : si l'événement a lieu aujourd'hui (heure de Paris) et qu'il est 14 h passées,
-//     le lieu reçoit aussi un email individuel (sans l'email du participant).
-//  3. Récapitulatif du jour J à 14 h : voir api/venue-recap.js (utilise les fonctions d'ici).
+//  2. INSCRIPTIONS APRÈS LE RÉCAP : une fois le récapitulatif envoyé (la veille de l'événement à 14 h, heure
+//     de Paris) et jusqu'à la fin du jour J, chaque nouvelle inscription est envoyée au lieu : la personne
+//     ajoutée, puis le tableau complet à jour (sans l'email des participants).
+//  3. Récapitulatif de la veille à 14 h : voir api/venue-recap.js (utilise les fonctions d'ici).
 //
 // Un email de notification ne bloque jamais une inscription : toute erreur est seulement journalisée.
 // Nécessite la colonne registrations.notified_at (supabase-migration-notifications-lieux.sql).
@@ -46,6 +47,20 @@ export function parisParts(date = new Date()) {
   }).formatToParts(date);
   const get = (t) => parts.find((p) => p.type === t)?.value;
   return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
+}
+
+// Jour (Paris) du lendemain de la date donnée
+export function parisTomorrow(date = new Date()) {
+  return parisParts(new Date(date.getTime() + 24 * 3600 * 1000)).day;
+}
+
+// Vrai si le récapitulatif du lieu est déjà parti (ou doit être parti) : à partir de la veille
+// de l'événement à 14 h (Paris) et jusqu'à la fin du jour J.
+export function recapPhaseStarted(eventDateIso, now = new Date()) {
+  const eventDay = parisParts(new Date(eventDateIso)).day;
+  const today = parisParts(now);
+  if (eventDay === today.day) return true;
+  return eventDay === parisTomorrow(now) && today.hour >= RECAP_HOUR;
 }
 
 export function parisLabel(iso) {
@@ -127,20 +142,22 @@ export async function loadEventRows(supabaseAdmin, eventId) {
 
 // Email du lieu : récapitulatif du jour J
 export function buildVenueRecap({ event, venueName, rows }) {
-  const subject = `Récap ${event.title} — ce soir (${rows.reduce((n, r) => n + (r.reg.quantity || 1), 0)} places)`;
-  const intro = `<p style="margin:0 0 6px">Bonjour,</p><p style="margin:0 0 6px">Voici la liste à jour des participants de <strong>${esc(event.title)}</strong>${venueName ? ` chez ${esc(venueName)}` : ""}, ${esc(parisLabel(event.event_date))}.</p><p style="margin:0;color:${MUTED};font-size:13px">Les mobiles servent uniquement à joindre un participant en cas de problème. Les retardataires vous seront signalés individuellement par e-mail.</p>`;
-  const html = wrap(`Récap du soir — ${event.title}`, intro, rows.length ? participantsTable(rows, { withEmail: false }) : `<p>Aucune inscription pour le moment.</p>`);
+  const places = rows.reduce((n, r) => n + (r.reg.quantity || 1), 0);
+  const subject = `Récap ${event.title} — ${parisLabel(event.event_date)} (${places} place${places > 1 ? "s" : ""})`;
+  const intro = `<p style="margin:0 0 6px">Bonjour,</p><p style="margin:0 0 6px">Voici la liste à jour des participants de <strong>${esc(event.title)}</strong>${venueName ? ` chez ${esc(venueName)}` : ""}, ${esc(parisLabel(event.event_date))}.</p><p style="margin:0;color:${MUTED};font-size:13px">Les mobiles servent uniquement à joindre un participant en cas de problème. Les inscriptions suivantes vous seront envoyées au fur et à mesure, avec le tableau à jour.</p>`;
+  const html = wrap(`Récap — ${event.title}`, intro, rows.length ? participantsTable(rows, { withEmail: false }) : `<p>Aucune inscription pour le moment.</p>`);
   const text = [`Récap ${event.title} — ${parisLabel(event.event_date)}`, "", rows.length ? textTable(rows, { withEmail: false }) : "Aucune inscription pour le moment.", "", "Spritz Connection"].join("\n");
   return { subject, html, text };
 }
 
-// Email du lieu : un retardataire
-function buildLateEmail({ event, venueName, row }) {
+// Email du lieu : une nouvelle inscription après le récap, avec le tableau complet à jour
+function buildLateEmail({ event, venueName, row, rows }) {
   const p = paymentOf(row.reg);
-  const subject = `Nouvelle inscription de dernière minute — ${event.title} (${row.name}, ${row.reg.quantity || 1} pl.)`;
-  const intro = `<p style="margin:0 0 6px">Bonjour,</p><p style="margin:0">Une personne vient de s'inscrire à <strong>${esc(event.title)}</strong>${venueName ? ` chez ${esc(venueName)}` : ""}, ce soir :</p>`;
-  const html = wrap("Inscription de dernière minute", intro, participantsTable([row], { withEmail: false }));
-  const text = `Inscription de dernière minute — ${event.title}\n\n${textTable([row], { withEmail: false })}\n\nSpritz Connection`;
+  const places = rows.reduce((n, r) => n + (r.reg.quantity || 1), 0);
+  const subject = `Nouvelle inscription — ${event.title} : ${row.name} (${row.reg.quantity || 1} pl.) — ${places} places au total`;
+  const intro = `<p style="margin:0 0 6px">Bonjour,</p><p style="margin:0 0 10px">Une personne vient de s'inscrire à <strong>${esc(event.title)}</strong>${venueName ? ` chez ${esc(venueName)}` : ""}, ${esc(parisLabel(event.event_date))} :</p>${participantsTable([row], { withEmail: false })}<p style="margin:18px 0 0"><strong>Tableau à jour</strong> (${places} place${places > 1 ? "s" : ""} au total) :</p>`;
+  const html = wrap("Nouvelle inscription", intro, participantsTable(rows, { withEmail: false }));
+  const text = `Nouvelle inscription — ${event.title}\n\n${textTable([row], { withEmail: false })}\n\nTableau à jour (${places} places) :\n${textTable(rows, { withEmail: false })}\n\nSpritz Connection`;
   return { subject, html, text, paymentLabel: p.label };
 }
 
@@ -157,8 +174,7 @@ function buildTeamEmail({ event, row, totals }) {
 
 // À appeler quand une inscription vient d'être confirmée (une seule fois par inscription).
 // reg = ligne complète de registrations ; event = { id, title, event_date, venue_id, seats }
-// skipTeam : pas d'email à l'équipe (ex. inscription saisie par l'admin lui-même)
-export async function notifyRegistration(supabaseAdmin, reg, event, { skipTeam = false } = {}) {
+export async function notifyRegistration(supabaseAdmin, reg, event) {
   try {
     if (!process.env.BREVO_API_KEY || !reg?.id || !event) return;
 
@@ -185,21 +201,18 @@ export async function notifyRegistration(supabaseAdmin, reg, event, { skipTeam =
     };
 
     const team = notifyEmail();
-    if (!skipTeam) {
-      const content = buildTeamEmail({ event, row, totals });
-      const sent = await sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
-      if (!sent.ok) console.error("Notification équipe non envoyée:", sent.error || sent.skipped);
-    }
+    const content = buildTeamEmail({ event, row, totals });
+    const sent = await sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
+    if (!sent.ok) console.error("Notification équipe non envoyée:", sent.error || sent.skipped);
 
-    // Retardataire : événement aujourd'hui (Paris) et 14 h passées -> email individuel au lieu
-    const now = parisParts();
-    if (event.venue_id && parisParts(new Date(event.event_date)).day === now.day && now.hour >= RECAP_HOUR) {
+    // Inscription après le récap (veille 14 h -> fin du jour J) : email au lieu avec le tableau à jour
+    if (event.venue_id && recapPhaseStarted(event.event_date)) {
       const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email").eq("id", event.venue_id).maybeSingle();
       const to = String(venue?.contact_email || "").trim().toLowerCase();
       // Si le lieu est joignable à l'adresse de l'équipe, il vient déjà de recevoir le mail complet
       if (to && to !== team) {
-        const late = buildLateEmail({ event, venueName: venue.name, row });
-        const r = await sendViaBrevo({ to, toName: venue.name, subject: late.subject, html: late.html, text: late.text, tag: "lieu-retardataire" });
+        const late = buildLateEmail({ event, venueName: venue.name, row, rows });
+        const r = await sendViaBrevo({ to, toName: venue.name, subject: late.subject, html: late.html, text: late.text, tag: "lieu-inscription-tardive" });
         if (!r.ok) console.error("Mail retardataire au lieu non envoyé:", r.error || r.skipped);
       }
     }

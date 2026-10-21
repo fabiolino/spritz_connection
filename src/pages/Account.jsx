@@ -200,6 +200,22 @@ export default function Account() {
         ✨ Les nouveautés de l'app
       </button>
 
+      <button
+        onClick={() => navigate("/confidentialite")}
+        style={{
+          width: "100%",
+          background: "none",
+          border: "none",
+          color: colors.muted,
+          fontSize: 13.5,
+          fontWeight: 600,
+          cursor: "pointer",
+          margin: "-8px 0 16px"
+        }}
+      >
+        Politique de confidentialité
+      </button>
+
       {profile?.is_ambassador && (
         <button
           onClick={() => navigate("/crew")}

@@ -30,6 +30,7 @@ import Crew from "./pages/Crew.jsx";
 import VenueSpace from "./pages/VenueSpace.jsx";
 import RateEvent from "./pages/RateEvent.jsx";
 import Updates from "./pages/Updates.jsx";
+import Privacy from "./pages/Privacy.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/lieu/:token" element={<VenueSpace />} />
           <Route path="/note/:regId" element={<RateEvent />} />
           <Route path="/nouveautes" element={<Updates />} />
+          <Route path="/confidentialite" element={<Privacy />} />
           <Route path="/communities" element={<Communities />} />
           <Route path="/c/:code" element={<CommunityJoin />} />
       </Routes>

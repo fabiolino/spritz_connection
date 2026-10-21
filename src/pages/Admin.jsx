@@ -8,6 +8,7 @@ import AdminVenues from "../components/AdminVenues.jsx";
 import AdminMembers from "../components/AdminMembers.jsx";
 import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import AdminExternalImports from "../components/AdminExternalImports.jsx";
+import AdminReviewTools from "../components/AdminReviewTools.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
@@ -785,6 +786,8 @@ export default function Admin() {
               </button>
             );
           })()}
+
+        {selectedEventId && <AdminReviewTools event={allEvents.find((e) => e.id === selectedEventId)} />}
 
         {selectedEventId && (
           <div

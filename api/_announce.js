@@ -120,8 +120,7 @@ export async function announceNewEvents(supabaseAdmin, { dry = false } = {}) {
         sender: { name: "Spritz Connection", email: SENDER_EMAIL },
         replyTo: REPLY_TO,
         htmlContent: buildAnnounceHtml(ev, price),
-        recipients: { listIds: [LIST_ID] },
-        tag: "nouvelle-soiree"
+        recipients: { listIds: [LIST_ID] }
       });
       await brevo(`/emailCampaigns/${campaign.id}/sendNow`);
       out.push({ event: ev.title, campaignId: campaign.id });
@@ -144,8 +143,7 @@ export async function sendListCampaign({ name, subject, previewText, html, tag }
     sender: { name: "Spritz Connection", email: SENDER_EMAIL },
     replyTo: REPLY_TO,
     htmlContent: html,
-    recipients: { listIds: [LIST_ID] },
-    tag
+    recipients: { listIds: [LIST_ID] }
   });
   await brevo(`/emailCampaigns/${campaign.id}/sendNow`);
   return campaign.id;

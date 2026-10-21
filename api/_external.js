@@ -90,6 +90,31 @@ async function applyImport(supabaseAdmin, imp, eventId) {
       .eq("external_ref", ref)
       .limit(1);
     if (existing && existing[0]) return { status: "duplicate", registration_id: existing[0].id };
+    // La personne s'est peut-être déjà inscrite directement (billet Spritz, ajout à la main,
+    // ou via une autre annonce pour la même soirée) : si UN SEUL inscrit porte ce prénom,
+    // on relie les deux au lieu de compter la personne deux fois.
+    const first = normName(imp.name).split(" ")[0];
+    if (first.length >= 2) {
+      const { data: others } = await supabaseAdmin
+        .from("registrations")
+        .select("id, user_id, guest_name, external_ref")
+        .eq("event_id", eventId);
+      const userIds = (others || []).filter((r) => r.user_id && !r.guest_name).map((r) => r.user_id);
+      let names = {};
+      if (userIds.length) {
+        const { data: profs } = await supabaseAdmin.from("profiles").select("id, name").in("id", userIds);
+        (profs || []).forEach((p) => (names[p.id] = p.name));
+      }
+      const candidates = (others || []).filter((r) => {
+        const tokens = normName(r.guest_name || names[r.user_id] || "").split(" ");
+        return tokens.includes(first);
+      });
+      if (candidates.length === 1) {
+        const c = candidates[0];
+        if (!c.external_ref) await supabaseAdmin.from("registrations").update({ external_ref: ref }).eq("id", c.id);
+        return { status: "duplicate", registration_id: c.id };
+      }
+    }
     const { data: ev } = await supabaseAdmin
       .from("events")
       .select("id, title, event_date, venue_id, is_free, price_member, price_nonmember, seats, taken")

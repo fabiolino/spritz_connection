@@ -32,6 +32,7 @@ import RateEvent from "./pages/RateEvent.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
+import { useIsDesktop } from "./lib/useIsDesktop";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
 function AfterLoginRedirect() {
   const { user } = useAuth();
@@ -52,20 +53,32 @@ function PageSpace() {
   return visible ? <div style={{ height: `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` }} /> : null;
 }
 
+// L'admin s'affiche en pleine largeur sur ordinateur ; le reste de l'app garde son format téléphone
+function Frame({ children }) {
+  const { pathname } = useLocation();
+  const desktop = useIsDesktop();
+  const wide = desktop && pathname === "/admin";
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: colors.bg,
+        color: colors.ink,
+        fontFamily: fonts.body,
+        maxWidth: wide ? "none" : 480,
+        margin: "0 auto"
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <CategoriesProvider>
-      <div
-        style={{
-          minHeight: "100vh",
-          background: colors.bg,
-          color: colors.ink,
-          fontFamily: fonts.body,
-          maxWidth: 480,
-          margin: "0 auto"
-        }}
-      >
+      <Frame>
         <AfterLoginRedirect />
         <Routes>
           <Route path="/" element={<Feed />} />
@@ -95,7 +108,7 @@ export default function App() {
       </Routes>
         <PageSpace />
         <BottomNav />
-      </div>
+      </Frame>
       </CategoriesProvider>
     </AuthProvider>
   );

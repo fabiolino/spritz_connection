@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Ticket, Crown, Users, UserRound, LogIn } from "lucide-react";
 import { colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
+import { useIsDesktop } from "../lib/useIsDesktop";
 
 // Barre de navigation permanente en bas de l'écran : on passe d'une page à l'autre
 // sans dépendre du bouton « retour » du téléphone ou du navigateur.
@@ -13,6 +14,8 @@ const HIDDEN = [/^\/lieu\//, /^\/event\/[^/]+\/chat/];
 
 export function useBottomNavVisible() {
   const { pathname } = useLocation();
+  const desktop = useIsDesktop();
+  if (desktop && pathname === "/admin") return false; // l'admin sur ordinateur a son propre menu
   return !HIDDEN.some((re) => re.test(pathname));
 }
 

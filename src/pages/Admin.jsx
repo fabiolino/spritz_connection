@@ -11,6 +11,8 @@ import AdminExternalImports from "../components/AdminExternalImports.jsx";
 import AdminReviewTools from "../components/AdminReviewTools.jsx";
 import AdminEventExtras from "../components/AdminEventExtras.jsx";
 import { eventInviteUrl } from "../lib/invite";
+import { useIsDesktop } from "../lib/useIsDesktop";
+import AdminDesktopShell, { AdminDashboard } from "../components/AdminDesktopShell.jsx";
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -20,6 +22,8 @@ export default function Admin() {
   const [moderatingRequest, setModeratingRequest] = useState(null);
   const [pendingEvents, setPendingEvents] = useState([]);
   const [adminSecret, setAdminSecret] = useState("");
+  const isDesktop = useIsDesktop();
+  const [section, setSection] = useState("accueil");
   const [moderating, setModerating] = useState(null);
   const [modError, setModError] = useState("");
 
@@ -67,7 +71,7 @@ export default function Admin() {
 
     async function loadAllEvents() {
       if (!import.meta.env.VITE_SUPABASE_URL) return;
-      const { data } = await supabase.from("events").select("id, title, event_date, visibility, is_free").order("event_date", { ascending: false }).limit(50);
+      const { data } = await supabase.from("events").select("id, title, event_date, visibility, is_free, seats, taken, venue_id, approved").order("event_date", { ascending: false }).limit(50);
       if (data) setAllEvents(data);
     }
     loadAllEvents();
@@ -494,8 +498,9 @@ export default function Admin() {
     }
   }
 
-  return (
-    <div style={{ padding: "0 20px 40px" }}>
+  const show = (key) => !isDesktop || section === key;
+  const controls = (
+    <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px 0 16px" }}>
         <button onClick={() => navigate("/")} style={{ background: "none", border: "none", color: colors.ink, cursor: "pointer" }}>
           <ChevronLeft size={22} />
@@ -540,6 +545,7 @@ export default function Admin() {
           }}
           style={{
             flex: 1,
+            minWidth: 0,
             background: colors.surface,
             border: `1px solid ${colors.border}`,
             borderRadius: 12,
@@ -580,7 +586,12 @@ export default function Admin() {
         </p>
       )}
       {adminVerified === null && <div style={{ marginBottom: 20 }} />}
-
+    </>
+  );
+  const sections = (
+    <>
+{show("propositions") && (
+<>
       {pendingEvents.length > 0 && (
         <div style={{ marginBottom: 28 }}>
           <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -642,6 +653,10 @@ export default function Admin() {
         </div>
       )}
 
+</>
+)}
+{show("membres") && (
+<>
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
           <Users size={16} color={colors.orange} /> Membres &amp; Spritz Crew
@@ -676,7 +691,11 @@ export default function Admin() {
         )}
         {membersError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{membersError}</p>}
       </div>
+</>
+)}
 
+{show("soirees") && (
+<>
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
           <UserCheck size={16} color={colors.orange} /> Gérer un événement : inscriptions, invités, duplication
@@ -1143,9 +1162,13 @@ export default function Admin() {
           </div>
         )}
       </div>
+</>
+)}
 
-      <AdminExternalImports adminSecret={adminSecret} events={allEvents} />
+      {show("autres") && <AdminExternalImports adminSecret={adminSecret} events={allEvents} />}
 
+{show("lieux") && (
+<>
       <AdminVenues adminSecret={adminSecret} />
 
       <div style={{ marginBottom: 28 }}>
@@ -1197,7 +1220,11 @@ export default function Admin() {
         )}
         {venueStatsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 8 }}>{venueStatsError}</p>}
       </div>
+</>
+)}
 
+{show("propositions") && (
+<>
       <h2 style={{ fontFamily: fonts.display, fontSize: 16, margin: "0 0 10px" }}>Co-organisateurs</h2>
       <p style={{ fontSize: 13, color: colors.muted, marginBottom: 20 }}>
         Valide les demandes pour qu'une personne puisse créer ses propres soirées sous Spritz Connection.
@@ -1231,6 +1258,40 @@ export default function Admin() {
           </div>
         </div>
       ))}
+</>
+)}
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <AdminDesktopShell
+        section={section}
+        onSection={setSection}
+        controls={controls}
+        counts={{ propositions: pendingEvents.length + requests.length }}
+      >
+        {section === "accueil" ? (
+          <AdminDashboard
+            events={allEvents}
+            pendingCount={pendingEvents.length + requests.length}
+            onOpenEvent={(id) => {
+              setSection("soirees");
+              loadGuests(id);
+            }}
+            onSection={setSection}
+          />
+        ) : (
+          sections
+        )}
+      </AdminDesktopShell>
+    );
+  }
+
+  return (
+    <div style={{ padding: "0 20px 40px" }}>
+      {controls}
+      {sections}
     </div>
   );
 }

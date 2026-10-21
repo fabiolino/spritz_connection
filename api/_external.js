@@ -121,7 +121,16 @@ async function applyImport(supabaseAdmin, imp, eventId) {
       .eq("id", eventId)
       .maybeSingle();
     if (!ev) return { status: "pending" };
-    const amount = ev.is_free ? 0 : roundCents(entryTotal(ev, { isMember: false, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }));
+    // Pas de prévente : la personne paiera sur place, au tarif sur place
+    // (soirée à formules : la formule de base, au prix sur place).
+    let amount = 0;
+    if (!ev.is_free) {
+      const { data: opts } = await supabaseAdmin.from("event_options").select("price, onsite_price").eq("event_id", eventId);
+      const onsite = (opts || []).map((o) => Number(o.onsite_price) || Number(o.price) || 0).filter((v) => v > 0);
+      amount = onsite.length
+        ? Math.min(...onsite)
+        : Number(ev.price_nonmember) || roundCents(entryTotal(ev, { isMember: false, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }));
+    }
     const paid = !!ev.is_free;
     const reg = await insertRegistration(supabaseAdmin, {
       event_id: eventId,

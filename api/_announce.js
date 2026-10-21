@@ -134,3 +134,41 @@ export async function announceNewEvents(supabaseAdmin, { dry = false } = {}) {
   }
   return out;
 }
+
+// Campagne générique vers la liste « Spritz Connection » (utilisée pour les nouveautés de l'app)
+export async function sendListCampaign({ name, subject, previewText, html, tag }) {
+  const campaign = await brevo("/emailCampaigns", {
+    name,
+    subject,
+    previewText,
+    sender: { name: "Spritz Connection", email: SENDER_EMAIL },
+    replyTo: REPLY_TO,
+    htmlContent: html,
+    recipients: { listIds: [LIST_ID] },
+    tag
+  });
+  await brevo(`/emailCampaigns/${campaign.id}/sendNow`);
+  return campaign.id;
+}
+
+export function buildUpdateHtml(update) {
+  const url = `${appUrl()}/nouveautes`;
+  const paras = String(update.body || "")
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.6">${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return `<!DOCTYPE html><html lang="fr"><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:${INK}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden">
+<tr><td style="background:${INK};color:#ffffff;padding:18px 24px;border-bottom:5px solid ${ORANGE}">
+<div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.9">Spritz Connection · Nouveau dans l'app</div>
+<div style="font-size:22px;font-weight:800;margin-top:6px;line-height:1.25">✨ ${esc(update.title)}</div></td></tr>
+<tr><td style="padding:22px 24px 4px">${paras}</td></tr>
+<tr><td align="center" style="padding:10px 24px 22px"><a href="${esc(url)}" style="display:inline-block;background:${ORANGE};color:#fff;border-radius:12px;padding:14px 26px;font-weight:700;font-size:16px;text-decoration:none">Ouvrir l'app</a></td></tr>
+<tr><td style="padding:16px 24px 22px;font-size:12px;color:${MUTED};line-height:1.5;border-top:1px solid #EADFC4">
+A presto ! — Fabio, Spritz Connection<br><br>
+Tu reçois cet email car tu es inscrit·e à la liste Spritz Connection. <a href="{{ unsubscribe }}" style="color:${MUTED}">Se désinscrire</a>
+</td></tr></table></td></tr></table></body></html>`;
+}

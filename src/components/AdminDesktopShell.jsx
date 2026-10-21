@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, CalendarDays, Inbox, Users, Building2, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Inbox, Users, Building2, ClipboardCheck, Sparkles } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 
 export const ADMIN_SECTIONS = [
@@ -8,7 +8,8 @@ export const ADMIN_SECTIONS = [
   { key: "autres", label: "Autres applications", icon: Inbox },
   { key: "membres", label: "Membres & Spritz Crew", icon: Users },
   { key: "lieux", label: "Lieux partenaires", icon: Building2 },
-  { key: "propositions", label: "Propositions & co-organisateurs", icon: ClipboardCheck }
+  { key: "propositions", label: "Propositions & co-organisateurs", icon: ClipboardCheck },
+  { key: "nouveautes", label: "Nouveautés de l'app", icon: Sparkles }
 ];
 
 // Mise en page de l'admin sur ordinateur : menu à gauche, contenu en grand à droite

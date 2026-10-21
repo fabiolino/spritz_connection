@@ -184,6 +184,22 @@ export default function Account() {
         👥 Mes communautés
       </button>
 
+      <button
+        onClick={() => navigate("/nouveautes")}
+        style={{
+          width: "100%",
+          background: "none",
+          border: "none",
+          color: colors.orange,
+          fontSize: 13.5,
+          fontWeight: 700,
+          cursor: "pointer",
+          margin: "-8px 0 16px"
+        }}
+      >
+        ✨ Les nouveautés de l'app
+      </button>
+
       {profile?.is_ambassador && (
         <button
           onClick={() => navigate("/crew")}

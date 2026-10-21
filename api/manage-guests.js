@@ -11,6 +11,7 @@ import { geocodeAddress } from "./_geocode.js";
 import { ingest, listLinks, setLink } from "./_external.js";
 import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
 import { ratingsFor } from "./_ratings.js";
+import { sendListCampaign, buildUpdateHtml } from "./_announce.js";
 import {
   addTaken,
   parseQuantity,
@@ -54,6 +55,61 @@ export default async function handler(req, res) {
   }
 
   try {
+    // --- Nouveautés de l'app : brouillons, publication (email à la liste + notification) ---
+    if (action === "updates-list") {
+      const { data } = await supabaseAdmin.from("app_updates").select("*").order("created_at", { ascending: false }).limit(30);
+      return res.status(200).json({ updates: data || [] });
+    }
+    if (action === "update-save") {
+      const title = String(req.body.title || "").trim().slice(0, 140);
+      const body = String(req.body.body || "").trim().slice(0, 5000);
+      if (!title || !body) return res.status(400).json({ error: "Titre et texte obligatoires" });
+      if (req.body.updateId) {
+        const { error } = await supabaseAdmin.from("app_updates").update({ title, body }).eq("id", req.body.updateId).is("published_at", null);
+        if (error) throw error;
+        return res.status(200).json({ ok: true, id: req.body.updateId });
+      }
+      const { data, error } = await supabaseAdmin.from("app_updates").insert({ title, body }).select("id").single();
+      if (error) throw error;
+      return res.status(200).json({ ok: true, id: data.id });
+    }
+    if (action === "update-delete") {
+      await supabaseAdmin.from("app_updates").delete().eq("id", req.body.updateId).is("published_at", null);
+      return res.status(200).json({ ok: true });
+    }
+    if (action === "update-publish") {
+      const { data: claimed } = await supabaseAdmin
+        .from("app_updates")
+        .update({ published_at: new Date().toISOString() })
+        .eq("id", req.body.updateId)
+        .is("published_at", null)
+        .select("*");
+      const upd = claimed && claimed[0];
+      if (!upd) return res.status(409).json({ error: "Déjà publiée ou introuvable" });
+      let campaignId = null;
+      let emailError = null;
+      try {
+        campaignId = await sendListCampaign({
+          name: `Nouveauté — ${upd.title}`,
+          subject: `✨ Nouveau dans l'app : ${upd.title}`,
+          previewText: upd.body.replace(/\s+/g, " ").slice(0, 110),
+          html: buildUpdateHtml(upd),
+          tag: "nouveaute-app"
+        });
+        await supabaseAdmin.from("app_updates").update({ campaign_id: campaignId }).eq("id", upd.id);
+      } catch (err) {
+        console.error("Campagne nouveauté:", err);
+        emailError = String(err.message || err);
+      }
+      try {
+        const { error: pushError } = await supabaseAdmin.rpc("notify_push", { payload: { type: "app_update", update_id: upd.id, title: upd.title } });
+        if (pushError) console.error("Notification nouveauté:", pushError.message);
+      } catch (err) {
+        console.error("Notification nouveauté:", err);
+      }
+      return res.status(200).json({ ok: true, campaignId, emailError });
+    }
+
     // --- Réservations venues d'autres applications ---
     if (action === "external-links") {
       return res.status(200).json({ links: await listLinks(supabaseAdmin) });

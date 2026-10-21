@@ -10,6 +10,7 @@ import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import AdminExternalImports from "../components/AdminExternalImports.jsx";
 import AdminReviewTools from "../components/AdminReviewTools.jsx";
 import AdminEventExtras from "../components/AdminEventExtras.jsx";
+import AdminUpdates from "../components/AdminUpdates.jsx";
 import { eventInviteUrl } from "../lib/invite";
 import { useIsDesktop } from "../lib/useIsDesktop";
 import AdminDesktopShell, { AdminDashboard } from "../components/AdminDesktopShell.jsx";
@@ -1166,6 +1167,8 @@ export default function Admin() {
 )}
 
       {show("autres") && <AdminExternalImports adminSecret={adminSecret} events={allEvents} />}
+
+      {show("nouveautes") && <AdminUpdates adminSecret={adminSecret} />}
 
 {show("lieux") && (
 <>

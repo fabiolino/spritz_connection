@@ -8,6 +8,7 @@
 //   chat       → message de l'organisateur / de Fabio   (préférence chat, inscrits seulement)
 //   reminders  → rappel la veille de l'événement        (préférence reminders, inscrits seulement)
 //   community_going → un membre de ta communauté a réservé (préférence community)
+//   app_update → nouveauté dans l'app, publiée depuis l'admin (préférence new_events)
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -155,6 +156,18 @@ async function handle(msg: any) {
       body: `${parisDate(ev.event_date)} — viens avec ta communauté !`,
       url: `/event/${ev.id}`,
       tag: `community-${ev.id}`
+    });
+  }
+
+  if (msg.type === "app_update") {
+    const { data: subs } = await supabase.from("push_subscriptions").select("user_id");
+    let ids = [...new Set((subs || []).map((s) => s.user_id as string))];
+    ids = await filterByPref(ids, "new_events");
+    return sendTo(ids, {
+      title: "✨ Nouveau dans l'app",
+      body: String(msg.title || "Découvre les nouveautés de Spritz Connection").slice(0, 140),
+      url: "/nouveautes",
+      tag: `update-${msg.update_id || "app"}`
     });
   }
 

@@ -1,5 +1,6 @@
 // REPERE-V9-CHIPS-CENTREES — si tu vois cette ligne en haut du fichier sur GitHub après collage, c'est la bonne version
 import React, { useEffect, useMemo, useState } from "react";
+import AndroidTesterBanner from "../components/AndroidTesterBanner.jsx";
 import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
@@ -321,6 +322,8 @@ export default function Feed() {
         )}
         {locationError && <p style={{ fontSize: 11.5, color: colors.red, marginTop: 6 }}>{locationError}</p>}
       </div>
+
+      <AndroidTesterBanner />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <h2 style={{ fontFamily: fonts.display, fontSize: 21, margin: 0, color: colors.navy }}>Prochains événements</h2>

@@ -22,6 +22,10 @@ const inputStyle = {
   boxSizing: "border-box"
 };
 
+// Compte de démonstration pour l'examen Google Play : connexion par code fixe, sans email
+const REVIEW_EMAIL = "review@spritzconnection.fr";
+const isReview = (e) => e.trim().toLowerCase() === REVIEW_EMAIL;
+
 export default function Login() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -49,6 +53,10 @@ export default function Login() {
 
   async function handleEmail(e) {
     e.preventDefault();
+    if (isReview(email)) {
+      setStep("code");
+      return;
+    }
     setLoading(true);
     setError("");
     const { error } = await sendCode();
@@ -73,7 +81,9 @@ export default function Login() {
     }
     setLoading(true);
     setError("");
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: "email" });
+    const { error } = isReview(email)
+      ? await supabase.auth.signInWithPassword({ email: REVIEW_EMAIL, password: token })
+      : await supabase.auth.verifyOtp({ email: email.trim(), token, type: "email" });
     setLoading(false);
     if (error) {
       setError(

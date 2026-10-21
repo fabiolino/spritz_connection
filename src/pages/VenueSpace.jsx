@@ -188,6 +188,14 @@ function EventBlock({ e, past }) {
           </div>
         ))}
       </div>
+      {e.newcomers > 0 && (
+        <div style={{ padding: "9px 16px", background: "rgba(255,197,43,0.15)", fontSize: 12.5, color: colors.ink, borderBottom: `1px solid ${colors.border}` }}>
+          ✨ <strong>
+            {e.newcomers} personne{e.newcomers > 1 ? "s viennent" : " vient"} pour la première fois
+          </strong>{" "}
+          : un accueil chaleureux fait toute la différence.
+        </div>
+      )}
       {e.participants.length === 0 ? (
         <p style={{ padding: "14px 16px", margin: 0, fontSize: 13.5, color: colors.muted }}>Aucune inscription pour le moment.</p>
       ) : (
@@ -196,6 +204,11 @@ function EventBlock({ e, past }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14.5, fontWeight: 700, color: colors.ink }}>
                 {p.name}
+                {p.firstTime && (
+                  <span style={{ marginLeft: 6, background: colors.gold, color: colors.navy, borderRadius: 20, padding: "1px 7px", fontSize: 11, fontWeight: 800 }}>
+                    1re fois
+                  </span>
+                )}
                 {p.quantity > 1 && (
                   <span style={{ marginLeft: 6, background: colors.orange, color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 11, fontWeight: 800 }}>
                     <Users size={10} style={{ verticalAlign: "-1px" }} /> {p.quantity}

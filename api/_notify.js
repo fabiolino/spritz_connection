@@ -100,7 +100,7 @@ export function participantsTable(rows, { withEmail }) {
   const body = rows
     .map((r) => {
       const p = paymentOf(r.reg);
-      return `<tr><td ${TD}><strong>${esc(r.name)}</strong></td>${withEmail ? `<td ${TD}>${esc(r.email || "—")}</td>` : ""}<td ${TD}>${esc(r.reg.guest_phone || "—")}</td><td ${TD}>${r.reg.quantity || 1}</td><td ${TD}>${p.total === 0 ? "Gratuit" : euro(p.paid)}</td><td ${TD}>${p.due > 0 ? `<strong style="color:${ORANGE}">${euro(p.due)}</strong>` : euro(0)}</td></tr>`;
+      return `<tr><td ${TD}><strong>${esc(r.name)}</strong>${r.firstTime ? ` <span style="background:#FFC52B;color:${INK};border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700;white-space:nowrap">1re fois</span>` : ""}</td>${withEmail ? `<td ${TD}>${esc(r.email || "—")}</td>` : ""}<td ${TD}>${esc(r.reg.guest_phone || "—")}</td><td ${TD}>${r.reg.quantity || 1}</td><td ${TD}>${p.total === 0 ? "Gratuit" : euro(p.paid)}</td><td ${TD}>${p.due > 0 ? `<strong style="color:${ORANGE}">${euro(p.due)}</strong>` : euro(0)}</td></tr>`;
     })
     .join("");
   const places = rows.reduce((n, r) => n + (r.reg.quantity || 1), 0);
@@ -114,7 +114,7 @@ function textTable(rows, { withEmail }) {
   return rows
     .map((r) => {
       const p = paymentOf(r.reg);
-      return `- ${r.name}${withEmail && r.email ? ` <${r.email}>` : ""} — ${r.reg.guest_phone || "mobile ?"} — ${r.reg.quantity || 1} place(s) — ${p.label}${p.due > 0 ? ` (${euro(p.due)} sur place)` : ""}`;
+      return `- ${r.name}${r.firstTime ? " (1re fois)" : ""}${withEmail && r.email ? ` <${r.email}>` : ""} — ${r.reg.guest_phone || "mobile ?"} — ${r.reg.quantity || 1} place(s) — ${p.label}${p.due > 0 ? ` (${euro(p.due)} sur place)` : ""}`;
     })
     .join("\n");
 }
@@ -133,8 +133,14 @@ export async function loadEventRows(supabaseAdmin, eventId) {
     const { data } = await supabaseAdmin.from("profiles").select("id, name, email").in("id", ids);
     (data || []).forEach((p) => (profiles[p.id] = p));
   }
+  let firstSet = new Set();
+  try {
+    const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: eventId });
+    firstSet = new Set((firsts || []).map((f) => f.registration_id));
+  } catch {}
   return list.map((reg) => ({
     reg,
+    firstTime: firstSet.has(reg.id),
     name: reg.guest_name || profiles[reg.user_id]?.name || profiles[reg.user_id]?.email || "—",
     email: reg.guest_email || profiles[reg.user_id]?.email || null
   }));
@@ -145,7 +151,11 @@ export function buildVenueRecap({ event, venueName, rows }) {
   const places = rows.reduce((n, r) => n + (r.reg.quantity || 1), 0);
   const subject = `Récap ${event.title} — ${parisLabel(event.event_date)} (${places} place${places > 1 ? "s" : ""})`;
   const intro = `<p style="margin:0 0 6px">Bonjour,</p><p style="margin:0 0 6px">Voici la liste à jour des participants de <strong>${esc(event.title)}</strong>${venueName ? ` chez ${esc(venueName)}` : ""}, ${esc(parisLabel(event.event_date))}.</p><p style="margin:0;color:${MUTED};font-size:13px">Les mobiles servent uniquement à joindre un participant en cas de problème. Les inscriptions suivantes vous seront envoyées au fur et à mesure, avec le tableau à jour.</p>`;
-  const html = wrap(`Récap — ${event.title}`, intro, rows.length ? participantsTable(rows, { withEmail: false }) : `<p>Aucune inscription pour le moment.</p>`);
+  const newcomers = rows.filter((r) => r.firstTime).length;
+  const welcome = newcomers
+    ? `<p style="margin:8px 0 0;font-size:13px">✨ <strong>${newcomers} personne${newcomers > 1 ? "s viennent" : " vient"} pour la première fois</strong> (repère « 1re fois ») : un accueil chaleureux fait toute la différence.</p>`
+    : "";
+  const html = wrap(`Récap — ${event.title}`, intro + welcome, rows.length ? participantsTable(rows, { withEmail: false }) : `<p>Aucune inscription pour le moment.</p>`);
   const text = [`Récap ${event.title} — ${parisLabel(event.event_date)}`, "", rows.length ? textTable(rows, { withEmail: false }) : "Aucune inscription pour le moment.", "", "Spritz Connection"].join("\n");
   return { subject, html, text };
 }

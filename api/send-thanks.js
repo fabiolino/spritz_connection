@@ -5,6 +5,9 @@
 // 1. REMERCIEMENT après l'événement (avec le lien d'avis Google + prochaines soirées)
 //    - événements commencés il y a plus de 10 h et il y a moins de 4 jours
 //    - une seule fois par personne et par événement (registrations.thanks_sent_at)
+// 3. JOUR J (« C'est ce soir ») : événements qui commencent dans 1 h à 15 h, une fois par inscription
+//    (registrations.dayof_sent_at), sauf inscriptions faites dans les 3 dernières heures
+// 4. LISTE D'ATTENTE : rattrapage quotidien, si des places sont libres sur une soirée à venir
 // 2. RAPPEL avant l'événement
 //    - événements qui commencent dans 48 h à 72 h
 //    - une seule fois par inscription (registrations.reminder_sent_at)
@@ -16,7 +19,8 @@
 //   ?only=thanks|reminder : un seul des deux envois
 
 import { createClient } from "@supabase/supabase-js";
-import { buildThanksEmail, buildReminderEmail, sendViaBrevo } from "./_email.js";
+import { buildThanksEmail, buildReminderEmail, buildDayOfEmail, sendViaBrevo } from "./_email.js";
+import { notifyWaitlist } from "./_waitlist.js";
 import { addToSpritzList, unsubscribeUrl } from "./_brevo.js";
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -41,7 +45,7 @@ export default async function handler(req, res) {
     const now = Date.now();
     const out = { dry };
 
-    if (only !== "reminder") {
+    if (!only || only === "thanks") {
       const nextEvents = await loadNextEvents();
       out.thanks = await runPass({
         kind: "thanks",
@@ -49,14 +53,36 @@ export default async function handler(req, res) {
         to: new Date(now - 10 * HOUR).toISOString(),
         column: "thanks_sent_at",
         tag: "remerciement",
-        build: (event, person) => buildThanksEmail({ event, recipientName: person.name, hasAccount: person.hasAccount, recipientEmail: person.email, nextEvents: nextEvents.filter((e) => e.id !== event.id) }),
+        build: (event, person) => buildThanksEmail({ event, recipientName: person.name, hasAccount: person.hasAccount, recipientEmail: person.email, registrationId: person.regIds[0], nextEvents: nextEvents.filter((e) => e.id !== event.id) }),
         dry,
         onlyEvent,
         blocked,
         perPerson: true
       });
     }
-    if (only !== "thanks") {
+    if (!only || only === "dayof") {
+      out.dayof = await runPass({
+        kind: "dayof",
+        from: new Date(now + 1 * HOUR).toISOString(),
+        to: new Date(now + 15 * HOUR).toISOString(),
+        column: "dayof_sent_at",
+        tag: "jour-j",
+        createdBefore: new Date(now - 3 * HOUR).toISOString(),
+        build: (event, person) => buildDayOfEmail({ reg: person.reg, event, recipientName: person.name, recipientEmail: person.email, firstTime: person.firstTime }),
+        dry,
+        onlyEvent,
+        blocked,
+        perPerson: false
+      });
+    }
+    if (!only || only === "waitlist") {
+      const { data: upcoming } = await supabaseAdmin.from("event_waitlist").select("event_id").in("status", ["waiting", "notified"]);
+      const ids = [...new Set((upcoming || []).map((w) => w.event_id))];
+      let notified = 0;
+      if (!dry) for (const id of ids) notified += await notifyWaitlist(supabaseAdmin, id);
+      out.waitlist = { events: ids.length, notified };
+    }
+    if (!only || only === "reminder") {
       out.reminders = await runPass({
         kind: "reminder",
         from: new Date(now + 48 * HOUR).toISOString(),
@@ -90,7 +116,7 @@ async function loadNextEvents() {
   return data || [];
 }
 
-async function runPass({ from, to, column, tag, build, dry, onlyEvent, blocked, perPerson }) {
+async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blocked, perPerson, createdBefore }) {
   let evQuery = supabaseAdmin.from("events").select("id, title, event_date, address").gte("event_date", from).lte("event_date", to);
   if (onlyEvent) evQuery = evQuery.eq("id", onlyEvent);
   const { data: events, error: evErr } = await evQuery;
@@ -104,11 +130,17 @@ async function runPass({ from, to, column, tag, build, dry, onlyEvent, blocked, 
     if (budget <= 0) break;
     const { data: regs, error } = await supabaseAdmin
       .from("registrations")
-      .select("id, user_id, guest_name, guest_email, ticket_code, quantity")
+      .select("id, user_id, guest_name, guest_email, ticket_code, quantity, amount, paid, external, created_at")
       .eq("event_id", event.id)
       .is(column, null)
-      .or("paid.eq.true,external.eq.true,amount.eq.0");
+      .or("paid.eq.true,external.eq.true,amount.eq.0")
+      .lte("created_at", createdBefore || new Date().toISOString());
     if (error) throw error;
+    let firstSet = null;
+    if (kind === "dayof") {
+      const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: event.id });
+      firstSet = new Set((firsts || []).map((f) => f.registration_id));
+    }
 
     // Remerciement : une seule personne = un seul message, même avec plusieurs inscriptions.
     // Rappel : un message par inscription (chacune a son propre code de billet).
@@ -128,7 +160,7 @@ async function runPass({ from, to, column, tag, build, dry, onlyEvent, blocked, 
       email = String(email || "").trim().toLowerCase();
       if (!EMAIL_RE.test(email)) continue;
       const key = perPerson ? email : reg.id;
-      const entry = byKey.get(key) || { email, name, hasAccount: false, regIds: [], reg };
+      const entry = byKey.get(key) || { email, name, hasAccount: false, regIds: [], reg, firstTime: !!firstSet?.has(reg.id) };
       entry.name = entry.name || name;
       entry.hasAccount = entry.hasAccount || !!reg.user_id;
       entry.regIds.push(reg.id);

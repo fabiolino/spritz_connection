@@ -9,6 +9,7 @@ import AdminMembers from "../components/AdminMembers.jsx";
 import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import AdminExternalImports from "../components/AdminExternalImports.jsx";
 import AdminReviewTools from "../components/AdminReviewTools.jsx";
+import AdminEventExtras from "../components/AdminEventExtras.jsx";
 import { eventInviteUrl } from "../lib/invite";
 
 export default function Admin() {
@@ -51,6 +52,7 @@ export default function Admin() {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [ticketsError, setTicketsError] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketExtras, setTicketExtras] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [inviteLink, setInviteLink] = useState(null);
   const [loadingInviteLink, setLoadingInviteLink] = useState(false);
@@ -230,6 +232,7 @@ export default function Admin() {
     setConfirmingDelete(false);
     setDeleteMsg("");
     setEventTickets(null);
+    setTicketExtras(null);
     setTicketsError("");
     setTicketSearch("");
     setInviteLink(null);
@@ -398,6 +401,7 @@ export default function Admin() {
         return;
       }
       setEventTickets(data.tickets || []);
+      setTicketExtras({ waitlist: data.waitlist || [], ratings: data.ratings || null });
       setLoadingTickets(false);
     } catch (err) {
       setTicketsError("Impossible de contacter le serveur");
@@ -865,6 +869,11 @@ export default function Admin() {
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600 }}>
                           {t.name}
+                          {t.firstTime && (
+                            <span style={{ marginLeft: 6, background: colors.gold, color: colors.navy, borderRadius: 20, padding: "1px 7px", fontSize: 10.5, fontWeight: 800 }}>
+                              1re fois
+                            </span>
+                          )}
                           {(t.quantity || 1) > 1 && (
                             <span
                               style={{ marginLeft: 6, background: colors.orange, color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 10.5, fontWeight: 800 }}
@@ -958,6 +967,10 @@ export default function Admin() {
             )}
             {ticketsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 6 }}>{ticketsError}</p>}
           </div>
+        )}
+
+        {selectedEventId && eventTickets && ticketExtras && (
+          <AdminEventExtras event={allEvents.find((e) => e.id === selectedEventId)} tickets={eventTickets} extras={ticketExtras} />
         )}
 
         {selectedEventId && (

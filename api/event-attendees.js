@@ -11,6 +11,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brevo.js";
+import { buildIcs } from "./_calendar.js";
+import { joinWaitlist } from "./_waitlist.js";
+import { rateEvent } from "./_ratings.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -125,6 +128,18 @@ export default async function handler(req, res) {
     }
   }
 
+  // Fichier agenda (.ics) d'une soirée : iPhone, Outlook, etc.
+  if (req.method === "GET" && req.query?.ics) {
+    const id = String(req.query.ics);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).send("Lien invalide");
+    const { data: ev } = await supabaseAdmin.from("events").select("id, title, event_date, address, approved").eq("id", id).maybeSingle();
+    if (!ev || !ev.approved) return res.status(404).send("Soirée introuvable");
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="spritz-connection.ics"`);
+    res.setHeader("Cache-Control", "public, s-maxage=300");
+    return res.status(200).send(buildIcs(ev));
+  }
+
   if (req.method === "GET" && req.query?.og) {
     try {
       return await renderPreview(req, res);
@@ -139,6 +154,34 @@ export default async function handler(req, res) {
   }
 
   const { eventId, action, token } = req.body || {};
+
+  // Liste d'attente d'une soirée complète
+  if (action === "waitlist-join") {
+    try {
+      const jwt = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+      const { data: userData } = jwt ? await supabaseAdmin.auth.getUser(jwt) : { data: null };
+      const b = req.body || {};
+      const result = await joinWaitlist(supabaseAdmin, { eventId, userId: userData?.user?.id, name: b.name, email: b.email, phone: b.phone, quantity: b.quantity });
+      if (result.error) return res.status(result.status || 400).json({ error: result.error });
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error("Erreur liste d'attente:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  // Note de la soirée (lien de l'email de remerciement)
+  if (action === "rate") {
+    try {
+      const b = req.body || {};
+      const result = await rateEvent(supabaseAdmin, { registrationId: b.registrationId, rating: b.rating, comment: b.comment });
+      if (result.error) return res.status(result.status || 400).json({ error: result.error });
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error("Erreur note soirée:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
 
   // Espace lieu (/lieu/<token>) : les soirées du lieu et leurs inscrits, sans compte.
   // Le lien privé (venues.access_token) est donné au lieu par l'admin. Jamais l'email des participants.
@@ -183,6 +226,8 @@ export default async function handler(req, res) {
           const { data: o } = await supabaseAdmin.from("registration_options").select("registration_id, label, quantity").in("registration_id", regIds);
           (o || []).forEach((x) => (opts[x.registration_id] = opts[x.registration_id] || []).push(`${(x.quantity || 1) > 1 ? `${x.quantity} × ` : ""}${x.label}`));
         }
+        const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: ev.id });
+        const firstSet = new Set((firsts || []).map((f) => f.registration_id));
         const participants = list.map((r) => {
           const total = Math.round((Number(r.amount) || 0) * 100) / 100;
           const paid = total > 0 && r.paid ? total : 0;
@@ -195,6 +240,7 @@ export default async function handler(req, res) {
             status: total === 0 ? "Gratuit" : r.paid ? "Réglé en prévente" : "À régler sur place",
             paid,
             due: total - paid,
+            firstTime: firstSet.has(r.id),
             at: r.created_at
           };
         });
@@ -204,6 +250,7 @@ export default async function handler(req, res) {
           event_date: ev.event_date,
           seats: ev.seats,
           places: participants.reduce((n, p) => n + p.quantity, 0),
+          newcomers: participants.filter((p) => p.firstTime).length,
           paid: participants.reduce((n, p) => n + p.paid, 0),
           due: participants.reduce((n, p) => n + p.due, 0),
           participants

@@ -11,6 +11,7 @@
 
 import { addToSpritzList, unsubscribeUrl } from "./_brevo.js";
 import { notifyRegistration } from "./_notify.js";
+import { googleCalendarUrl, icsUrl } from "./_calendar.js";
 
 const DEFAULT_SENDER = "fabiocasilli@gmail.com";
 const ORANGE = "#F05A19"; // charte 30/09 : navy / orange / jaune sur crème
@@ -52,8 +53,22 @@ function button(href, label, primary = true) {
   };border:2px solid ${ORANGE};border-radius:12px;padding:12px 20px;font-weight:700;font-size:15px;text-decoration:none">${esc(label)}</a>`;
 }
 
+// Liens « Ajouter à mon agenda » (Google Agenda + fichier .ics pour iPhone / Outlook)
+function calendarLinksHtml(event, ticketUrl) {
+  const link = (href, label) => `<a href="${esc(href)}" style="color:${ORANGE};font-weight:700;text-decoration:none">${label}</a>`;
+  return `<p style="margin:10px 0 0;font-size:13px;color:${MUTED}">🗓️ Ajouter à mon agenda : ${link(googleCalendarUrl(event, { ticketUrl }), "Google")} · ${link(icsUrl(event.id), "iPhone / Outlook")}</p>`;
+}
+
+// Paragraphe d'accueil pour une première soirée
+function firstTimeHtml() {
+  return `<tr><td style="padding:14px 22px 0"><div style="background:#FFF6D6;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.55">
+    <strong>✨ C'est ta première soirée Spritz Connection ?</strong><br>
+    Bienvenue ! À ton arrivée, présente-toi à l'accueil : on te présentera à quelques habitués pour que tu te sentes tout de suite à l'aise.
+  </div></td></tr>`;
+}
+
 // Contenu de l'email pour une inscription
-export function buildTicketEmail({ reg, event, options, recipientName, hasAccount, recipientEmail, payerName, venueName }) {
+export function buildTicketEmail({ reg, event, options, recipientName, hasAccount, recipientEmail, payerName, venueName, firstTime = false }) {
   const quantity = reg.quantity || 1;
   const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
@@ -119,7 +134,9 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
     ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}</p>` : ""}
     ${quantity > 1 ? `<p style="margin:0 0 4px">👥 Billet pour ${quantity} personnes${names.length ? ` — avec ${esc(names.join(", "))}` : ""}</p>` : ""}
     ${optionLines && !receiptHtml ? `<p style="margin:0 0 4px">➕ ${optionLines}</p>` : ""}
+    ${calendarLinksHtml(event, ticketUrl)}
   </td></tr>
+  ${firstTime ? firstTimeHtml() : ""}
   <tr><td align="center" style="padding:14px 22px 6px">
     <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
       <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">${toPay ? "Code de réservation" : "Code à présenter à l'entrée"}</div>
@@ -172,6 +189,8 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
         ]
       : []),
     `Code : ${reg.ticket_code}`,
+    `Ajouter à mon agenda : ${googleCalendarUrl(event, { ticketUrl })}`,
+    firstTime ? "C'est ta première soirée ? Bienvenue ! Présente-toi à l'accueil en arrivant : on te présentera à quelques habitués." : "",
     toPay && event.sumup_link ? `Payer : ${event.sumup_link}` : "",
     `Ton billet : ${ticketUrl}`,
     "",
@@ -285,7 +304,12 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     // Ajout automatique à la liste Brevo « Spritz Connection » (sauf si la personne s'est désinscrite)
     await addToSpritzList(supabaseAdmin, { email: to, name });
 
-    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id, recipientEmail: to, payerName: name, venueName });
+    let firstTime = false;
+    try {
+      const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: event.id });
+      firstTime = (firsts || []).some((f) => f.registration_id === reg.id);
+    } catch {}
+    const content = buildTicketEmail({ reg, event, options, recipientName: name, hasAccount: !!reg.user_id, recipientEmail: to, payerName: name, venueName, firstTime });
     const result = await sendViaBrevo({ to, toName: name, ...content, unsubscribe: unsubscribeUrl(to) });
     if (!result.ok) {
       console.error("Email billet non envoyé:", result.error || result.skipped);
@@ -346,6 +370,7 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
     <p style="margin:0 0 4px">📅 ${esc(parisDate(event.event_date))}</p>
     ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}</p>` : ""}
     ${quantity > 1 ? `<p style="margin:0 0 4px">👥 ${quantity} personnes</p>` : ""}
+    ${calendarLinksHtml(event, ticketUrl)}
   </td></tr>
   <tr><td align="center" style="padding:14px 22px 6px">
     <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
@@ -379,7 +404,18 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
 // ---------- Message de remerciement après l'événement ----------
 export const GOOGLE_REVIEW_URL = process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQoIqirTJtVGEBM/review";
 
-export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents }) {
+// 5 étoiles cliquables : chaque étoile ouvre /note/<inscription>?n=<note>
+function ratingStarsHtml(registrationId) {
+  const stars = [1, 2, 3, 4, 5]
+    .map(
+      (n) =>
+        `<a href="${esc(`${appUrl()}/note/${registrationId}?n=${n}`)}" style="display:inline-block;margin:0 3px;text-decoration:none;font-size:34px;line-height:1;color:#FFC52B" title="${n}/5">★</a>`
+    )
+    .join("");
+  return `<div style="font-size:15px;font-weight:700;margin-bottom:8px">Comment était la soirée ?</div><div>${stars}</div><div style="font-size:12px;color:${MUTED};margin-top:6px">Touche une étoile : 1 = bof, 5 = génial</div>`;
+}
+
+export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents, registrationId }) {
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
   const subject = `Merci d'être venu·e — ${event.title}`;
   const html = `<!DOCTYPE html>
@@ -394,9 +430,9 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
   <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.6">
     <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} !</p>
     <p style="margin:0 0 12px">Merci d'avoir partagé <strong>${esc(event.title)}</strong> avec nous. On espère que tu as passé un super moment et que tu as fait de belles rencontres.</p>
-    <p style="margin:0 0 6px">Un petit coup de pouce nous aiderait énormément : un avis Google prend 30 secondes et permet à d'autres de nous découvrir.</p>
+    <p style="margin:0 0 6px">Ton avis nous aide à faire encore mieux la prochaine fois : il suffit d'une étoile.</p>
   </td></tr>
-  <tr><td align="center" style="padding:10px 22px 8px">${button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
+  <tr><td align="center" style="padding:10px 22px 8px">${registrationId ? ratingStarsHtml(registrationId) : button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
   ${nextEventsHtml(nextEvents)}
   <tr><td style="padding:18px 22px 6px">
     <div style="background:${CREAM};border-radius:14px;padding:16px">
@@ -422,11 +458,68 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
   const text = [
     `Ciao${firstName ? " " + firstName : ""} !`,
     `Merci d'avoir partagé ${event.title} avec nous.`,
-    `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    registrationId ? `Comment était la soirée ? Donne ta note : ${appUrl()}/note/${registrationId}` : `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
     "",
     nextEventsText(nextEvents),
     "",
     `Installe l'app pour connaître nos prochains événements : ${appUrl()}`,
+    recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { subject, html, text };
+}
+
+// ---------- Rappel le jour même (« C'est ce soir ») ----------
+export function buildDayOfEmail({ reg, event, recipientName, recipientEmail, firstTime = false }) {
+  const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
+  const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
+  const quantity = reg.quantity || 1;
+  const hour = new Date(event.event_date).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
+  const mapsUrl = event.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}` : null;
+  const toPay = reg.external && !reg.paid && Number(reg.amount) > 0;
+  const subject = `C'est ce soir à ${hour} : ${event.title}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr"><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:${INK}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:24px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:18px;overflow:hidden">
+  <tr><td style="background:${INK};color:#ffffff;padding:18px 22px;border-bottom:5px solid ${ORANGE}">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.9">Spritz Connection</div>
+    <div style="font-size:22px;font-weight:700;margin-top:4px">C'est ce soir ! 🍹</div>
+  </td></tr>
+  <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.55">
+    <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} !</p>
+    <p style="margin:0 0 12px">On ${quantity > 1 ? "vous" : "t'"}attend ce soir pour <strong>${esc(event.title)}</strong>.</p>
+    <p style="margin:0 0 4px">🕖 ${esc(hour)}</p>
+    ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}${mapsUrl ? ` — <a href="${esc(mapsUrl)}" style="color:${ORANGE};font-weight:700;text-decoration:none">itinéraire</a>` : ""}</p>` : ""}
+    ${quantity > 1 ? `<p style="margin:0 0 4px">👥 ${quantity} personnes</p>` : ""}
+    ${toPay ? `<p style="margin:8px 0 0">💶 À régler sur place : <strong>${euro(reg.amount)}</strong></p>` : ""}
+  </td></tr>
+  ${firstTime ? firstTimeHtml() : ""}
+  <tr><td align="center" style="padding:14px 22px 6px">
+    <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">Code à présenter à l'entrée</div>
+      <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
+    </div>
+  </td></tr>
+  <tr><td align="center" style="padding:16px 22px 4px">${button(ticketUrl, "Voir mon billet")}</td></tr>
+  <tr><td style="padding:12px 22px 0;font-size:13px;line-height:1.5;color:${MUTED}">Un empêchement de dernière minute ? Réponds simplement à cet email : ta place pourra profiter à quelqu'un de la liste d'attente.</td></tr>
+  <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
+    A presto ! — Fabio, Spritz Connection
+    ${recipientEmail ? `<br><br>Tu reçois ce rappel car tu es inscrit·e à cet événement. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+  const text = [
+    `Ciao${firstName ? " " + firstName : ""} !`,
+    `C'est ce soir à ${hour} : ${event.title}`,
+    event.address ? `Lieu : ${event.address}${mapsUrl ? ` (${mapsUrl})` : ""}` : "",
+    toPay ? `À régler sur place : ${euro(reg.amount)}` : "",
+    firstTime ? "Première soirée ? Présente-toi à l'accueil en arrivant." : "",
+    `Code à présenter : ${reg.ticket_code}`,
+    `Ton billet : ${ticketUrl}`,
     recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
   ]
     .filter(Boolean)

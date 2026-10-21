@@ -3,6 +3,7 @@
 // Possible sans compte (prénom + nom obligatoires) et pour un groupe (quantity personnes,
 // un seul billet avec un code à montrer à l'entrée).
 
+import { notifyWaitlist } from "./_waitlist.js";
 import { createClient } from "@supabase/supabase-js";
 import { parseQuantity, readGuest, readPhone, readAttendeeNames, seatsError, insertRegistration, addTaken, resolveReferrer } from "./_registration.js";
 import { sendRegistrationEmail } from "./_email.js";
@@ -213,6 +214,7 @@ async function handleReschedule(req, res) {
     const quantity = reg.quantity || 1;
     await addTaken(supabaseAdmin, event.id, -quantity);
     await addTaken(supabaseAdmin, targetId, quantity);
+    await notifyWaitlist(supabaseAdmin, event.id);
     const emailed = await sendRegistrationEmail(supabaseAdmin, reg.id, { force: true });
 
     return res.status(200).json({ ok: true, event: target, emailed: !!emailed });

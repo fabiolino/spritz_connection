@@ -9,6 +9,8 @@ import { notifyRegistration } from "./_notify.js";
 import { addManyToSpritzList, unsubscribe } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
 import { ingest, listLinks, setLink } from "./_external.js";
+import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
+import { ratingsFor } from "./_ratings.js";
 import {
   addTaken,
   parseQuantity,
@@ -115,8 +117,15 @@ export default async function handler(req, res) {
         const { data: profs } = await supabaseAdmin.from("profiles").select("id, name, email").in("id", userIds);
         (profs || []).forEach((p) => (profilesById[p.id] = p));
       }
+      const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: eventId });
+      const firstSet = new Set((firsts || []).map((f) => f.registration_id));
+      const waitlist = await waitlistFor(supabaseAdmin, eventId);
+      const ratings = await ratingsFor(supabaseAdmin, eventId);
       return res.status(200).json({
+        waitlist: waitlist.map((w) => ({ id: w.id, name: w.name, phone: w.phone, email: w.email, quantity: w.quantity, notified: w.status === "notified", at: w.created_at })),
+        ratings,
         tickets: (regs || []).map((r) => ({
+          firstTime: firstSet.has(r.id),
           id: r.id,
           code: r.ticket_code,
           amount: r.amount,
@@ -300,6 +309,7 @@ export default async function handler(req, res) {
       const { error: delError } = await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
       if (delError) throw delError;
       if (reg.event_id && (reg.paid || reg.external)) await addTaken(supabaseAdmin, reg.event_id, -(reg.quantity || 1));
+      if (reg.event_id) await notifyWaitlist(supabaseAdmin, reg.event_id);
       return res.status(200).json({ ok: true });
     }
 

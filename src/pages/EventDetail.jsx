@@ -16,6 +16,7 @@ import { NotifyPrompt } from "../components/Notifications.jsx";
 import FindTicket from "../components/FindTicket.jsx";
 import CommunityOnEvent from "../components/CommunityOnEvent.jsx";
 import CrewAvatar from "../components/CrewAvatar.jsx";
+import WaitlistJoin from "../components/WaitlistJoin.jsx";
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -508,6 +509,8 @@ export default function EventDetail() {
         {new Date(event.event_date) > new Date() && (
           <SectionTitle>{full ? "Complet" : event.is_free ? "Je m'inscris" : "Réserver ma place"}</SectionTitle>
         )}
+
+        {full && new Date(event.event_date) > new Date() && !registered && <WaitlistJoin eventId={event.id} user={user} profile={profile} />}
 
         {!full && (externalPay || (event.is_free && !registered)) && (
           <GroupForm

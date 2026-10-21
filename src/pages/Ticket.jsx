@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut, Printer } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Calendar, MapPin, Loader2, XCircle, Ticket as TicketIcon, ExternalLink, Clock, User, Users, LogOut, Printer, CalendarPlus } from "lucide-react";
+import { googleCalendarUrl, icsUrl } from "../lib/calendar";
 import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import { InstallAppPrompt } from "../components/InstallAppPrompt.jsx";
@@ -231,6 +232,19 @@ export default function Ticket() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <MapPin size={14} color={colors.orange} /> {ticket.event.address}
                 </div>
+                {new Date(ticket.event.event_date) > new Date() && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12.5 }}>
+                    <CalendarPlus size={14} color={colors.orange} />
+                    <span style={{ color: colors.muted }}>Ajouter à mon agenda :</span>
+                    <a href={googleCalendarUrl(ticket.event)} target="_blank" rel="noreferrer" style={{ color: colors.orange, fontWeight: 700, textDecoration: "none" }}>
+                      Google
+                    </a>
+                    <span style={{ color: colors.muted }}>·</span>
+                    <a href={icsUrl(ticket.event.id)} style={{ color: colors.orange, fontWeight: 700, textDecoration: "none" }}>
+                      iPhone / Outlook
+                    </a>
+                  </div>
+                )}
                 {holderName && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
                     <User size={14} color={colors.orange} /> Au nom de <strong>{holderName}</strong>

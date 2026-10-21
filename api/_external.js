@@ -7,6 +7,7 @@
 // est reporté tout seul sur la soirée (récap du lieu, espace lieu, compteur de places).
 
 import { notifyRegistration } from "./_notify.js";
+import { notifyWaitlist } from "./_waitlist.js";
 import { addTaken, entryTotal, insertRegistration, roundCents, ADVANCE_PRICE_FOR_ALL } from "./_registration.js";
 
 export const EXTERNAL_SOURCE_LABEL = "Autre application";
@@ -164,6 +165,7 @@ async function applyImport(supabaseAdmin, imp, eventId) {
   await supabaseAdmin.from("registration_options").delete().eq("registration_id", reg.id);
   await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
   if (reg.paid || reg.external) await addTaken(supabaseAdmin, eventId, -(reg.quantity || 1));
+  await notifyWaitlist(supabaseAdmin, eventId);
   return { status: "cancelled", registration_id: reg.id };
 }
 

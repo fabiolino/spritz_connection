@@ -3,6 +3,7 @@
 // Un seul fichier gère plusieurs actions (create / update / duplicate / delete)
 // pour rester sous la limite de fonctions serverless du plan Vercel Hobby.
 
+import { notifyWaitlist } from "./_waitlist.js";
 import { createClient } from "@supabase/supabase-js";
 import { geocodeAddress } from "./_geocode.js";
 
@@ -252,6 +253,7 @@ export default async function handler(req, res) {
 
       await replaceOptions(eventId, options);
 
+      await notifyWaitlist(supabaseAdmin, data.id);
       return res.status(200).json({ event: data });
     }
 

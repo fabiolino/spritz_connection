@@ -14,6 +14,7 @@ import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brev
 import { buildIcs } from "./_calendar.js";
 import { joinWaitlist } from "./_waitlist.js";
 import { rateEvent } from "./_ratings.js";
+import { announceNewEvents } from "./_announce.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -154,6 +155,32 @@ export default async function handler(req, res) {
   }
 
   const { eventId, action, token } = req.body || {};
+
+  // Annonce des nouvelles soirées par email (appelé toutes les heures par Supabase pg_cron)
+  if (action === "announce") {
+    try {
+      const { data: setting } = await supabaseAdmin.from("app_settings").select("value").eq("key", "announce_secret").maybeSingle();
+      if (!setting?.value || req.body.secret !== setting.value) return res.status(401).json({ error: "Non autorisé" });
+      const result = await announceNewEvents(supabaseAdmin, { dry: !!req.body.dry });
+      return res.status(200).json({ ok: true, result });
+    } catch (err) {
+      console.error("Erreur annonce:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  // Inscription depuis le site spritzconnection.fr (formulaire « newsletter ») à la liste Brevo
+  if (action === "site-subscribe") {
+    const email = String((req.body || {}).email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 120) return res.status(400).json({ error: "Adresse email invalide" });
+    try {
+      const ok = await addToSpritzList(supabaseAdmin, { email, name: null });
+      return res.status(200).json({ ok });
+    } catch (err) {
+      console.error("Erreur inscription site:", err);
+      return res.status(200).json({ ok: false });
+    }
+  }
 
   // Liste d'attente d'une soirée complète
   if (action === "waitlist-join") {

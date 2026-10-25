@@ -403,6 +403,7 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
 
 // ---------- Message de remerciement après l'événement ----------
 export const GOOGLE_REVIEW_URL = process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CQoIqirTJtVGEBM/review";
+export const INSTAGRAM_URL = "https://www.instagram.com/spritz_connection/";
 
 // 5 étoiles cliquables : chaque étoile ouvre /note/<inscription>?n=<note>
 function ratingStarsHtml(registrationId) {
@@ -433,6 +434,13 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     <p style="margin:0 0 6px">Ton avis nous aide à faire encore mieux la prochaine fois : il suffit d'une étoile.</p>
   </td></tr>
   <tr><td align="center" style="padding:10px 22px 8px">${registrationId ? ratingStarsHtml(registrationId) : button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
+  <tr><td style="padding:14px 22px 0">
+    <div style="border:2px solid ${ORANGE};border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📸 Retrouve les photos de la soirée sur Instagram</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">Abonne-toi à @spritz_connection : photos des soirées, prochaines dates et petits concours. Et identifie-toi sur les photos !</div>
+      ${button(INSTAGRAM_URL, "Suivre @spritz_connection")}
+    </div>
+  </td></tr>
   ${nextEventsHtml(nextEvents)}
   <tr><td style="padding:18px 22px 6px">
     <div style="background:${CREAM};border-radius:14px;padding:16px">
@@ -459,6 +467,7 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     `Ciao${firstName ? " " + firstName : ""} !`,
     `Merci d'avoir partagé ${event.title} avec nous.`,
     registrationId ? `Comment était la soirée ? Donne ta note : ${appUrl()}/note/${registrationId}` : `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    `Retrouve les photos de la soirée et nos prochaines dates sur Instagram, abonne-toi : ${INSTAGRAM_URL}`,
     "",
     nextEventsText(nextEvents),
     "",

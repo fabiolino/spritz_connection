@@ -109,6 +109,23 @@ export default function RateEvent() {
         </div>
       )}
 
+      {rating > 0 && happy && (
+        <div style={{ ...card, marginTop: 14 }}>
+          <div style={{ fontWeight: 800, color: colors.navy, marginBottom: 6 }}>Retrouve les photos sur Instagram 📸</div>
+          <p style={{ fontSize: 13.5, lineHeight: 1.5, margin: "0 0 12px" }}>
+            Abonne-toi à @spritz_connection pour voir les photos de la soirée, les prochaines dates et nos petits concours.
+          </p>
+          <a
+            href="https://www.instagram.com/spritz_connection/"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: "block", textAlign: "center", background: "#fff", color: colors.orange, border: `2px solid ${colors.orange}`, borderRadius: 14, padding: 11, fontWeight: 700, textDecoration: "none" }}
+          >
+            Suivre @spritz_connection
+          </a>
+        </div>
+      )}
+
       {rating > 0 && (
         <div style={{ ...card, marginTop: 14 }}>
           <div style={{ fontWeight: 800, color: colors.navy, marginBottom: 6 }}>

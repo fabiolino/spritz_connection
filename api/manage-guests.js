@@ -8,7 +8,7 @@ import { sendRegistrationEmail } from "./_email.js";
 import { notifyRegistration } from "./_notify.js";
 import { addManyToSpritzList, unsubscribe } from "./_brevo.js";
 import { geocodeAddress } from "./_geocode.js";
-import { ingest, listLinks, setLink } from "./_external.js";
+import { ingest, listLinks, setLink, processPending } from "./_external.js";
 import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
 import { ratingsFor } from "./_ratings.js";
 import { sendListCampaign, buildUpdateHtml } from "./_announce.js";
@@ -43,7 +43,12 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: "Clé d'import incorrecte" });
       }
       const result = await ingest(supabaseAdmin, req.body.messages);
-      return res.status(200).json({ ok: true, ...result });
+      // Réapplique les inscriptions en attente d'annonces rattachées après coup
+      let reapplied = 0;
+      for (const id of (Array.isArray(req.body.reprocess) ? req.body.reprocess : []).slice(0, 20)) {
+        reapplied += await processPending(supabaseAdmin, "meet5", String(id));
+      }
+      return res.status(200).json({ ok: true, ...result, reapplied });
     } catch (err) {
       console.error("external-ingest:", err);
       return res.status(500).json({ error: "Erreur serveur" });

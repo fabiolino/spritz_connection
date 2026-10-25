@@ -198,6 +198,27 @@ export async function processPending(supabaseAdmin, source, externalId) {
   return done;
 }
 
+// Rattachement automatique d'une annonce pas encore vue (ex. nouveau groupe créé sur l'autre application) :
+// app_settings "external_autolink" = [{ "match": "apéro", "event_id": "...", "until": "2026-11-13" }].
+// Chaque règle sert une seule fois, pour la première nouvelle annonce dont le titre contient "match".
+async function consumeAutolink(supabaseAdmin, title) {
+  const { data } = await supabaseAdmin.from("app_settings").select("value").eq("key", "external_autolink").maybeSingle();
+  let rules = [];
+  try {
+    rules = JSON.parse(data?.value || "[]");
+  } catch {
+    return null;
+  }
+  const t = String(title || "").toLowerCase();
+  const today = new Date().toISOString().slice(0, 10);
+  const i = rules.findIndex((r) => r && r.event_id && (!r.until || r.until >= today) && t.includes(String(r.match || "").toLowerCase()));
+  if (i < 0) return null;
+  const eventId = rules[i].event_id;
+  rules.splice(i, 1);
+  await supabaseAdmin.from("app_settings").update({ value: JSON.stringify(rules) }).eq("key", "external_autolink");
+  return eventId;
+}
+
 // Reçoit un lot d'emails bruts, les enregistre (sans doublon) et les applique.
 export async function ingest(supabaseAdmin, messages) {
   const touched = new Set();
@@ -234,7 +255,8 @@ export async function ingest(supabaseAdmin, messages) {
       .eq("external_id", parsed.externalId)
       .maybeSingle();
     if (!link) {
-      await supabaseAdmin.from("external_links").insert({ source: parsed.source, external_id: parsed.externalId, title: parsed.title });
+      const eventId = await consumeAutolink(supabaseAdmin, parsed.title);
+      await supabaseAdmin.from("external_links").insert({ source: parsed.source, external_id: parsed.externalId, title: parsed.title, event_id: eventId });
     } else if (parsed.title) {
       await supabaseAdmin.from("external_links").update({ title: parsed.title }).eq("source", parsed.source).eq("external_id", parsed.externalId);
     }

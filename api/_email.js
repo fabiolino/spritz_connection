@@ -349,12 +349,40 @@ function nextEventsText(nextEvents) {
   return ["Les prochaines soirées :", ...nextEvents.map((e) => `- ${e.title} — ${parisDate(e.event_date)} : ${appUrl()}/event/${e.id}`)].join("\n");
 }
 
-// ---------- Rappel avant l'événement (J-3) ----------
-export function buildReminderEmail({ reg, event, recipientName, recipientEmail, hasAccount }) {
+
+// Bloc « Invite tes amis » : bouton WhatsApp avec message pré-rempli + lien de l'événement.
+// refCode = code Spritz Crew du membre : les inscriptions de ses amis lui sont attribuées.
+function eventShareUrl(event, refCode) {
+  return `${appUrl()}/event/${event.id}${refCode ? `?ref=${encodeURIComponent(refCode)}` : ""}`;
+}
+
+function shareMessage(event, url) {
+  return `Ciao ! 🍹 Je vais à « ${event.title} » — ${parisDate(event.event_date)}. Viens avec moi ! Infos et inscription : ${url}`;
+}
+
+function inviteFriendsHtml(event, refCode, { title, intro }) {
+  const url = eventShareUrl(event, refCode);
+  const wa = `https://wa.me/?text=${encodeURIComponent(shareMessage(event, url))}`;
+  return `<tr><td style="padding:16px 22px 0">
+    <div style="background:#FFF6D6;border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">${title}</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">${intro}</div>
+      ${button(wa, "💬 Inviter mes amis sur WhatsApp")}
+      <div style="font-size:13px;color:${MUTED};margin-top:10px">ou partage ce lien : <a href="${esc(url)}" style="color:${ORANGE};font-weight:700;text-decoration:none">${esc(url.replace(/^https?:\/\//, ""))}</a></div>
+    </div>
+  </td></tr>`;
+}
+
+function inviteFriendsText(event, refCode, intro) {
+  return `${intro} ${eventShareUrl(event, refCode)}`;
+}
+
+// ---------- Rappel avant l'événement (J-2) ----------
+export function buildReminderEmail({ reg, event, recipientName, recipientEmail, hasAccount, refCode }) {
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
   const ticketUrl = `${appUrl()}/ticket/${reg.id}`;
   const quantity = reg.quantity || 1;
-  const subject = `Dans 3 jours : ${event.title}`;
+  const subject = `Après-demain : ${event.title} 🍹`;
   const html = `<!DOCTYPE html>
 <html lang="fr"><body style="margin:0;padding:0;background:${CREAM};font-family:Helvetica,Arial,sans-serif;color:${INK}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CREAM};padding:24px 12px">
@@ -366,7 +394,7 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
   </td></tr>
   <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.55">
     <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} ! 🍹</p>
-    <p style="margin:0 0 14px">C'est dans <strong>3 jours</strong>, on a hâte de ${quantity > 1 ? "vous" : "te"} voir.</p>
+    <p style="margin:0 0 14px">C'est <strong>après-demain</strong>, on a hâte de ${quantity > 1 ? "vous" : "te"} voir.</p>
     <p style="margin:0 0 4px">📅 ${esc(parisDate(event.event_date))}</p>
     ${event.address ? `<p style="margin:0 0 4px">📍 ${esc(event.address)}</p>` : ""}
     ${quantity > 1 ? `<p style="margin:0 0 4px">👥 ${quantity} personnes</p>` : ""}
@@ -379,7 +407,11 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
     </div>
   </td></tr>
   <tr><td align="center" style="padding:16px 22px 4px">${button(ticketUrl, "Voir mon billet")}</td></tr>
-  <tr><td style="padding:12px 22px 0;font-size:13px;line-height:1.5;color:${MUTED}">Un imprévu ? Tu peux reporter ta place depuis la page de ton billet, jusqu'à 24 h avant. Et pourquoi ne pas amener un ami ? Partage simplement le lien de l'événement.</td></tr>
+  ${inviteFriendsHtml(event, refCode, {
+    title: "👯 Viens avec tes amis !",
+    intro: "Une soirée, c'est encore mieux à plusieurs. Il reste des places : envoie-leur le lien, ils s'inscrivent en deux minutes."
+  })}
+  <tr><td style="padding:12px 22px 0;font-size:13px;line-height:1.5;color:${MUTED}">Un imprévu ? Tu peux reporter ta place depuis la page de ton billet, jusqu'à 24 h avant.</td></tr>
   <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
     A presto ! — Fabio, Spritz Connection
     ${recipientEmail ? `<br><br>Tu reçois ce rappel car tu es inscrit·e à cet événement. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
@@ -389,11 +421,13 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
 </body></html>`;
   const text = [
     `Ciao${firstName ? " " + firstName : ""} !`,
-    `C'est dans 3 jours : ${event.title}`,
+    `C'est après-demain : ${event.title}`,
     `${parisDate(event.event_date)}`,
     event.address ? `Lieu : ${event.address}` : "",
     `Code à présenter : ${reg.ticket_code}`,
     `Ton billet : ${ticketUrl}`,
+    "",
+    inviteFriendsText(event, refCode, "Viens avec tes amis ! Envoie-leur le lien pour s'inscrire :"),
     recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
   ]
     .filter(Boolean)
@@ -416,7 +450,7 @@ function ratingStarsHtml(registrationId) {
   return `<div style="font-size:15px;font-weight:700;margin-bottom:8px">Comment était la soirée ?</div><div>${stars}</div><div style="font-size:12px;color:${MUTED};margin-top:6px">Touche une étoile : 1 = bof, 5 = génial</div>`;
 }
 
-export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents, registrationId }) {
+export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents, nextSameType, registrationId, refCode }) {
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
   const subject = `Merci d'être venu·e — ${event.title}`;
   const html = `<!DOCTYPE html>
@@ -441,6 +475,12 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
       ${button(INSTAGRAM_URL, "Suivre @spritz_connection")}
     </div>
   </td></tr>
+  ${nextSameType
+    ? inviteFriendsHtml(nextSameType, refCode, {
+        title: "🧡 Tu as passé une bonne soirée ? Parles-en à tes amis !",
+        intro: `La prochaine, c'est <strong>${esc(nextSameType.title)}</strong> — ${esc(parisDate(nextSameType.event_date))}${nextSameType.address ? `<br>📍 ${esc(nextSameType.address)}` : ""}. Viens avec eux !`
+      }) + `<tr><td align="center" style="padding:10px 22px 0">${button(`${appUrl()}/event/${nextSameType.id}`, "Réserver ma place", false)}</td></tr>`
+    : `<tr><td style="padding:16px 22px 0;font-size:15px;line-height:1.6"><strong>🧡 Tu as passé une bonne soirée ?</strong> Parles-en à tes amis et venez ensemble la prochaine fois !</td></tr>`}
   ${nextEventsHtml(nextEvents)}
   <tr><td style="padding:18px 22px 6px">
     <div style="background:${CREAM};border-radius:14px;padding:16px">
@@ -468,6 +508,10 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     `Merci d'avoir partagé ${event.title} avec nous.`,
     registrationId ? `Comment était la soirée ? Donne ta note : ${appUrl()}/note/${registrationId}` : `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
     `Retrouve les photos de la soirée et nos prochaines dates sur Instagram, abonne-toi : ${INSTAGRAM_URL}`,
+    "",
+    nextSameType
+      ? `Tu as passé une bonne soirée ? Parles-en à tes amis ! La prochaine : ${nextSameType.title} — ${parisDate(nextSameType.event_date)} : ${eventShareUrl(nextSameType, refCode)}`
+      : "Tu as passé une bonne soirée ? Parles-en à tes amis et venez ensemble la prochaine fois !",
     "",
     nextEventsText(nextEvents),
     "",
@@ -529,6 +573,8 @@ export function buildDayOfEmail({ reg, event, recipientName, recipientEmail, fir
     firstTime ? "Première soirée ? Présente-toi à l'accueil en arrivant." : "",
     `Code à présenter : ${reg.ticket_code}`,
     `Ton billet : ${ticketUrl}`,
+    "",
+    inviteFriendsText(event, refCode, "Viens avec tes amis ! Envoie-leur le lien pour s'inscrire :"),
     recipientEmail ? `\nSe désinscrire : ${unsubscribeUrl(recipientEmail)}` : ""
   ]
     .filter(Boolean)

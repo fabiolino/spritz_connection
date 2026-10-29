@@ -8,8 +8,9 @@
 // 3. JOUR J (« C'est ce soir ») : événements qui commencent dans 1 h à 15 h, une fois par inscription
 //    (registrations.dayof_sent_at), sauf inscriptions faites dans les 3 dernières heures
 // 4. LISTE D'ATTENTE : rattrapage quotidien, si des places sont libres sur une soirée à venir
-// 2. RAPPEL avant l'événement
-//    - événements qui commencent dans 48 h à 72 h
+// 2. RAPPEL avant l'événement (J-2, avec invitation à venir avec des amis)
+//    - événements qui commencent dans 44 h à 68 h (la tâche tourne une fois par jour :
+//      chaque événement tombe dans une seule fenêtre, le matin du surlendemain - 2 jours)
 //    - une seule fois par inscription (registrations.reminder_sent_at)
 //
 // Dans les deux cas : inscriptions payées, réservées via lien externe, ou gratuites ;
@@ -53,7 +54,20 @@ export default async function handler(req, res) {
         to: new Date(now - 10 * HOUR).toISOString(),
         column: "thanks_sent_at",
         tag: "remerciement",
-        build: (event, person) => buildThanksEmail({ event, recipientName: person.name, hasAccount: person.hasAccount, recipientEmail: person.email, registrationId: person.regIds[0], nextEvents: nextEvents.filter((e) => e.id !== event.id) }),
+        build: (event, person) => {
+          const others = nextEvents.filter((e) => e.id !== event.id);
+          const sameType = others.find((e) => (event.category && e.category === event.category) || e.title === event.title) || null;
+          return buildThanksEmail({
+            event,
+            recipientName: person.name,
+            hasAccount: person.hasAccount,
+            recipientEmail: person.email,
+            registrationId: person.regIds[0],
+            refCode: person.refCode,
+            nextSameType: sameType,
+            nextEvents: others.filter((e) => !sameType || e.id !== sameType.id).slice(0, 2)
+          });
+        },
         dry,
         onlyEvent,
         blocked,
@@ -85,11 +99,11 @@ export default async function handler(req, res) {
     if (!only || only === "reminder") {
       out.reminders = await runPass({
         kind: "reminder",
-        from: new Date(now + 48 * HOUR).toISOString(),
-        to: new Date(now + 72 * HOUR).toISOString(),
+        from: new Date(now + 44 * HOUR).toISOString(),
+        to: new Date(now + 68 * HOUR).toISOString(),
         column: "reminder_sent_at",
         tag: "rappel",
-        build: (event, person) => buildReminderEmail({ reg: person.reg, event, recipientName: person.name, recipientEmail: person.email, hasAccount: person.hasAccount }),
+        build: (event, person) => buildReminderEmail({ reg: person.reg, event, recipientName: person.name, recipientEmail: person.email, hasAccount: person.hasAccount, refCode: person.refCode }),
         dry,
         onlyEvent,
         blocked,
@@ -107,17 +121,17 @@ export default async function handler(req, res) {
 async function loadNextEvents() {
   const { data } = await supabaseAdmin
     .from("events")
-    .select("id, title, event_date, address")
+    .select("id, title, event_date, address, category")
     .eq("approved", true)
     .eq("visibility", "public")
     .gte("event_date", new Date().toISOString())
     .order("event_date", { ascending: true })
-    .limit(3);
+    .limit(12);
   return data || [];
 }
 
 async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blocked, perPerson, createdBefore }) {
-  let evQuery = supabaseAdmin.from("events").select("id, title, event_date, address").gte("event_date", from).lte("event_date", to);
+  let evQuery = supabaseAdmin.from("events").select("id, title, event_date, address, category").gte("event_date", from).lte("event_date", to);
   if (onlyEvent) evQuery = evQuery.eq("id", onlyEvent);
   const { data: events, error: evErr } = await evQuery;
   if (evErr) throw evErr;
@@ -148,8 +162,10 @@ async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blo
     for (const reg of regs || []) {
       let email = reg.guest_email;
       let name = reg.guest_name;
+      let refCode = null;
       if (reg.user_id) {
-        const { data: profile } = await supabaseAdmin.from("profiles").select("name, email").eq("id", reg.user_id).maybeSingle();
+        const { data: profile } = await supabaseAdmin.from("profiles").select("name, email, referral_code").eq("id", reg.user_id).maybeSingle();
+        refCode = profile?.referral_code || null;
         email = email || profile?.email;
         name = name || profile?.name;
         if (!email) {
@@ -160,8 +176,9 @@ async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blo
       email = String(email || "").trim().toLowerCase();
       if (!EMAIL_RE.test(email)) continue;
       const key = perPerson ? email : reg.id;
-      const entry = byKey.get(key) || { email, name, hasAccount: false, regIds: [], reg, firstTime: !!firstSet?.has(reg.id) };
+      const entry = byKey.get(key) || { email, name, hasAccount: false, regIds: [], reg, firstTime: !!firstSet?.has(reg.id), refCode: null };
       entry.name = entry.name || name;
+      entry.refCode = entry.refCode || refCode;
       entry.hasAccount = entry.hasAccount || !!reg.user_id;
       entry.regIds.push(reg.id);
       byKey.set(key, entry);

@@ -10,7 +10,7 @@
 // Un email de notification ne bloque jamais une inscription : toute erreur est seulement journalisée.
 // Nécessite la colonne registrations.notified_at (supabase-migration-notifications-lieux.sql).
 
-import { sendViaBrevo } from "./_email.js";
+import { parseEmails, sendViaBrevo } from "./_email.js";
 
 export const NOTIFY_FALLBACK = "fabiocasilli@gmail.com";
 export const RECAP_HOUR = 14; // heure de Paris
@@ -217,12 +217,12 @@ export async function notifyRegistration(supabaseAdmin, reg, event) {
 
     // Inscription après le récap (veille 14 h -> fin du jour J) : email au lieu avec le tableau à jour
     if (event.venue_id && recapPhaseStarted(event.event_date)) {
-      const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email").eq("id", event.venue_id).maybeSingle();
+      const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email, notify_cc").eq("id", event.venue_id).maybeSingle();
       const to = String(venue?.contact_email || "").trim().toLowerCase();
       // Si le lieu est joignable à l'adresse de l'équipe, il vient déjà de recevoir le mail complet
       if (to && to !== team) {
         const late = buildLateEmail({ event, venueName: venue.name, row, rows });
-        const r = await sendViaBrevo({ to, toName: venue.name, subject: late.subject, html: late.html, text: late.text, tag: "lieu-inscription-tardive" });
+        const r = await sendViaBrevo({ to, toName: venue.name, cc: parseEmails(venue.notify_cc, [to, team]), subject: late.subject, html: late.html, text: late.text, tag: "lieu-inscription-tardive" });
         if (!r.ok) console.error("Mail retardataire au lieu non envoyé:", r.error || r.skipped);
       }
     }

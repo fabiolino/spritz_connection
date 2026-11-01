@@ -203,7 +203,18 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   return { subject, html, text };
 }
 
-export async function sendViaBrevo({ to, toName, subject, html, text, unsubscribe, tag = "billet" }) {
+// Liste d'adresses séparées par des virgules, points-virgules ou espaces -> adresses valides, sans doublon
+export function parseEmails(value, exclude = []) {
+  const skip = new Set(exclude.map((e) => String(e || "").trim().toLowerCase()));
+  const out = [];
+  for (const raw of String(value || "").split(/[\s,;]+/)) {
+    const e = raw.trim().toLowerCase();
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !skip.has(e) && !out.includes(e)) out.push(e);
+  }
+  return out;
+}
+
+export async function sendViaBrevo({ to, toName, cc = [], subject, html, text, unsubscribe, tag = "billet" }) {
   const key = process.env.BREVO_API_KEY;
   if (!key) return { skipped: "no-key" };
   const controller = new AbortController();
@@ -216,6 +227,7 @@ export async function sendViaBrevo({ to, toName, subject, html, text, unsubscrib
         sender: { name: "Spritz Connection", email: process.env.BREVO_SENDER_EMAIL || DEFAULT_SENDER },
         replyTo: { email: process.env.BREVO_SENDER_EMAIL || DEFAULT_SENDER, name: "Spritz Connection" },
         to: [{ email: to, ...(toName ? { name: toName } : {}) }],
+        ...(cc.length ? { cc: cc.map((email) => ({ email })) } : {}),
         subject,
         htmlContent: html,
         textContent: text,

@@ -12,7 +12,7 @@
 //   ?force=1 : ignore l'heure (test manuel, avec le secret)
 
 import { createClient } from "@supabase/supabase-js";
-import { sendViaBrevo } from "./_email.js";
+import { parseEmails, sendViaBrevo } from "./_email.js";
 import { buildVenueRecap, loadEventRows, parisParts, parisTomorrow, RECAP_HOUR } from "./_notify.js";
 
 const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
         out.events.push({ event: event.title, skipped: "déjà envoyé" });
         continue;
       }
-      const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email").eq("id", event.venue_id).maybeSingle();
+      const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email, notify_cc").eq("id", event.venue_id).maybeSingle();
       const email = String(venue?.contact_email || "").trim().toLowerCase();
       if (!email) {
         out.events.push({ event: event.title, skipped: "lieu sans adresse email" });
@@ -61,10 +61,10 @@ export default async function handler(req, res) {
       const rows = await loadEventRows(supabaseAdmin, event.id);
       const content = buildVenueRecap({ event, venueName: venue.name, rows });
       if (dry) {
-        out.events.push({ event: event.title, to: email, participants: rows.length, subject: content.subject });
+        out.events.push({ event: event.title, to: email, cc: parseEmails(venue.notify_cc, [email]), participants: rows.length, subject: content.subject });
         continue;
       }
-      const sent = await sendViaBrevo({ to: email, toName: venue.name, ...content, tag: "lieu-recap" });
+      const sent = await sendViaBrevo({ to: email, toName: venue.name, cc: parseEmails(venue.notify_cc, [email]), ...content, tag: "lieu-recap" });
       if (sent.ok) await supabaseAdmin.from("private_config").upsert({ key, value: new Date().toISOString() });
       out.events.push({ event: event.title, to: email, participants: rows.length, sent: !!sent.ok, error: sent.error });
     }

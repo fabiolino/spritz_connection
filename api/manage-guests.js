@@ -396,6 +396,7 @@ export default async function handler(req, res) {
         contact_name: clean(v.contact_name),
         contact_phone: clean(v.contact_phone),
         contact_email: clean(v.contact_email),
+        notify_cc: clean(v.notify_cc),
         payment_info: clean(v.payment_info)
       };
 

@@ -12,6 +12,7 @@ const EMPTY = {
   contact_name: "",
   contact_phone: "",
   contact_email: "",
+  notify_cc: "",
   payment_info: ""
 };
 
@@ -265,6 +266,11 @@ export default function AdminVenues({ adminSecret }) {
                   <label style={labelStyle}>Email</label>
                   <input type="email" value={form.contact_email} onChange={set("contact_email")} style={inputStyle} />
                 </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Copies des notifications (facultatif)</label>
+                <input value={form.notify_cc} onChange={set("notify_cc")} placeholder="adresse1@exemple.fr, adresse2@exemple.fr" style={inputStyle} />
+                <div style={{ fontSize: 12, color: "#6b6b6b", marginTop: 4 }}>Reçoivent en copie le récapitulatif des inscrits et les inscriptions de dernière minute. Non affichées publiquement.</div>
               </div>
               <div>
                 <label style={labelStyle}>Infos de paiement / pratiques</label>

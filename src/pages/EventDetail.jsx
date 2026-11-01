@@ -281,28 +281,38 @@ export default function EventDetail() {
   }
 
   async function handlePhotoUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !user) return;
     setUploadingPhoto(true);
     setPhotoError("");
-    try {
-      const ext = file.name.split(".").pop();
-      const path = `${id}/${user.id}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("event-photos").upload(path, file);
-      if (uploadError) throw uploadError;
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `${id}/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("event-photos").upload(path, file);
+        if (uploadError) throw uploadError;
 
-      const { data: pub } = supabase.storage.from("event-photos").getPublicUrl(path);
+        const { data: pub } = supabase.storage.from("event-photos").getPublicUrl(path);
 
-      const { error: insertError } = await supabase.from("event_photos").insert({
-        event_id: id,
-        user_id: user.id,
-        photo_url: pub.publicUrl
-      });
-      if (insertError) throw insertError;
+        const { error: insertError } = await supabase.from("event_photos").insert({
+          event_id: id,
+          user_id: user.id,
+          photo_url: pub.publicUrl
+        });
+        if (insertError) throw insertError;
 
-      setPhotos((prev) => [...prev, { id: `${Date.now()}`, photo_url: pub.publicUrl, user_id: user.id }]);
-    } catch (err) {
-      setPhotoError("Impossible d'ajouter la photo — seules les personnes inscrites et confirmées à cet événement peuvent en ajouter.");
+        setPhotos((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, photo_url: pub.publicUrl, user_id: user.id }]);
+      } catch (err) {
+        failed++;
+      }
+    }
+    if (failed) {
+      setPhotoError(
+        failed === files.length
+          ? "Impossible d'ajouter la photo — seules les personnes inscrites et confirmées à cet événement peuvent en ajouter."
+          : `${failed} photo${failed > 1 ? "s" : ""} n'${failed > 1 ? "ont" : "a"} pas pu être ajoutée${failed > 1 ? "s" : ""}.`
+      );
     }
     setUploadingPhoto(false);
     e.target.value = "";
@@ -916,7 +926,7 @@ export default function EventDetail() {
             >
               <Camera size={15} />
               {uploadingPhoto ? "Envoi…" : "Ajouter"}
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: "none" }} />
+              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: "none" }} />
             </label>
           )}
         </div>

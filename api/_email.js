@@ -462,7 +462,8 @@ function ratingStarsHtml(registrationId) {
   return `<div style="font-size:15px;font-weight:700;margin-bottom:8px">Comment était la soirée ?</div><div>${stars}</div><div style="font-size:12px;color:${MUTED};margin-top:6px">Touche une étoile : 1 = bof, 5 = génial</div>`;
 }
 
-export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents, nextSameType, registrationId, refCode }) {
+export function buildThanksEmail({ event, recipientName, hasAccount, recipientEmail, nextEvents, nextSameType, registrationId, refCode, photoCount = 0, fromContact = false }) {
+  const photosUrl = `${appUrl()}/photos/${event.id}`;
   const firstName = String(recipientName || "").trim().split(/\s+/)[0] || "";
   const subject = `Merci d'être venu·e — ${event.title}`;
   const html = `<!DOCTYPE html>
@@ -480,6 +481,15 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     <p style="margin:0 0 6px">Ton avis nous aide à faire encore mieux la prochaine fois : il suffit d'une étoile.</p>
   </td></tr>
   <tr><td align="center" style="padding:10px 22px 8px">${registrationId ? ratingStarsHtml(registrationId) : button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
+  ${photoCount > 0
+    ? `<tr><td style="padding:14px 22px 0">
+    <div style="background:${CREAM};border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📷 ${photoCount} photo${photoCount > 1 ? "s" : ""} de la soirée en ligne</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">Retrouve-toi sur les photos et partage-les avec tes amis.</div>
+      ${button(photosUrl, "Voir les photos", false)}
+    </div>
+  </td></tr>`
+    : ""}
   <tr><td style="padding:14px 22px 0">
     <div style="border:2px solid ${ORANGE};border-radius:14px;padding:16px;text-align:center">
       <div style="font-size:16px;font-weight:700;margin-bottom:6px">📸 Retrouve les photos de la soirée sur Instagram</div>
@@ -510,7 +520,7 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
   </td></tr>
   <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
     A presto ! — Fabio, Spritz Connection
-    ${recipientEmail ? `<br><br>Tu reçois ce message car tu étais inscrit·e à cet événement. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
+    ${recipientEmail ? `<br><br>Tu reçois ce message car ${fromContact ? "tu nous as laissé ton email lors de cette soirée" : "tu étais inscrit·e à cet événement"}. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>` : ""}
   </td></tr>
 </table>
 </td></tr></table>
@@ -519,6 +529,7 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
     `Ciao${firstName ? " " + firstName : ""} !`,
     `Merci d'avoir partagé ${event.title} avec nous.`,
     registrationId ? `Comment était la soirée ? Donne ta note : ${appUrl()}/note/${registrationId}` : `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    ...(photoCount > 0 ? [`Les photos de la soirée : ${photosUrl}`] : []),
     `Retrouve les photos de la soirée et nos prochaines dates sur Instagram, abonne-toi : ${INSTAGRAM_URL}`,
     "",
     nextSameType

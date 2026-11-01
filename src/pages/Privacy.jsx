@@ -37,6 +37,7 @@ const SECTIONS = [
       "Gérer ton compte, tes réservations, tes billets et l'entrée aux soirées.",
       "T'envoyer les emails liés à tes réservations : confirmation, rappels, changement, liste d'attente, remerciement.",
       "Si tu t'es inscrit·e à la newsletter : t'informer des nouvelles soirées et des nouveautés de l'app (désinscription en un clic dans chaque email).",
+      "Si tu nous as laissé ton email via le QR code des tables ou la page des photos d'une soirée : t'envoyer les photos, le message de remerciement et les invitations aux prochaines soirées (désinscription en un clic dans chaque email).",
       "Transmettre au lieu qui accueille la soirée la liste des participants (prénom, nom, nombre de places) pour préparer l'accueil.",
       "Améliorer nos soirées grâce à tes notes et commentaires."
     ],

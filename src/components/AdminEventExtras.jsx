@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, Hourglass, Star, Copy, MessageCircle } from "lucide-react";
+import { Sparkles, Hourglass, Star, Copy, MessageCircle, Camera, QrCode } from "lucide-react";
 import { colors } from "../lib/theme";
 
 const box = { background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 12, marginBottom: 14 };
@@ -32,6 +32,18 @@ function welcomeMessage(event, newcomers) {
   ].join("\n");
 }
 
+const APP_URL = "https://spritz-connection.vercel.app";
+
+function photosMessage(event) {
+  return [
+    `Grazie à toutes et à tous pour ${event?.title ? `« ${event.title} »` : "la soirée"} ! 🍹`,
+    "Les photos de la soirée sont en ligne, retrouvez-vous ici 📸",
+    `${APP_URL}/photos/${event?.id}`,
+    "",
+    "En laissant votre email sur la page, vous recevrez aussi les invitations à nos prochaines soirées, en avant-première."
+  ].join("\n");
+}
+
 // Admin, sous la liste des billets : nouveaux à accueillir, liste d'attente, notes de la soirée
 export default function AdminEventExtras({ event, tickets, extras }) {
   const [notice, setNotice] = useState("");
@@ -40,6 +52,13 @@ export default function AdminEventExtras({ event, tickets, extras }) {
   const ratings = extras?.ratings;
   const isPast = event && new Date(event.event_date).getTime() < Date.now();
   const msg = welcomeMessage(event, newcomers);
+  const contacts = extras?.contacts || [];
+  const photosMsg = photosMessage(event);
+  const copy = (text, done) =>
+    navigator.clipboard
+      .writeText(text)
+      .then(() => setNotice(done))
+      .catch(() => setNotice("Copie impossible."));
 
   return (
     <>
@@ -103,6 +122,50 @@ export default function AdminEventExtras({ event, tickets, extras }) {
               ))}
             </>
           )}
+        </div>
+      )}
+
+      {event && (
+        <div style={box}>
+          <div style={title}>
+            <Camera size={13} color={colors.orange} /> Photos et contacts ({contacts.length})
+          </div>
+          <p style={small}>
+            Pour les personnes inscrites via Meet5 ou ailleurs, sans email dans l'app. Pendant la soirée : pose le QR code sur les tables. Après : partage le lien
+            des photos dans le groupe Meet5. Chacun laisse son email, reçoit le lendemain le mail de remerciement (avis Google, photos) et les invitations aux
+            prochaines soirées.
+          </p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <a style={btn} href={`/event/${event.id}/qr-table`} target="_blank" rel="noreferrer">
+              <QrCode size={13} /> QR code de table
+            </a>
+            <button style={btn} onClick={() => copy(photosMsg, "Message des photos copié : colle-le dans le groupe Meet5.")}>
+              <Copy size={13} /> Message photos
+            </button>
+            <a style={btn} href={`https://wa.me/?text=${encodeURIComponent(photosMsg)}`} target="_blank" rel="noreferrer">
+              <MessageCircle size={13} /> WhatsApp
+            </a>
+          </div>
+          {contacts.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              {contacts.map((c) => (
+                <div key={c.email} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 0", borderTop: `1px solid ${colors.border}`, fontSize: 12.5 }}>
+                  <div>
+                    <strong>{c.name}</strong>
+                    <div style={{ color: colors.muted, fontSize: 11.5 }}>
+                      {c.email}
+                      {c.phone ? ` · ${c.phone}` : ""}
+                    </div>
+                  </div>
+                  <span style={{ color: colors.muted, fontSize: 11, whiteSpace: "nowrap" }}>
+                    {c.source === "table" ? "QR de table" : "page photos"}
+                    {c.thanks_sent_at ? " · ✓ remercié·e" : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {notice && <p style={{ fontSize: 12, color: colors.olive, margin: "8px 0 0" }}>{notice}</p>}
         </div>
       )}
 

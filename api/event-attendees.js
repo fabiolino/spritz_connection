@@ -8,6 +8,9 @@
 //        (vercel.json y redirige uniquement les robots de prévisualisation)
 //   GET  ?unsubscribe=1&e=…&t=…                 → désinscription de la liste « Spritz Connection »
 //   POST {action:"subscribe-self"} + jeton        → ajoute le membre connecté à la liste Brevo
+//   POST {action:"contact-info", eventId}         → infos d'une soirée pour /photos et /bienvenue
+//   POST {action:"contact-save", eventId, …}      → contact laissé (photos ou QR de table) + photos
+//   POST {action:"contact-photos", eventId}       → photos, pour qui a déjà laissé son email
 
 import { createClient } from "@supabase/supabase-js";
 import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brevo.js";
@@ -15,6 +18,7 @@ import { buildIcs } from "./_calendar.js";
 import { joinWaitlist } from "./_waitlist.js";
 import { rateEvent } from "./_ratings.js";
 import { announceNewEvents } from "./_announce.js";
+import { contactEventInfo, eventPhotos, saveEventContact } from "./_contacts.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -193,6 +197,23 @@ export default async function handler(req, res) {
       return res.status(200).json(result);
     } catch (err) {
       console.error("Erreur liste d'attente:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  // Contacts récupérés via la page photos ou le QR code de table (voir _contacts.js)
+  if (action === "contact-info" || action === "contact-save" || action === "contact-photos") {
+    try {
+      if (action === "contact-save") {
+        const result = await saveEventContact(supabaseAdmin, req.body || {});
+        if (result.error) return res.status(result.status || 400).json({ error: result.error });
+        return res.status(200).json(result);
+      }
+      const result = action === "contact-info" ? await contactEventInfo(supabaseAdmin, eventId) : await eventPhotos(supabaseAdmin, eventId);
+      if (!result) return res.status(404).json({ error: "Soirée introuvable." });
+      return res.status(200).json(action === "contact-info" ? { event: result } : result);
+    } catch (err) {
+      console.error("Erreur contact soirée:", err);
       return res.status(500).json({ error: "Erreur serveur" });
     }
   }

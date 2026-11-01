@@ -10,7 +10,7 @@ import { useIsDesktop } from "../lib/useIsDesktop";
 export const NAV_HEIGHT = 64;
 
 // Pages où la barre est masquée (la discussion a sa propre zone de saisie en bas d'écran)
-const HIDDEN = [/^\/lieu\//, /^\/event\/[^/]+\/chat/];
+const HIDDEN = [/^\/lieu\//, /^\/event\/[^/]+\/chat/, /^\/event\/[^/]+\/qr-table/];
 
 export function useBottomNavVisible() {
   const { pathname } = useLocation();

@@ -29,6 +29,9 @@ import MyTickets from "./pages/MyTickets.jsx";
 import Crew from "./pages/Crew.jsx";
 import VenueSpace from "./pages/VenueSpace.jsx";
 import RateEvent from "./pages/RateEvent.jsx";
+import EventPhotos from "./pages/EventPhotos.jsx";
+import TableJoin from "./pages/TableJoin.jsx";
+import TableCard from "./pages/TableCard.jsx";
 import Updates from "./pages/Updates.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Communities from "./pages/Communities.jsx";
@@ -59,7 +62,7 @@ function PageSpace() {
 function Frame({ children }) {
   const { pathname } = useLocation();
   const desktop = useIsDesktop();
-  const wide = desktop && pathname === "/admin";
+  const wide = (desktop && pathname === "/admin") || /\/qr-table$/.test(pathname);
   return (
     <div
       style={{
@@ -88,6 +91,9 @@ export default function App() {
           <Route path="/event/:id/register" element={<Register />} />
           <Route path="/event/:id/chat" element={<Chat />} />
           <Route path="/event/:id/affichette" element={<EventPoster />} />
+          <Route path="/event/:id/qr-table" element={<TableCard />} />
+          <Route path="/photos/:id" element={<EventPhotos />} />
+          <Route path="/bienvenue/:id" element={<TableJoin />} />
           <Route path="/app" element={<InstallApp />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/create-event" element={<CreateEvent />} />

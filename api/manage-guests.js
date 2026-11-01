@@ -11,6 +11,7 @@ import { geocodeAddress } from "./_geocode.js";
 import { ingest, listLinks, setLink, processPending } from "./_external.js";
 import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
 import { ratingsFor } from "./_ratings.js";
+import { contactsFor } from "./_contacts.js";
 import { sendListCampaign, buildUpdateHtml } from "./_announce.js";
 import {
   addTaken,
@@ -182,7 +183,9 @@ export default async function handler(req, res) {
       const firstSet = new Set((firsts || []).map((f) => f.registration_id));
       const waitlist = await waitlistFor(supabaseAdmin, eventId);
       const ratings = await ratingsFor(supabaseAdmin, eventId);
+      const contacts = await contactsFor(supabaseAdmin, eventId);
       return res.status(200).json({
+        contacts,
         waitlist: waitlist.map((w) => ({ id: w.id, name: w.name, phone: w.phone, email: w.email, quantity: w.quantity, notified: w.status === "notified", at: w.created_at })),
         ratings,
         tickets: (regs || []).map((r) => ({

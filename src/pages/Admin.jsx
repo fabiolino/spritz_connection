@@ -406,7 +406,7 @@ export default function Admin() {
         return;
       }
       setEventTickets(data.tickets || []);
-      setTicketExtras({ waitlist: data.waitlist || [], ratings: data.ratings || null });
+      setTicketExtras({ waitlist: data.waitlist || [], ratings: data.ratings || null, contacts: data.contacts || [] });
       setLoadingTickets(false);
     } catch (err) {
       setTicketsError("Impossible de contacter le serveur");

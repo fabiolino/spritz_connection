@@ -64,6 +64,8 @@ export default async function handler(req, res) {
             recipientEmail: person.email,
             registrationId: person.regIds[0],
             refCode: person.refCode,
+            photoCount: event.photoCount || 0,
+            fromContact: person.regIds.length === 0,
             nextSameType: sameType,
             nextEvents: others.filter((e) => !sameType || e.id !== sameType.id).slice(0, 2)
           });
@@ -184,12 +186,47 @@ async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blo
       byKey.set(key, entry);
     }
 
+    // Remerciement : aussi aux personnes qui ont laissé leur email sur place (QR de table)
+    // ou sur la page photos — souvent inscrites via Meet5, sans email dans l'app.
+    if (kind === "thanks") {
+      const { data: contacts } = await supabaseAdmin
+        .from("event_contacts")
+        .select("id, name, email")
+        .eq("event_id", event.id)
+        .is("thanks_sent_at", null);
+      // Déjà remercié·e au titre d'une inscription à cette soirée : on ne renvoie pas
+      const already = new Set();
+      if ((contacts || []).length) {
+        const { data: doneRegs } = await supabaseAdmin.from("registrations").select("guest_email, user_id").eq("event_id", event.id).not("thanks_sent_at", "is", null);
+        for (const r of doneRegs || []) {
+          if (r.guest_email) already.add(String(r.guest_email).trim().toLowerCase());
+          if (r.user_id) {
+            const { data: pr } = await supabaseAdmin.from("profiles").select("email").eq("id", r.user_id).maybeSingle();
+            if (pr?.email) already.add(String(pr.email).trim().toLowerCase());
+          }
+        }
+      }
+      for (const c of contacts || []) {
+        const email = String(c.email || "").trim().toLowerCase();
+        if (!EMAIL_RE.test(email)) continue;
+        if (already.has(email)) {
+          if (!dry) await markDone(column, [], [c.id]);
+          continue;
+        }
+        const entry = byKey.get(email) || { email, name: c.name, hasAccount: false, regIds: [], contactIds: [], reg: null, firstTime: false, refCode: null };
+        entry.contactIds = [...(entry.contactIds || []), c.id];
+        byKey.set(email, entry);
+      }
+      const { count } = await supabaseAdmin.from("event_photos").select("id", { count: "exact", head: true }).eq("event_id", event.id);
+      event.photoCount = count || 0;
+    }
+
     let eventSent = 0;
     let optedOut = 0;
     const toSend = [];
     for (const person of byKey.values()) {
       if (blocked.has(person.email)) {
-        if (!dry) await markDone(column, person.regIds);
+        if (!dry) await markDone(column, person.regIds, person.contactIds);
         optedOut++;
       } else {
         toSend.push(person);
@@ -212,7 +249,7 @@ async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blo
               tag
             });
             if (result.ok) {
-              await markDone(column, person.regIds);
+              await markDone(column, person.regIds, person.contactIds);
               await addToSpritzList(supabaseAdmin, { email: person.email, name: person.name });
               eventSent++;
             } else {
@@ -229,7 +266,8 @@ async function runPass({ kind, from, to, column, tag, build, dry, onlyEvent, blo
   return { events: (events || []).length, sent, summary };
 }
 
-async function markDone(column, ids) {
-  if (!ids.length) return;
-  await supabaseAdmin.from("registrations").update({ [column]: new Date().toISOString() }).in("id", ids);
+async function markDone(column, ids, contactIds = []) {
+  const at = new Date().toISOString();
+  if (ids.length) await supabaseAdmin.from("registrations").update({ [column]: at }).in("id", ids);
+  if (contactIds?.length && column === "thanks_sent_at") await supabaseAdmin.from("event_contacts").update({ thanks_sent_at: at }).in("id", contactIds);
 }

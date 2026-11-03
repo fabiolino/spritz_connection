@@ -45,6 +45,14 @@ function parisToISO(value) {
   return new Date(utc).toISOString();
 }
 
+// Gratuit = aucun prix, aucune formule payante et aucun lien de paiement.
+// (Sans ce calcul, une soirée créée ou dupliquée depuis l'admin restait « payante à 0 € ».)
+function computeIsFree({ price_member, price_nonmember, sumupLink, options }) {
+  const hasPaidOption =
+    Array.isArray(options) && options.some((o) => o && o.label && o.price !== "" && Number(o.price) > 0);
+  return !(Number(price_member) > 0) && !(Number(price_nonmember) > 0) && !sumupLink && !hasPaidOption;
+}
+
 async function replaceOptions(eventId, options) {
   await supabaseAdmin.from("event_options").delete().eq("event_id", eventId);
   if (Array.isArray(options) && options.length > 0) {
@@ -178,6 +186,7 @@ export default async function handler(req, res) {
           visibility: source.visibility,
           venue_id: source.venue_id,
           sumup_link: source.sumup_link,
+          is_free: source.is_free,
           cover_photo_url: source.cover_photo_url,
           latitude: source.latitude,
           longitude: source.longitude,
@@ -229,6 +238,7 @@ export default async function handler(req, res) {
           visibility: visibility === "private" ? "private" : "public",
           venue_id: venueId || null,
           sumup_link: sumupLink || null,
+          is_free: computeIsFree({ price_member, price_nonmember, sumupLink, options }),
           cover_photo_url: coverPhotoUrl ? String(coverPhotoUrl).trim() || null : null,
           latitude,
           longitude
@@ -281,6 +291,7 @@ export default async function handler(req, res) {
         visibility: visibility === "private" ? "private" : "public",
         venue_id: venueId || null,
         sumup_link: sumupLink || null,
+        is_free: computeIsFree({ price_member, price_nonmember, sumupLink, options }),
         cover_photo_url: coverPhotoUrl ? String(coverPhotoUrl).trim() || null : null,
         latitude,
         longitude

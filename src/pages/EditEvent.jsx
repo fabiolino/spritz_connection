@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Check, Lock, Globe, Plus, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { colors, fonts } from "../lib/theme";
+import PasswordInput from "../components/PasswordInput.jsx";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import AgeRangeSlider from "../components/AgeRangeSlider";
@@ -151,7 +152,7 @@ export default function EditEvent() {
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
           <label style={labelStyle}>Mot de passe administrateur</label>
-          <input type="password" required style={inputStyle} value={form.adminSecret} onChange={(e) => update("adminSecret", e.target.value)} />
+          <PasswordInput required style={inputStyle} value={form.adminSecret} onChange={(e) => update("adminSecret", e.target.value)} />
         </div>
 
         <div>

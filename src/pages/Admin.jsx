@@ -6,6 +6,7 @@ import { colors, fonts } from "../lib/theme";
 import InviteButtons from "../components/InviteButtons.jsx";
 import AdminVenues from "../components/AdminVenues.jsx";
 import AdminMembers from "../components/AdminMembers.jsx";
+import PasswordInput from "../components/PasswordInput.jsx";
 import AdminAddRegistration from "../components/AdminAddRegistration.jsx";
 import AdminExternalImports from "../components/AdminExternalImports.jsx";
 import AdminReviewTools from "../components/AdminReviewTools.jsx";
@@ -536,8 +537,8 @@ export default function Admin() {
         Mot de passe administrateur (pour les actions ci-dessous)
       </label>
       <form onSubmit={handleVerifyAdmin} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <input
-          type="password"
+        <PasswordInput
+          wrapperStyle={{ flex: 1, minWidth: 0 }}
           placeholder="Mot de passe administrateur"
           value={adminSecret}
           onChange={(e) => {

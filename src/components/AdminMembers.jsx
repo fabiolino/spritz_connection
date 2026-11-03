@@ -78,6 +78,9 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [search, setSearch] = useState("");
+  // La liste reste repliée par défaut (elle devient longue) : on l'ouvre au besoin,
+  // ou elle s'affiche d'elle-même dès qu'on tape une recherche.
+  const [showList, setShowList] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [notice, setNotice] = useState("");
 
@@ -213,6 +216,8 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
     whiteSpace: "nowrap"
   });
 
+  const listVisible = showList || search.trim() !== "";
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 12 }}>
@@ -277,9 +282,27 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
         </button>
       </div>
 
-      {list.length === 0 && <p style={{ fontSize: 12.5, color: colors.muted }}>Personne dans ce filtre pour l'instant.</p>}
+      <button
+        onClick={() => setShowList((v) => !v)}
+        style={{
+          width: "100%",
+          background: "none",
+          border: `1px dashed ${colors.border}`,
+          color: colors.ink,
+          borderRadius: 12,
+          padding: 10,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+          marginBottom: 10
+        }}
+      >
+        {listVisible ? "Masquer la liste des membres" : `Afficher la liste des membres (${list.length})`}
+      </button>
 
-      {list.map((m) => (
+      {listVisible && list.length === 0 && <p style={{ fontSize: 12.5, color: colors.muted }}>Personne dans ce filtre pour l'instant.</p>}
+
+      {listVisible && list.map((m) => (
         <div
           key={m.id}
           style={{

@@ -42,15 +42,16 @@ export default function TableJoin() {
 
       {!done && (
         <div style={card}>
-          <div style={{ fontWeight: 800, color: colors.navy, marginBottom: 6 }}>Recevez les photos de ce soir 📸</div>
+          <div style={{ fontWeight: 800, color: colors.navy, marginBottom: 6 }}>Gagne ton entrée pour la prochaine soirée 🎁</div>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: "0 0 16px" }}>
-            Laissez votre prénom et votre email : demain, vous recevez les photos de la soirée, puis les invitations à nos prochaines soirées en avant-première.
+            Laisse ton prénom et ton email : tu participes au tirage au sort de ce soir. Demain, tu reçois aussi les photos de la soirée, puis nos prochaines
+            soirées en avant-première.
           </p>
           <ContactForm
             eventId={id}
             source="table"
-            submitLabel="Je veux les photos"
-            consentText="J'accepte de recevoir par email les photos de la soirée et les invitations aux prochaines soirées Spritz Connection."
+            submitLabel="Je participe au tirage"
+            consentText="J'accepte de recevoir par email les photos de la soirée et l'agenda des prochaines soirées Spritz Connection."
             onDone={setDone}
           />
         </div>
@@ -61,7 +62,7 @@ export default function TableJoin() {
           <div style={{ ...card, display: "flex", gap: 10, alignItems: "flex-start" }}>
             <Check size={22} color={colors.olive} style={{ flexShrink: 0, marginTop: 2 }} />
             <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.5 }}>
-              C'est noté ! Les photos vous arrivent demain par email. Profitez bien de la soirée.
+              C'est noté, tu participes au tirage ! Garde ton téléphone à portée de main, le gagnant est annoncé pendant la soirée. Les photos t'arrivent demain par email.
             </p>
           </div>
           <div style={{ ...card, marginTop: 14 }}>

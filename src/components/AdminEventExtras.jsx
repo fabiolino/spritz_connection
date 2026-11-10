@@ -47,6 +47,7 @@ function photosMessage(event) {
 // Admin, sous la liste des billets : nouveaux à accueillir, liste d'attente, notes de la soirée
 export default function AdminEventExtras({ event, tickets, extras }) {
   const [notice, setNotice] = useState("");
+  const [winner, setWinner] = useState(null);
   const newcomers = (tickets || []).filter((t) => t.firstTime);
   const waitlist = extras?.waitlist || [];
   const ratings = extras?.ratings;
@@ -146,6 +147,29 @@ export default function AdminEventExtras({ event, tickets, extras }) {
               <MessageCircle size={13} /> WhatsApp
             </a>
           </div>
+          {contacts.some((c) => c.source === "table") && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                style={{ ...btn, width: "100%", background: colors.orange, color: "#fff", border: "none" }}
+                onClick={() => {
+                  const pool = contacts.filter((c) => c.source === "table");
+                  setWinner(pool[Math.floor(Math.random() * pool.length)]);
+                }}
+              >
+                🎁 Tirer au sort ({contacts.filter((c) => c.source === "table").length} participant·e·s)
+              </button>
+              {winner && (
+                <div style={{ marginTop: 8, padding: 10, borderRadius: 10, background: colors.bg, textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: colors.muted }}>Gagnant·e</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: colors.navy }}>{winner.name}</div>
+                  <div style={{ fontSize: 11.5, color: colors.muted }}>
+                    {winner.email}
+                    {winner.phone ? ` · ${winner.phone}` : ""}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {contacts.length > 0 && (
             <div style={{ marginTop: 8 }}>
               {contacts.map((c) => (

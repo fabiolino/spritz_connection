@@ -42,14 +42,15 @@ export default function TableCard() {
     >
       <div style={{ fontSize: 10, letterSpacing: "0.2em", fontWeight: 700, color: colors.orange }}>SPRITZ CONNECTION</div>
       <div style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: 700, color: colors.navy, lineHeight: 1.15, margin: "6px 0 4px" }}>
-        Les photos de ce soir 📸
+        Gagne ton entrée 🎁
       </div>
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: colors.orange, marginBottom: 6 }}>pour la prochaine soirée</div>
       <div style={{ fontSize: 13, color: colors.ink, lineHeight: 1.4, marginBottom: 10 }}>
-        Scannez, laissez votre email :<br />
-        <strong>les photos demain</strong> et nos prochaines soirées en avant-première.
+        Scanne, laisse ton prénom et ton email :<br />
+        <strong>tirage au sort ce soir</strong>, et les photos demain.
       </div>
       {qr ? <img src={qr} alt="QR code" style={{ width: "62%", maxWidth: 220, display: "block", margin: "0 auto" }} /> : <div style={{ height: 180 }} />}
-      {title && <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 8 }}>{title}</div>}
+      <div style={{ fontSize: 11.5, color: colors.muted, marginTop: 8 }}>20 secondes, sans appli ni compte{title ? ` · ${title}` : ""}</div>
     </div>
   );
 

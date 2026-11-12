@@ -58,6 +58,9 @@ export default function Admin() {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [ticketsError, setTicketsError] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketFilter, setTicketFilter] = useState("all"); // "all" | "unsent" | "noemail"
+  const [bulkSending, setBulkSending] = useState("");
+  const [ticketNotice, setTicketNotice] = useState("");
   const [ticketExtras, setTicketExtras] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [inviteLink, setInviteLink] = useState(null);
@@ -241,6 +244,8 @@ export default function Admin() {
     setTicketExtras(null);
     setTicketsError("");
     setTicketSearch("");
+    setTicketFilter("all");
+    setTicketNotice("");
     setInviteLink(null);
     if (!eventId) return;
     if (!adminSecret) {
@@ -415,13 +420,17 @@ export default function Admin() {
     }
   }
 
-  async function sendTicket(t) {
-    let email = "";
-    if (!t.hasEmail) {
+  // Envoie (ou renvoie) le billet par email. newEmail : corrige / ajoute l'adresse (inscription sans compte)
+  async function sendTicket(t, newEmail, { quiet = false } = {}) {
+    let email = newEmail || "";
+    if (!t.hasEmail && !email) {
       email = (window.prompt(`Email de ${t.name} pour lui envoyer son billet :`) || "").trim();
-      if (!email) return;
+      if (!email) return false;
     }
-    setTicketsError("");
+    if (!quiet) {
+      setTicketsError("");
+      setTicketNotice("");
+    }
     try {
       const res = await fetch("/api/manage-guests", {
         method: "POST",
@@ -430,13 +439,61 @@ export default function Admin() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setTicketsError(data.error || "Envoi impossible");
-        return;
+        if (!quiet) setTicketsError(data.error || "Envoi impossible");
+        return false;
       }
-      setEventTickets((prev) => prev.map((x) => (x.id === t.id ? { ...x, emailed: true, hasEmail: true } : x)));
+      const now = new Date().toISOString();
+      setEventTickets((prev) =>
+        prev.map((x) => (x.id === t.id ? { ...x, emailed: true, hasEmail: true, sentAt: now, email: email ? email.toLowerCase() : x.email } : x))
+      );
+      if (!quiet) setTicketNotice(`Billet envoyé à ${email || t.email || t.name}.`);
+      return true;
     } catch (err) {
-      setTicketsError("Impossible de contacter le serveur");
+      if (!quiet) setTicketsError("Impossible de contacter le serveur");
+      return false;
     }
+  }
+
+  // Corriger l'email d'une inscription sans compte, puis renvoyer le billet à la nouvelle adresse
+  async function editTicketEmail(t) {
+    const email = (window.prompt(`Nouvel email de ${t.name} (le billet y sera renvoyé) :`, t.email || "") || "").trim();
+    if (!email || email.toLowerCase() === (t.email || "").toLowerCase()) return;
+    await sendTicket(t, email);
+  }
+
+  // Envoyer le billet à toutes les inscriptions qui ont un email mais ne l'ont jamais reçu
+  async function sendAllMissingTickets() {
+    const todo = (eventTickets || []).filter((t) => t.hasEmail && !t.emailed);
+    if (todo.length === 0) return;
+    if (!window.confirm(`Envoyer le billet par email à ${todo.length} personne${todo.length > 1 ? "s" : ""} qui ne l'ont pas encore reçu ?`)) return;
+    setTicketsError("");
+    setTicketNotice("");
+    let ok = 0;
+    for (let i = 0; i < todo.length; i++) {
+      setBulkSending(`Envoi ${i + 1}/${todo.length}…`);
+      if (await sendTicket(todo[i], "", { quiet: true })) ok++;
+    }
+    setBulkSending("");
+    setTicketNotice(`${ok} billet${ok > 1 ? "s" : ""} envoyé${ok > 1 ? "s" : ""}${ok < todo.length ? ` · ${todo.length - ok} échec(s)` : ""}.`);
+  }
+
+  function ticketUrl(t) {
+    return `${window.location.origin}/ticket/${t.id}`;
+  }
+
+  // Lien WhatsApp vers le mobile de la personne, avec son billet (pour qui ne lit pas ses emails)
+  function ticketWhatsappUrl(t) {
+    let digits = String(t.phone || "").replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.startsWith("00")) digits = digits.slice(2);
+    else if (digits.length === 10 && digits.startsWith("0")) digits = "33" + digits.slice(1);
+    const ev = allEvents.find((e) => e.id === selectedEventId);
+    const first = String(t.name || "").split(" ")[0];
+    const text =
+      `Ciao ${first} ! Voici ton billet pour ${ev?.title || "la soirée"}` +
+      (t.code ? ` (code ${t.code})` : "") +
+      ` : ${ticketUrl(t)}\nÀ montrer à l'entrée. À très vite ! 🍹`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
   }
 
   async function cancelTicket(t) {
@@ -857,7 +914,7 @@ export default function Admin() {
             ) : (
               <>
                 <input
-                  placeholder="Rechercher un code ou un nom…"
+                  placeholder="Rechercher un code, un nom ou un email…"
                   value={ticketSearch}
                   onChange={(e) => setTicketSearch(e.target.value)}
                   style={{
@@ -872,11 +929,64 @@ export default function Admin() {
                     marginBottom: 8
                   }}
                 />
+                {(() => {
+                  const unsent = eventTickets.filter((t) => t.hasEmail && !t.emailed).length;
+                  const noEmail = eventTickets.filter((t) => !t.hasEmail).length;
+                  const chip = (key, label) => (
+                    <button
+                      key={key}
+                      onClick={() => setTicketFilter(key)}
+                      style={{
+                        background: ticketFilter === key ? colors.navy : "none",
+                        color: ticketFilter === key ? "#fff" : colors.ink,
+                        border: `1px solid ${ticketFilter === key ? colors.navy : colors.border}`,
+                        borderRadius: 20,
+                        padding: "4px 10px",
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {chip("all", `Tous (${eventTickets.length})`)}
+                        {chip("unsent", `Billet pas envoyé (${unsent})`)}
+                        {chip("noemail", `Sans email (${noEmail})`)}
+                      </div>
+                      {unsent > 0 && (
+                        <button
+                          onClick={sendAllMissingTickets}
+                          disabled={!!bulkSending}
+                          style={{
+                            marginTop: 8,
+                            width: "100%",
+                            background: colors.blue,
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 10,
+                            padding: 9,
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: bulkSending ? "wait" : "pointer"
+                          }}
+                        >
+                          {bulkSending || `✉ Envoyer le billet aux ${unsent} personne${unsent > 1 ? "s" : ""} qui ne l'ont pas reçu`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 {eventTickets
+                  .filter((t) => (ticketFilter === "unsent" ? t.hasEmail && !t.emailed : ticketFilter === "noemail" ? !t.hasEmail : true))
                   .filter((t) => {
                     const q = ticketSearch.trim().toLowerCase();
                     return (
                       !q ||
+                      (t.email || "").toLowerCase().includes(q) ||
                       (t.code || "").toLowerCase().includes(q) ||
                       (t.name || "").toLowerCase().includes(q) ||
                       (t.attendeeNames || []).some((n) => n.toLowerCase().includes(q))
@@ -908,9 +1018,46 @@ export default function Admin() {
                         )}
                         {t.options.length > 0 && <div style={{ color: colors.muted, fontSize: 11.5 }}>+ {t.options.join(", ")}</div>}
                         {t.source && <div style={{ color: colors.muted, fontSize: 11 }}>via {t.source}</div>}
-                        {t.withoutAccount && t.contact && (
-                          <div style={{ color: colors.muted, fontSize: 11 }}>sans compte · {t.contact}</div>
-                        )}
+                        <div style={{ color: colors.muted, fontSize: 11, wordBreak: "break-all" }}>
+                          {t.withoutAccount ? "sans compte · " : "compte · "}
+                          {t.email ? t.email : <span style={{ color: colors.red, fontWeight: 700 }}>pas d'email</span>}
+                          {t.phone ? ` · ${t.phone}` : ""}
+                        </div>
+                        <div style={{ fontSize: 11, color: t.emailed ? colors.olive : t.hasEmail ? "#9A6B00" : colors.muted, fontWeight: 600 }}>
+                          {t.emailed
+                            ? `✓ Billet envoyé${t.sentAt ? ` le ${new Date(t.sentAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`
+                            : t.hasEmail
+                            ? "Billet jamais envoyé"
+                            : "Billet non envoyé (aucun email)"}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 5 }}>
+                          <a
+                            href={ticketUrl(t)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 11, fontWeight: 700, color: colors.navy, border: `1px solid ${colors.border}`, borderRadius: 20, padding: "3px 9px", textDecoration: "none" }}
+                          >
+                            👁 Voir le billet
+                          </a>
+                          {ticketWhatsappUrl(t) && (
+                            <a
+                              href={ticketWhatsappUrl(t)}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: 11, fontWeight: 700, color: "#1F8F4E", border: "1px solid #25D366", borderRadius: 20, padding: "3px 9px", textDecoration: "none" }}
+                            >
+                              WhatsApp
+                            </a>
+                          )}
+                          {t.withoutAccount && t.hasEmail && (
+                            <button
+                              onClick={() => editTicketEmail(t)}
+                              style={{ fontSize: 11, fontWeight: 700, color: colors.muted, background: "none", border: `1px solid ${colors.border}`, borderRadius: 20, padding: "3px 9px", cursor: "pointer" }}
+                            >
+                              ✎ Corriger l'email
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontWeight: 800, letterSpacing: 1 }}>{t.code}</div>
@@ -955,7 +1102,7 @@ export default function Admin() {
                             whiteSpace: "nowrap"
                           }}
                         >
-                          {t.emailed ? "✓ Billet envoyé · renvoyer" : t.hasEmail ? "✉ Envoyer le billet" : "✉ Ajouter un email"}
+                          {t.emailed ? "↻ Renvoyer le billet" : t.hasEmail ? "✉ Envoyer le billet" : "✉ Ajouter un email"}
                         </button>
                         <button
                           onClick={() => cancelTicket(t)}
@@ -986,6 +1133,7 @@ export default function Admin() {
                 </p>
               </>
             )}
+            {ticketNotice && <p style={{ color: colors.olive, fontSize: 12, marginTop: 6, fontWeight: 600 }}>{ticketNotice}</p>}
             {ticketsError && <p style={{ color: colors.red, fontSize: 12, marginTop: 6 }}>{ticketsError}</p>}
           </div>
         )}

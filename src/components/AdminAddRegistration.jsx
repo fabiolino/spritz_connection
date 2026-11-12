@@ -19,10 +19,18 @@ const inputStyle = {
 // Provenance d'une réservation reçue hors de l'app (visible par l'admin seulement)
 export const SOURCES = ["Autre application", "WhatsApp", "Téléphone / SMS", "Instagram", "Sur place", "Autre"];
 
-// Une ligne de liste : « Marie Dupont +2 06 12 34 56 78 » → nom, nombre de personnes, mobile
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Une ligne de liste : « Marie Dupont +2 06 12 34 56 78 marie@mail.fr » → nom, nombre de personnes, mobile, email
 export function parseLine(line) {
   let text = String(line || "").trim();
   if (!text) return null;
+  let email = "";
+  const emailMatch = text.match(/[^\s<>(),;]+@[^\s<>(),;]+\.[a-z]{2,}/i);
+  if (emailMatch) {
+    email = emailMatch[0].toLowerCase();
+    text = text.replace(emailMatch[0], " ");
+  }
   let phone = "";
   const phoneMatch = text.match(/(\+\d{2,3}[\s.]?\d(?:[\s.-]?\d{2}){4}|0\d(?:[\s.-]?\d{2}){4})/);
   if (phoneMatch) {
@@ -39,7 +47,7 @@ export function parseLine(line) {
   }
   const name = text.replace(/[,;–—-]+\s*$/, "").replace(/\s+/g, " ").trim();
   if (!name) return null;
-  return { name, quantity: Math.max(1, Math.min(MAX_GROUP, quantity)), phone };
+  return { name, quantity: Math.max(1, Math.min(MAX_GROUP, quantity)), phone, email };
 }
 
 // Admin : inscrire à la main une personne, un groupe, ou toute une liste
@@ -97,7 +105,7 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
       const failed = [];
       for (const p of people) {
         try {
-          const data = await addOne({ guestName: p.name, guestPhone: p.phone, quantity: p.quantity });
+          const data = await addOne({ guestName: p.name, guestPhone: p.phone, guestEmail: p.email, quantity: p.quantity, fromList: true });
           ok++;
           places += p.quantity;
           overbooked = overbooked || data.overbooked;
@@ -121,6 +129,14 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
 
     if (!name.trim()) {
       setError("Indique le nom de la personne.");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Indique l'email de la personne : on y envoie son billet.");
+      return;
+    }
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("L'adresse email ne semble pas valide.");
       return;
     }
     setSaving(true);
@@ -228,7 +244,7 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
           <input type="tel" placeholder="Mobile (conseillé : le lieu pourra la joindre)" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
           <input
             type="email"
-            placeholder="Email (facultatif — pour lui envoyer son billet)"
+            placeholder="Email * (on y envoie son billet)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={inputStyle}
@@ -257,20 +273,21 @@ export default function AdminAddRegistration({ adminSecret, event, onAdded }) {
           <textarea
             rows={7}
             autoFocus
-            placeholder={"Une personne par ligne, par exemple :\nMarie Dupont 06 12 34 56 78\nPaolo Rossi +2\nSophie (3)"}
+            placeholder={"Une personne par ligne, par exemple :\nMarie Dupont 06 12 34 56 78 marie@mail.fr\nPaolo Rossi +2 paolo@mail.it\nSophie (3)"}
             value={listText}
             onChange={(e) => setListText(e.target.value)}
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
           />
           <p style={{ fontSize: 11.5, color: colors.muted, margin: 0, lineHeight: 1.45 }}>
-            « +2 » = la personne et 2 accompagnants ; « (3) » ou « x3 » = 3 personnes au total. Un numéro de mobile sur la ligne est
-            repris automatiquement.
+            « +2 » = la personne et 2 accompagnants ; « (3) » ou « x3 » = 3 personnes au total. Le mobile et l'email écrits sur la ligne
+            sont repris automatiquement ; le billet part par email dès l'inscription.
           </p>
           {listPreview.length > 0 && (
             <div style={{ fontSize: 12, background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 10, padding: "6px 10px" }}>
               {listPreview.map((p, i) => (
                 <div key={i} style={{ padding: "2px 0" }}>
                   <strong>{p.name}</strong> · {p.quantity} pers.{p.phone ? ` · ${p.phone}` : ""}
+                  {p.email ? ` · ${p.email}` : <span style={{ color: colors.red }}> · sans email (pas de billet envoyé)</span>}
                 </div>
               ))}
             </div>

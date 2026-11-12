@@ -203,7 +203,10 @@ export default async function handler(req, res) {
           withoutAccount: !r.user_id,
           source: r.source || null,
           hasEmail: !!(r.guest_email || (r.user_id && profilesById[r.user_id]?.email)),
+          email: (r.user_id ? profilesById[r.user_id]?.email : r.guest_email) || null,
+          phone: r.guest_phone || null,
           emailed: !!r.confirmation_sent_at,
+          sentAt: r.confirmation_sent_at || null,
           options: optionsByReg[r.id] || []
         }))
       });
@@ -237,6 +240,11 @@ export default async function handler(req, res) {
       }
       if (!evId) return res.status(400).json({ error: "eventId manquant" });
       if (!name) return res.status(400).json({ error: "Indique le nom de la personne" });
+      // Email obligatoire pour une inscription saisie à la main ; seule une liste collée
+      // (réservations d'une autre application, souvent sans email) peut s'en passer
+      if (!guestEmail && !req.body.fromList) {
+        return res.status(400).json({ error: "Indique l'email de la personne : on y envoie son billet" });
+      }
       const quantity = parseQuantity(req.body.quantity);
       const { data: ev } = await supabaseAdmin
         .from("events")

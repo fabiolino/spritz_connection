@@ -8,7 +8,7 @@
 
 import { notifyRegistration } from "./_notify.js";
 import { notifyWaitlist } from "./_waitlist.js";
-import { addTaken, entryTotal, insertRegistration, roundCents, ADVANCE_PRICE_FOR_ALL } from "./_registration.js";
+import { addTaken, entryTotal, insertRegistration, isFormulaEvent, roundCents, ADVANCE_PRICE_FOR_ALL } from "./_registration.js";
 
 export const EXTERNAL_SOURCE_LABEL = "Autre application";
 
@@ -127,7 +127,11 @@ async function applyImport(supabaseAdmin, imp, eventId) {
     let amount = 0;
     if (!ev.is_free) {
       const { data: opts } = await supabaseAdmin.from("event_options").select("price, onsite_price").eq("event_id", eventId);
-      const onsite = (opts || []).map((o) => Number(o.onsite_price) || Number(o.price) || 0).filter((v) => v > 0);
+      // Les options ne remplacent le prix d'entrée que pour une soirée « à formules » (sans prix d'entrée).
+      // Sinon ce sont des suppléments (ex. assiette) : on garde le prix d'entrée sur place.
+      const onsite = isFormulaEvent(ev, opts || [])
+        ? (opts || []).map((o) => Number(o.onsite_price) || Number(o.price) || 0).filter((v) => v > 0)
+        : [];
       amount = onsite.length
         ? Math.min(...onsite)
         : Number(ev.price_nonmember) || roundCents(entryTotal(ev, { isMember: false, quantity: 1, advancePriceForAll: ADVANCE_PRICE_FOR_ALL }));

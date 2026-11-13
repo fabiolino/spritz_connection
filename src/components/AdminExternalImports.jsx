@@ -232,9 +232,9 @@ export default function AdminExternalImports({ adminSecret, events }) {
                       >
                         <option value="">Choisir l'inscription existante…</option>
                         {item.candidates.map((candidate) => (
-                          <option key={candidate.id} value={candidate.id} disabled={!!candidate.externalRef}>
+                          <option key={candidate.id} value={candidate.id} disabled={!!candidate.externalRef && !candidate.alreadyLinked}>
                             {candidate.name} · {candidate.paid ? "payé" : candidate.external ? "externe / à encaisser" : "paiement à vérifier"} · {Number(candidate.amount).toLocaleString("fr-FR")} €
-                            {candidate.externalRef ? " · déjà rattaché" : ""}
+                            {candidate.alreadyLinked ? " · déjà lié à cette annonce" : candidate.externalRef ? " · déjà rattaché ailleurs" : ""}
                           </option>
                         ))}
                       </select>

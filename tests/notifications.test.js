@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseNotification } from "../api/_external.js";
-import { paymentOf, recapPhaseStarted } from "../api/_notify.js";
+import { paymentOf, recapPhaseStarted, shouldSendTeamNotification } from "../api/_notify.js";
 
 test("Meet5 join notification extracts activity, participant and title", () => {
   const parsed = parseNotification({
@@ -47,4 +47,10 @@ test("venue recap phase starts at 14:00 Paris time on the day before", () => {
   assert.equal(recapPhaseStarted("2026-11-14T19:00:00+01:00", new Date("2026-11-13T12:59:00Z")), false);
   assert.equal(recapPhaseStarted("2026-11-14T19:00:00+01:00", new Date("2026-11-13T13:00:00Z")), true);
   assert.equal(recapPhaseStarted("2026-11-14T19:00:00+01:00", new Date("2026-11-14T08:00:00Z")), true);
+});
+
+test("manual registration can suppress the team email while keeping venue notifications enabled", () => {
+  assert.equal(shouldSendTeamNotification({ skipTeam: true }), false);
+  assert.equal(shouldSendTeamNotification({}), true);
+  assert.equal(shouldSendTeamNotification({ skipTeam: false }), true);
 });

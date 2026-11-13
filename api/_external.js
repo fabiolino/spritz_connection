@@ -118,7 +118,7 @@ async function applyImport(supabaseAdmin, imp, eventId) {
       return incomingParts.length >= 2 && candidateKey === incomingKey;
     });
     const reusableMatches = exactMatches.filter((r) => !r.external_ref || r.external_ref === ref);
-    if (reusableMatches.length === 1) {
+    if (exactMatches.length === 1 && reusableMatches.length === 1) {
       const candidate = reusableMatches[0];
       if (!candidate.external_ref) {
         const { error } = await supabaseAdmin.from("registrations").update({ external_ref: ref }).eq("id", candidate.id).is("external_ref", null);
@@ -135,7 +135,7 @@ async function applyImport(supabaseAdmin, imp, eventId) {
           return candidateName.split(" ").includes(first);
         })
       : [];
-    if (exactMatches.length > 0 || (incomingParts.length < 2 && firstNameCandidates.length > 0)) {
+    if (exactMatches.length > 0 || firstNameCandidates.length > 0) {
       return { status: "needs_review" };
     }
     const { data: ev } = await supabaseAdmin
@@ -340,6 +340,7 @@ export async function listLinks(supabaseAdmin) {
       joins: s.joins,
       leaves: s.leaves,
       pending: s.pending,
+      needsReview: s.needsReview || 0,
       lastAt: s.last || l.created_at,
       current: Object.values(s.names)
     };

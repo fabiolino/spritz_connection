@@ -159,6 +159,12 @@ async function handleTicket(req, res) {
     payerName = profile?.name || null;
   }
 
+  // Si l'envoi initial du billet a échoué, chaque consultation du billet relance une tentative sécurisée.
+  if (!reservationExpired && (reg.paid || reg.external) && !reg.confirmation_sent_at) {
+    const emailed = await sendRegistrationEmail(supabaseAdmin, reg.id);
+    if (emailed) reg = { ...reg, confirmation_sent_at: new Date().toISOString() };
+  }
+
   return res.status(200).json({
     ticket: {
       id: reg.id,

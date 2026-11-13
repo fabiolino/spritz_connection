@@ -188,23 +188,46 @@ function buildTeamEmail({ event, row, totals }) {
 
 // À appeler quand une inscription vient d'être confirmée (une seule fois par inscription).
 // reg = ligne complète de registrations ; event = { id, title, event_date, venue_id, seats }
-export async function notifyRegistration(supabaseAdmin, reg, event, options = {}) {
+async function sendNotificationChannel(supabaseAdmin, { registrationId, channel, send }) {
+  const sentColumn = channel === "team" ? "team_notified_at" : "venue_notified_at";
+  const claimColumn = channel === "team" ? "team_notification_claimed_at" : "venue_notification_claimed_at";
+  const now = new Date();
+  const claimedAt = now.toISOString();
+  const staleBefore = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+
+  const { data: claim, error: claimError } = await supabaseAdmin
+    .from("registrations")
+    .update({ [claimColumn]: claimedAt })
+    .eq("id", registrationId)
+    .is(sentColumn, null)
+    .or(`${claimColumn}.is.null,${claimColumn}.lt.${staleBefore}`)
+    .select("id");
+  if (claimError) throw claimError;
+  if (!claim || claim.length === 0) return false;
+
   try {
-    if (!process.env.BREVO_API_KEY || !reg?.id || !event) return;
-
-    // « Réservation » unique de la notification (comme pour confirmation_sent_at)
-    const { data: claimed, error } = await supabaseAdmin
-      .from("registrations")
-      .update({ notified_at: new Date().toISOString() })
-      .eq("id", reg.id)
-      .is("notified_at", null)
-      .select("id");
-    if (error) {
-      console.error("Notification inscription (colonne notified_at absente ?):", error.message);
-      return;
+    const result = await send();
+    if (!result?.ok) {
+      console.error(`Notification ${channel} non envoyée:`, result?.error || result?.skipped || "Erreur inconnue");
+      await supabaseAdmin.from("registrations").update({ [claimColumn]: null }).eq("id", registrationId).eq(claimColumn, claimedAt);
+      return false;
     }
-    if (!claimed || claimed.length === 0) return;
+    const { error: completeError } = await supabaseAdmin
+      .from("registrations")
+      .update({ [sentColumn]: new Date().toISOString(), [claimColumn]: null })
+      .eq("id", registrationId)
+      .eq(claimColumn, claimedAt);
+    if (completeError) throw completeError;
+    return true;
+  } catch (err) {
+    await supabaseAdmin.from("registrations").update({ [claimColumn]: null }).eq("id", registrationId).eq(claimColumn, claimedAt);
+    throw err;
+  }
+}
 
+export async function notifyRegistration(supabaseAdmin, reg, event, options = {}) {
+  if (!process.env.BREVO_API_KEY || !reg?.id || !event) return;
+  try {
     const rows = await loadEventRows(supabaseAdmin, event.id);
     const row = rows.find((r) => r.reg.id === reg.id);
     if (!row) return;
@@ -216,20 +239,34 @@ export async function notifyRegistration(supabaseAdmin, reg, event, options = {}
 
     const team = notifyEmail();
     if (shouldSendTeamNotification(options)) {
-      const content = buildTeamEmail({ event, row, totals });
-      const sent = await sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
-      if (!sent.ok) console.error("Notification équipe non envoyée:", sent.error || sent.skipped);
+      await sendNotificationChannel(supabaseAdmin, {
+        registrationId: reg.id,
+        channel: "team",
+        send: async () => {
+          const content = buildTeamEmail({ event, row, totals });
+          return sendViaBrevo({ to: team, toName: "Spritz Connection", ...content, tag: "notif-inscription" });
+        }
+      });
     }
 
-    // Inscription après le récap (veille 14 h -> fin du jour J) : email au lieu avec le tableau à jour
+    // Après le récap de la veille : notifier le lieu indépendamment de l'email équipe.
     if (event.venue_id && recapPhaseStarted(event.event_date)) {
-      const { data: venue } = await supabaseAdmin.from("venues").select("name, contact_email, notify_cc").eq("id", event.venue_id).maybeSingle();
+      const { data: venue, error: venueError } = await supabaseAdmin
+        .from("venues").select("name, contact_email, notify_cc").eq("id", event.venue_id).maybeSingle();
+      if (venueError) throw venueError;
       const to = String(venue?.contact_email || "").trim().toLowerCase();
-      // Si le lieu est joignable à l'adresse de l'équipe, il vient déjà de recevoir le mail complet
       if (to && to !== team) {
-        const late = buildLateEmail({ event, venueName: venue.name, row, rows });
-        const r = await sendViaBrevo({ to, toName: venue.name, cc: parseEmails(venue.notify_cc, [to, team]), subject: late.subject, html: late.html, text: late.text, tag: "lieu-inscription-tardive" });
-        if (!r.ok) console.error("Mail retardataire au lieu non envoyé:", r.error || r.skipped);
+        await sendNotificationChannel(supabaseAdmin, {
+          registrationId: reg.id,
+          channel: "venue",
+          send: async () => {
+            const late = buildLateEmail({ event, venueName: venue.name, row, rows });
+            return sendViaBrevo({
+              to, toName: venue.name, cc: parseEmails(venue.notify_cc, [to, team]),
+              subject: late.subject, html: late.html, text: late.text, tag: "lieu-inscription-tardive"
+            });
+          }
+        });
       }
     }
   } catch (err) {

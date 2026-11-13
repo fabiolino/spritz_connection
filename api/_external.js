@@ -91,30 +91,52 @@ async function applyImport(supabaseAdmin, imp, eventId) {
       .eq("external_ref", ref)
       .limit(1);
     if (existing && existing[0]) return { status: "duplicate", registration_id: existing[0].id };
-    // La personne s'est peut-être déjà inscrite directement (billet Spritz, ajout à la main,
-    // ou via une autre annonce pour la même soirée) : si UN SEUL inscrit porte ce prénom,
-    // on relie les deux au lieu de compter la personne deux fois.
-    const first = normName(imp.name).split(" ")[0];
-    if (first.length >= 2) {
-      const { data: others } = await supabaseAdmin
-        .from("registrations")
-        .select("id, user_id, guest_name, external_ref")
-        .eq("event_id", eventId);
-      const userIds = (others || []).filter((r) => r.user_id && !r.guest_name).map((r) => r.user_id);
-      let names = {};
-      if (userIds.length) {
-        const { data: profs } = await supabaseAdmin.from("profiles").select("id, name").in("id", userIds);
-        (profs || []).forEach((p) => (names[p.id] = p.name));
+    // Rapprochement prudent : jamais sur le seul prénom. On compare le nom complet
+    // (accents, ponctuation et ordre des mots neutralisés) et on ne relie automatiquement
+    // qu'une inscription unique qui n'est pas déjà rattachée à une autre annonce externe.
+    const matchName = (value) => normName(value)
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort()
+      .join(" ");
+    const incomingKey = matchName(imp.name);
+    const incomingParts = incomingKey ? incomingKey.split(" ") : [];
+    const { data: others } = await supabaseAdmin
+      .from("registrations")
+      .select("id, user_id, guest_name, external_ref, paid, external, sumup_checkout_id")
+      .eq("event_id", eventId);
+    const userIds = (others || []).filter((r) => r.user_id && !r.guest_name).map((r) => r.user_id);
+    const names = {};
+    if (userIds.length) {
+      const { data: profs } = await supabaseAdmin.from("profiles").select("id, name").in("id", userIds);
+      (profs || []).forEach((p) => (names[p.id] = p.name));
+    }
+    const exactMatches = (others || []).filter((r) => {
+      const candidateKey = matchName(r.guest_name || names[r.user_id] || "");
+      return incomingParts.length >= 2 && candidateKey === incomingKey;
+    });
+    const reusableMatches = exactMatches.filter((r) => !r.external_ref || r.external_ref === ref);
+    if (exactMatches.length === 1 && reusableMatches.length === 1) {
+      const candidate = reusableMatches[0];
+      if (!candidate.external_ref) {
+        const { error } = await supabaseAdmin.from("registrations").update({ external_ref: ref }).eq("id", candidate.id).is("external_ref", null);
+        if (error) throw error;
       }
-      const candidates = (others || []).filter((r) => {
-        const tokens = normName(r.guest_name || names[r.user_id] || "").split(" ");
-        return tokens.includes(first);
-      });
-      if (candidates.length === 1) {
-        const c = candidates[0];
-        if (!c.external_ref) await supabaseAdmin.from("registrations").update({ external_ref: ref }).eq("id", c.id);
-        return { status: "duplicate", registration_id: c.id };
-      }
+      return { status: "duplicate", registration_id: candidate.id };
+    }
+    // Identité incomplète, homonymes ou inscription déjà reliée à une autre annonce :
+    // on suspend l'import plutôt que de créer un doublon ou d'écraser un lien existant.
+    const first = incomingParts[0] || "";
+    const firstNameCandidates = first.length >= 2
+      ? (others || []).filter((r) => {
+          const candidateName = matchName(r.guest_name || names[r.user_id] || "");
+          return candidateName.split(" ").includes(first);
+        })
+      : [];
+    if (exactMatches.length > 0 || firstNameCandidates.length > 0) {
+      return { status: "needs_review" };
     }
     const { data: ev } = await supabaseAdmin
       .from("events")
@@ -159,16 +181,23 @@ async function applyImport(supabaseAdmin, imp, eventId) {
   // Départ : on retire l'inscription correspondante et on libère la place
   const { data: regs } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, quantity, paid, external")
+    .select("id, event_id, quantity, paid, external, sumup_checkout_id")
     .eq("event_id", eventId)
     .eq("external_ref", ref)
     .order("created_at", { ascending: false })
     .limit(1);
   const reg = regs && regs[0];
   if (!reg) return { status: "no-match" };
+  // Un départ Meet5 ne doit jamais supprimer une réservation déjà réglée sur Spritz/SumUp.
+  // On retire seulement le rattachement externe ; l'inscription et son paiement restent intacts.
+  if (reg.paid || reg.sumup_checkout_id || !reg.external) {
+    await supabaseAdmin.from("registrations").update({ external_ref: null }).eq("id", reg.id);
+    return { status: "left-linked", registration_id: reg.id };
+  }
   await supabaseAdmin.from("registration_options").delete().eq("registration_id", reg.id);
-  await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
-  if (reg.paid || reg.external) await addTaken(supabaseAdmin, eventId, -(reg.quantity || 1));
+  const { error: deleteError } = await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
+  if (deleteError) throw deleteError;
+  await addTaken(supabaseAdmin, eventId, -(reg.quantity || 1));
   await notifyWaitlist(supabaseAdmin, eventId);
   return { status: "cancelled", registration_id: reg.id };
 }
@@ -293,6 +322,7 @@ export async function listLinks(supabaseAdmin) {
     if (i.kind === "join") s.joins++;
     else s.leaves++;
     if (i.status === "pending") s.pending++;
+    if (i.status === "needs_review") s.needsReview = (s.needsReview || 0) + 1;
     s.last = i.received_at;
     // participants actuels selon les notifications reçues
     const n = normName(i.name);
@@ -300,7 +330,7 @@ export async function listLinks(supabaseAdmin) {
     else delete s.names[n];
   });
   return (links || []).map((l) => {
-    const s = byLink[`${l.source}|${l.external_id}`] || { joins: 0, leaves: 0, pending: 0, last: null, names: {} };
+    const s = byLink[`${l.source}|${l.external_id}`] || { joins: 0, leaves: 0, pending: 0, needsReview: 0, last: null, names: {} };
     return {
       source: l.source,
       externalId: l.external_id,
@@ -310,6 +340,7 @@ export async function listLinks(supabaseAdmin) {
       joins: s.joins,
       leaves: s.leaves,
       pending: s.pending,
+      needsReview: s.needsReview || 0,
       lastAt: s.last || l.created_at,
       current: Object.values(s.names)
     };
@@ -332,13 +363,20 @@ export async function setLink(supabaseAdmin, { source, externalId, eventId, igno
       // On retire les inscriptions importées de l'ancienne soirée
       const { data: regs } = await supabaseAdmin
         .from("registrations")
-        .select("id, quantity, paid, external")
+        .select("id, quantity, paid, external, sumup_checkout_id")
         .eq("event_id", link.event_id)
         .like("external_ref", `${source}:${externalId}:%`);
       for (const r of regs || []) {
+        // Un changement de rattachement Meet5 ne doit pas effacer un paiement confirmé
+        // ni une inscription créée directement dans Spritz Connection.
+        if (r.paid || r.sumup_checkout_id || !r.external) {
+          await supabaseAdmin.from("registrations").update({ external_ref: null }).eq("id", r.id);
+          continue;
+        }
         await supabaseAdmin.from("registration_options").delete().eq("registration_id", r.id);
-        await supabaseAdmin.from("registrations").delete().eq("id", r.id);
-        if (r.paid || r.external) await addTaken(supabaseAdmin, link.event_id, -(r.quantity || 1));
+        const { error: deleteError } = await supabaseAdmin.from("registrations").delete().eq("id", r.id);
+        if (deleteError) throw deleteError;
+        await addTaken(supabaseAdmin, link.event_id, -(r.quantity || 1));
       }
     }
     // Toutes les notifications de l'annonce sont rejouées sur le nouveau choix

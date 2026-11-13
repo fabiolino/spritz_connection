@@ -187,6 +187,11 @@ export default function Ticket() {
             </p>
           </div>
 
+          <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, lineHeight: 1.5, color: colors.muted }}>
+            Ce billet est ton justificatif de réservation. Il peut être cédé à une autre personne ou reporté une seule fois sur une autre soirée au même lieu et au même tarif, selon les conditions applicables. Conserve-le et présente-le en cas de demande.
+            <div style={{ marginTop: 6 }}><a href="/conditions" style={{ color: colors.orange, fontWeight: 700 }}>Consulter les conditions de réservation</a></div>
+          </div>
+
           {ticket.external && !ticket.paid && ticket.event?.sumup_link && (
             <a
               href={ticket.event.sumup_link}

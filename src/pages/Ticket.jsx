@@ -109,7 +109,7 @@ export default function Ticket() {
 
       {!error && !ticket && <p style={{ color: colors.muted, fontSize: 14 }}>Chargement…</p>}
 
-      {ticket && !ticket.paid && !ticket.failed && !ticket.external && (
+      {ticket && !ticket.expired && !ticket.paid && !ticket.failed && !ticket.external && (
         <div style={{ textAlign: "center", padding: "40px 10px" }}>
           <Loader2 size={34} color={colors.orange} style={{ animation: "spin 1s linear infinite" }} />
           <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
@@ -156,7 +156,22 @@ export default function Ticket() {
         </div>
       )}
 
-      {!isCancelled && ticket && (ticket.paid || ticket.external) && (
+      {!isCancelled && ticket && ticket.expired && (
+        <div style={{ textAlign: "center", padding: "40px 10px" }}>
+          <XCircle size={38} color={colors.red} />
+          <p style={{ fontSize: 16, fontWeight: 700, margin: "16px 0 6px" }}>Le délai de réservation est écoulé</p>
+          <p style={{ fontSize: 13, color: colors.muted, lineHeight: 1.5, margin: "0 0 18px" }}>
+            Les places ont été remises à disposition. Tu peux retourner sur l'événement pour vérifier s'il reste des places et réserver à nouveau.
+          </p>
+          {ticket.event && (
+            <button onClick={() => navigate(`/event/${ticket.event.id}`)} style={{ background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: "12px 20px", fontWeight: 700, cursor: "pointer" }}>
+              Retour à l'événement
+            </button>
+          )}
+        </div>
+      )}
+
+      {!isCancelled && ticket && !ticket.expired && (ticket.paid || ticket.external) && (
         <>
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <CheckCircle2 size={40} color={colors.olive} />
@@ -170,6 +185,11 @@ export default function Ticket() {
                 ? `Ton inscription${quantity > 1 ? ` pour ${quantity} personnes` : ""} est confirmée. Montre ce code à l'entrée, on a hâte de vous voir !`
                 : `Ton paiement est confirmé${quantity > 1 ? ` pour ${quantity} personnes` : ""}. Montre ce billet à l'entrée, on a hâte de ${quantity > 1 ? "vous" : "te"} voir !`}
             </p>
+          </div>
+
+          <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, lineHeight: 1.5, color: colors.muted }}>
+            Ce billet est ton justificatif de réservation. Il peut être cédé à une autre personne ou reporté une seule fois sur une autre soirée au même lieu et au même tarif, selon les conditions applicables. Conserve-le et présente-le en cas de demande.
+            <div style={{ marginTop: 6 }}><a href="/conditions" style={{ color: colors.orange, fontWeight: 700 }}>Consulter les conditions de réservation</a></div>
           </div>
 
           {ticket.external && !ticket.paid && ticket.event?.sumup_link && (
@@ -404,7 +424,7 @@ export default function Ticket() {
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
 
-          {!isMembership && !isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
+          {!isMembership && ticket.paid && !isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
             <RescheduleTicket registrationId={ticket.id} onMoved={() => setReloadKey((k) => k + 1)} style={{ marginTop: 14 }} />
           )}
 

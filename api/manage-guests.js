@@ -250,9 +250,10 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ error: "eventId manquant" });
       const { data: regs, error: regsError } = await supabaseAdmin
         .from("registrations")
-        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at, source")
+        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at, source, reservation_expired_at")
         .eq("event_id", eventId)
         .or("paid.eq.true,external.eq.true")
+        .is("reservation_expired_at", null)
         .order("created_at", { ascending: true });
       if (regsError) throw regsError;
       const regIds = (regs || []).map((r) => r.id);
@@ -312,12 +313,26 @@ export default async function handler(req, res) {
       const { registrationId } = req.body;
       if (!registrationId) return res.status(400).json({ error: "registrationId manquant" });
       const paid = !!value;
+      if (paid) {
+        const { data: pending } = await supabaseAdmin
+          .from("registrations")
+          .select("reservation_expires_at, reservation_expired_at")
+          .eq("id", registrationId)
+          .eq("external", true)
+          .eq("paid", false)
+          .maybeSingle();
+        if (!pending) return res.status(404).json({ error: "Réservation introuvable ou déjà traitée." });
+        if (pending.reservation_expired_at || (pending.reservation_expires_at && new Date(pending.reservation_expires_at) <= new Date())) {
+          return res.status(409).json({ error: "Le délai de réservation est écoulé : les places ont été libérées." });
+        }
+      }
       const { data: updated, error: updError } = await supabaseAdmin
         .from("registrations")
         .update({ paid, paid_at: paid ? new Date().toISOString() : null })
         .eq("id", registrationId)
         .eq("external", true)
         .eq("paid", !paid)
+        .is("reservation_expired_at", null)
         .select("id");
       if (updError) throw updError;
       // Les places d'une réservation par lien externe sont déjà comptées à la réservation :
@@ -468,14 +483,14 @@ export default async function handler(req, res) {
       if (!registrationId) return res.status(400).json({ error: "registrationId manquant" });
       const { data: reg } = await supabaseAdmin
         .from("registrations")
-        .select("id, event_id, quantity, paid, external")
+        .select("id, event_id, quantity, paid, external, reservation_expired_at")
         .eq("id", registrationId)
         .maybeSingle();
       if (!reg) return res.status(404).json({ error: "Inscription introuvable" });
       await supabaseAdmin.from("registration_options").delete().eq("registration_id", reg.id);
       const { error: delError } = await supabaseAdmin.from("registrations").delete().eq("id", reg.id);
       if (delError) throw delError;
-      if (reg.event_id && (reg.paid || reg.external)) await addTaken(supabaseAdmin, reg.event_id, -(reg.quantity || 1));
+      if (reg.event_id && (reg.paid || reg.external) && !reg.reservation_expired_at) await addTaken(supabaseAdmin, reg.event_id, -(reg.quantity || 1));
       if (reg.event_id) await notifyWaitlist(supabaseAdmin, reg.event_id);
       return res.status(200).json({ ok: true });
     }

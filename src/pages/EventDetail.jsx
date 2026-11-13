@@ -522,6 +522,10 @@ export default function EventDetail() {
 
         {full && new Date(event.event_date) > new Date() && !registered && <WaitlistJoin eventId={event.id} user={user} profile={profile} />}
 
+        <p style={{ fontSize: 11.5, color: colors.muted, textAlign: "center", margin: "10px 0 18px", lineHeight: 1.5 }}>
+          En réservant, tu acceptes nos <a href="/conditions" style={{ color: colors.orange, fontWeight: 700 }}>conditions de réservation</a> : billet non remboursable, mais cessible ou reportable une fois sous conditions.
+        </p>
+
         {!full && (externalPay || (event.is_free && !registered)) && (
           <GroupForm
             group={group}
@@ -731,8 +735,8 @@ export default function EventDetail() {
                 : `Réserver${group.quantity > 1 ? ` pour ${group.quantity}` : ""} et payer ${formatEuro(externalTotal)}`}
             </button>
             <p style={{ fontSize: 11.5, color: colors.muted, textAlign: "center", margin: "8px 0 0", lineHeight: 1.4 }}>
-              Tu reçois ta confirmation avec {group.quantity > 1 ? "un seul code pour tout le groupe" : "ton code de réservation"}, puis tu règles
-              {group.quantity > 1 ? " le total en une fois" : ""} via SumUp.
+              Ta place est réservée pendant 15 minutes. Tu reçois ton code de réservation, puis tu règles
+              {group.quantity > 1 ? " le total en une fois" : ""} via SumUp. Sans confirmation du paiement dans ce délai, les places sont automatiquement libérées.
             </p>
             {reserveError && <p style={{ color: colors.red, fontSize: 12.5, marginTop: 6 }}>{reserveError}</p>}
           </div>

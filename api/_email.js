@@ -163,7 +163,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
     </div>
   </td></tr>
   <tr><td style="padding:16px 22px 22px;font-size:12px;color:${MUTED};line-height:1.5">
-    Garde cet email : il vaut billet. Une question ? Réponds simplement à ce message.<br>A presto ! — Fabio, Spritz Connection
+    Garde cet email : il vaut billet. Le billet peut être cédé à un tiers ou reporté une seule fois, sous les conditions indiquées sur <a href="${appUrl()}/conditions" style="color:${MUTED}">notre page de conditions de réservation</a>.<br>Une question ? Réponds simplement à ce message.<br>A presto ! — Fabio, Spritz Connection
     ${
       recipientEmail
         ? `<br><br>Tu reçois aussi nos prochaines soirées par email. <a href="${esc(unsubscribeUrl(recipientEmail))}" style="color:${MUTED}">Se désinscrire</a>`
@@ -189,6 +189,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
         ]
       : []),
     `Code : ${reg.ticket_code}`,
+    `Conditions de réservation : ${appUrl()}/conditions`,
     `Ajouter à mon agenda : ${googleCalendarUrl(event, { ticketUrl })}`,
     firstTime ? "C'est ta première soirée ? Bienvenue ! Présente-toi à l'accueil en arrivant : on te présentera à quelques habitués." : "",
     toPay && event.sumup_link ? `Payer : ${event.sumup_link}` : "",

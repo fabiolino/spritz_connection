@@ -31,6 +31,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendRegistrationEmail } from "./_email.js";
+import { reservationExpiresAt, isReservationExpired } from "./_reservation-expiry.js";
 import {
   MAX_GROUP,
   parseQuantity,
@@ -107,12 +108,14 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, user_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at")
+    .select("id, event_id, user_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at, reservation_expires_at, reservation_expired_at")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
     return res.status(404).json({ error: "Billet introuvable" });
   }
+
+  const reservationExpired = !!reg.reservation_expired_at || isReservationExpired(reg.reservation_expires_at);
 
   // Le webhook SumUp peut arriver quelques secondes après le retour sur l'app :
   // on vérifie directement auprès de SumUp si le paiement n'est pas encore confirmé.
@@ -156,14 +159,22 @@ async function handleTicket(req, res) {
     payerName = profile?.name || null;
   }
 
+  // Si l'envoi initial du billet a échoué, chaque consultation du billet relance une tentative sécurisée.
+  if (!reservationExpired && (reg.paid || reg.external) && !reg.confirmation_sent_at) {
+    const emailed = await sendRegistrationEmail(supabaseAdmin, reg.id);
+    if (emailed) reg = { ...reg, confirmation_sent_at: new Date().toISOString() };
+  }
+
   return res.status(200).json({
     ticket: {
       id: reg.id,
       payerName,
       paid: !!reg.paid,
       failed: !!reg.failed,
-      code: reg.paid || reg.external ? reg.ticket_code : null,
+      code: !reservationExpired && (reg.paid || reg.external) ? reg.ticket_code : null,
       external: !!reg.external,
+      expired: reservationExpired,
+      expiresAt: reg.reservation_expires_at || null,
       guestName: reg.guest_name || null,
       emailed: !!reg.confirmation_sent_at,
       quantity: reg.quantity || 1,
@@ -190,6 +201,7 @@ async function handleMyTickets(req, res) {
     .select("id, event_id, option, amount, ticket_code, created_at, paid, external, quantity")
     .eq("user_id", user.id)
     .or("paid.eq.true,external.eq.true")
+    .is("reservation_expired_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
 
@@ -326,7 +338,8 @@ async function handleExternalReservation(req, res) {
       option: "billet",
       amount,
       paid: false,
-      external: true
+      external: true,
+      reservation_expires_at: reservationExpiresAt()
     });
   } catch (err) {
     console.error("Erreur réservation externe:", err);

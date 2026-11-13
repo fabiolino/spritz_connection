@@ -522,6 +522,10 @@ export default function EventDetail() {
 
         {full && new Date(event.event_date) > new Date() && !registered && <WaitlistJoin eventId={event.id} user={user} profile={profile} />}
 
+        <p style={{ fontSize: 11.5, color: colors.muted, textAlign: "center", margin: "10px 0 18px", lineHeight: 1.5 }}>
+          En réservant, tu acceptes nos <a href="/conditions" style={{ color: colors.orange, fontWeight: 700 }}>conditions de réservation</a> : billet non remboursable, mais cessible ou reportable une fois sous conditions.
+        </p>
+
         {!full && (externalPay || (event.is_free && !registered)) && (
           <GroupForm
             group={group}

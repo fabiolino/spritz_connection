@@ -97,7 +97,7 @@ async function applyImport(supabaseAdmin, imp, eventId) {
     const matchName = (value) => normName(value)
       .replace(/[^a-z0-9]+/g, " ")
       .trim()
-      .split(/\\s+/)
+      .split(/\s+/)
       .filter(Boolean)
       .sort()
       .join(" ");

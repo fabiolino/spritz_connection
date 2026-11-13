@@ -94,7 +94,8 @@ async function loadReschedulable(registrationId) {
   // Colonne rescheduled_at absente (migration pas encore passée) : report désactivé.
   if (regError && regError.code === "42703") return { error: "Le report de billet sera bientôt disponible.", status: 503 };
   if (!reg || !reg.event_id) return { error: "Billet introuvable", status: 404 };
-  if (!reg.paid && !reg.external) return { error: "Ce billet n'est pas encore payé.", status: 400 };
+  if (!reg.paid) return { error: "Le report est disponible uniquement pour un billet dont le paiement est confirmé.", status: 400 };
+  if (reg.reservation_expired_at) return { error: "Ce billet a expiré et ne peut pas être reporté.", status: 400 };
   if (reg.rescheduled_at) return { error: "Ce billet a déjà été reporté une fois : un billet ne peut être reporté qu'une seule fois.", status: 400 };
 
   const { data: event } = await supabaseAdmin.from("events").select(EVENT_FIELDS).eq("id", reg.event_id).maybeSingle();

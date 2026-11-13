@@ -251,6 +251,13 @@ export async function sendViaBrevo({ to, toName, cc = [], subject, html, text, u
 // Envoie le billet d'une inscription par email, une seule fois (sauf force: true pour un renvoi).
 // Renvoie true si un email est parti.
 export async function sendRegistrationEmail(supabaseAdmin, registrationId, { force = false } = {}) {
+  let claimedRegistrationId = null;
+  const releaseClaim = async () => {
+    if (!force && claimedRegistrationId) {
+      await supabaseAdmin.from("registrations").update({ confirmation_sent_at: null }).eq("id", claimedRegistrationId);
+      claimedRegistrationId = null;
+    }
+  };
   try {
     if (!process.env.BREVO_API_KEY) return false;
 
@@ -267,12 +274,16 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
         .is("confirmation_sent_at", null)
         .select("*");
       reg = data && data[0];
+      if (reg) claimedRegistrationId = reg.id;
     }
-    if (!reg || !reg.event_id) return false;
-    if (!(reg.paid || reg.external)) return false; // paiement en ligne pas encore confirmé
-
-    const release = () =>
-      force ? null : supabaseAdmin.from("registrations").update({ confirmation_sent_at: null }).eq("id", reg.id);
+    if (!reg || !reg.event_id) {
+      await releaseClaim();
+      return false;
+    }
+    if (!(reg.paid || reg.external)) {
+      await releaseClaim();
+      return false; // paiement en ligne pas encore confirmé
+    }
 
     let to = reg.guest_email;
     let name = reg.guest_name;
@@ -286,7 +297,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
       }
     }
     if (!to) {
-      await release();
+      await releaseClaim();
       return false;
     }
 
@@ -296,7 +307,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
       .eq("id", reg.event_id)
       .maybeSingle();
     if (!event) {
-      await release();
+      await releaseClaim();
       return false;
     }
     // Notification à l'équipe (et mail individuel au lieu pour un retardataire) — une seule fois
@@ -325,7 +336,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     const result = await sendViaBrevo({ to, toName: name, ...content, unsubscribe: unsubscribeUrl(to) });
     if (!result.ok) {
       console.error("Email billet non envoyé:", result.error || result.skipped);
-      await release();
+      await releaseClaim();
       return false;
     }
     if (force) {
@@ -334,6 +345,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     return true;
   } catch (err) {
     console.error("Erreur email billet:", err);
+    try { await releaseClaim(); } catch (releaseError) { console.error("Libération réservation email billet:", releaseError); }
     return false;
   }
 }

@@ -34,6 +34,7 @@ import TableJoin from "./pages/TableJoin.jsx";
 import TableCard from "./pages/TableCard.jsx";
 import Updates from "./pages/Updates.jsx";
 import Privacy from "./pages/Privacy.jsx";
+import Conditions from "./pages/Conditions.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="/note/:regId" element={<RateEvent />} />
           <Route path="/nouveautes" element={<Updates />} />
           <Route path="/confidentialite" element={<Privacy />} />
+          <Route path="/conditions" element={<Conditions />} />
           <Route path="/communities" element={<Communities />} />
           <Route path="/c/:code" element={<CommunityJoin />} />
       </Routes>

@@ -165,7 +165,7 @@ export default async function handler(req, res) {
           const { data: profiles } = await supabaseAdmin.from("profiles").select("id, name").in("id", userIds);
           (profiles || []).forEach((p) => (names[p.id] = p.name));
         }
-        const cleanName = (value) => String(value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        const cleanName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
         const first = cleanName(imp.name).split(" ")[0];
         const candidates = (regs || [])
           .map((r) => ({ id: r.id, name: r.guest_name || names[r.user_id] || "Participant", paid: !!r.paid, amount: Number(r.amount) || 0, external: !!r.external, externalRef: r.external_ref }))
@@ -208,7 +208,7 @@ export default async function handler(req, res) {
         .eq("id", registrationId)
         .maybeSingle();
       if (!reg || reg.event_id !== link.event_id) return res.status(400).json({ error: "Cette inscription ne correspond pas à la soirée" });
-      const norm = (value) => String(value || "").replace(/[\\u200B-\\u200D\\uFEFF\\u2060]/g, "").replace(/\\s+/g, " ").trim().toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+      const norm = (value) => String(value || "").replace(/[\u200B-\u200D\uFEFF\u2060]/g, "").replace(/\s+/g, " ").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const ref = `${imp.source}:${imp.external_id}:${norm(imp.name)}`;
       if (reg.external_ref && reg.external_ref !== ref) return res.status(409).json({ error: "Cette inscription est déjà rattachée à une autre annonce externe." });
       if (!reg.external_ref) {

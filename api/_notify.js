@@ -238,6 +238,12 @@ export async function notifyRegistration(supabaseAdmin, reg, event, options = {}
     };
 
     const team = notifyEmail();
+    if (!shouldSendTeamNotification(options)) {
+      await supabaseAdmin.from("registrations")
+        .update({ team_notified_at: new Date().toISOString(), team_notification_claimed_at: null })
+        .eq("id", reg.id)
+        .is("team_notified_at", null);
+    }
     if (shouldSendTeamNotification(options)) {
       await sendNotificationChannel(supabaseAdmin, {
         registrationId: reg.id,

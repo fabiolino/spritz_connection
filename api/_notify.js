@@ -127,10 +127,10 @@ function textTable(rows, { withEmail }) {
 export async function loadEventRows(supabaseAdmin, eventId) {
   const { data: regs } = await supabaseAdmin
     .from("registrations")
-    .select("id, user_id, guest_name, guest_email, guest_phone, quantity, amount, paid, external, created_at")
+    .select("id, user_id, guest_name, guest_email, guest_phone, quantity, amount, paid, external, created_at, reservation_expired_at")
     .eq("event_id", eventId)
     .order("created_at", { ascending: true });
-  const list = (regs || []).filter((r) => r.paid || r.external);
+  const list = (regs || []).filter((r) => (r.paid || r.external) && !r.reservation_expired_at);
   const ids = [...new Set(list.map((r) => r.user_id).filter(Boolean))];
   const profiles = {};
   if (ids.length) {

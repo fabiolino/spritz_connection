@@ -307,7 +307,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
       .eq("id", reg.event_id)
       .maybeSingle();
     if (!event) {
-      await release();
+      await releaseClaim();
       return false;
     }
     // Notification à l'équipe (et mail individuel au lieu pour un retardataire) — une seule fois
@@ -336,7 +336,7 @@ export async function sendRegistrationEmail(supabaseAdmin, registrationId, { for
     const result = await sendViaBrevo({ to, toName: name, ...content, unsubscribe: unsubscribeUrl(to) });
     if (!result.ok) {
       console.error("Email billet non envoyé:", result.error || result.skipped);
-      await release();
+      await releaseClaim();
       return false;
     }
     if (force) {

@@ -131,6 +131,99 @@ export default async function handler(req, res) {
       return res.status(200).json({ importSecret: setting?.value || null });
     }
 
+    // Liste des rapprochements Meet5 qui nécessitent une validation humaine.
+    if (action === "external-review-list") {
+      const { data: imports, error: importsError } = await supabaseAdmin
+        .from("external_imports")
+        .select("id, source, external_id, name, title, received_at")
+        .eq("status", "needs_review")
+        .eq("kind", "join")
+        .order("received_at", { ascending: false })
+        .limit(100);
+      if (importsError) throw importsError;
+      const reviews = [];
+      for (const imp of imports || []) {
+        const { data: link } = await supabaseAdmin
+          .from("external_links")
+          .select("event_id, title")
+          .eq("source", imp.source)
+          .eq("external_id", imp.external_id)
+          .maybeSingle();
+        if (!link?.event_id) {
+          reviews.push({ ...imp, eventId: null, eventTitle: link?.title || imp.title || "Événement non rattaché", candidates: [] });
+          continue;
+        }
+        const { data: event } = await supabaseAdmin.from("events").select("title").eq("id", link.event_id).maybeSingle();
+        const { data: regs, error: regsError } = await supabaseAdmin
+          .from("registrations")
+          .select("id, user_id, guest_name, external_ref, paid, amount, external, sumup_checkout_id")
+          .eq("event_id", link.event_id);
+        if (regsError) throw regsError;
+        const userIds = [...new Set((regs || []).filter((r) => r.user_id && !r.guest_name).map((r) => r.user_id))];
+        const names = {};
+        if (userIds.length) {
+          const { data: profiles } = await supabaseAdmin.from("profiles").select("id, name").in("id", userIds);
+          (profiles || []).forEach((p) => (names[p.id] = p.name));
+        }
+        const cleanName = (value) => String(value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        const first = cleanName(imp.name).split(" ")[0];
+        const candidates = (regs || [])
+          .map((r) => ({ id: r.id, name: r.guest_name || names[r.user_id] || "Participant", paid: !!r.paid, amount: Number(r.amount) || 0, external: !!r.external, externalRef: r.external_ref }))
+          .filter((r) => cleanName(r.name).split(" ").includes(first));
+        reviews.push({
+          id: imp.id,
+          source: imp.source,
+          external_id: imp.external_id,
+          name: imp.name,
+          received_at: imp.received_at,
+          eventId: link.event_id,
+          eventTitle: event?.title || link.title || imp.title || "Événement",
+          candidates
+        });
+      }
+      return res.status(200).json({ reviews });
+    }
+
+    // Relie une annonce Meet5 à une inscription existante, sans jamais écraser un autre lien.
+    if (action === "external-review-resolve") {
+      const importId = Number(req.body.importId);
+      const registrationId = String(req.body.registrationId || "");
+      if (!Number.isInteger(importId) || !registrationId) return res.status(400).json({ error: "Rapprochement incomplet" });
+      const { data: imp } = await supabaseAdmin
+        .from("external_imports")
+        .select("id, source, external_id, name, status, kind")
+        .eq("id", importId)
+        .maybeSingle();
+      if (!imp || imp.status !== "needs_review" || imp.kind !== "join") return res.status(404).json({ error: "Import à vérifier introuvable" });
+      const { data: link } = await supabaseAdmin
+        .from("external_links")
+        .select("event_id")
+        .eq("source", imp.source)
+        .eq("external_id", imp.external_id)
+        .maybeSingle();
+      if (!link?.event_id) return res.status(409).json({ error: "L'annonce n'est pas rattachée à une soirée" });
+      const { data: reg } = await supabaseAdmin
+        .from("registrations")
+        .select("id, event_id, external_ref")
+        .eq("id", registrationId)
+        .maybeSingle();
+      if (!reg || reg.event_id !== link.event_id) return res.status(400).json({ error: "Cette inscription ne correspond pas à la soirée" });
+      const norm = (value) => String(value || "").replace(/[\\u200B-\\u200D\\uFEFF\\u2060]/g, "").replace(/\\s+/g, " ").trim().toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+      const ref = `${imp.source}:${imp.external_id}:${norm(imp.name)}`;
+      if (reg.external_ref && reg.external_ref !== ref) return res.status(409).json({ error: "Cette inscription est déjà rattachée à une autre annonce externe." });
+      if (!reg.external_ref) {
+        const { error: updateError } = await supabaseAdmin.from("registrations").update({ external_ref: ref }).eq("id", reg.id).is("external_ref", null);
+        if (updateError) throw updateError;
+      }
+      const { error: importError } = await supabaseAdmin
+        .from("external_imports")
+        .update({ status: "duplicate", registration_id: reg.id })
+        .eq("id", imp.id)
+        .eq("status", "needs_review");
+      if (importError) throw importError;
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === "co-requests-list") {
       const { data, error } = await supabaseAdmin
         .from("co_organizer_requests")

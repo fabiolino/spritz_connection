@@ -424,7 +424,7 @@ export default function Ticket() {
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
 
-          {!isMembership && !isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
+          {!isMembership && ticket.paid && !isFree && ticket.event && new Date(ticket.event.event_date) > new Date() && (
             <RescheduleTicket registrationId={ticket.id} onMoved={() => setReloadKey((k) => k + 1)} style={{ marginTop: 14 }} />
           )}
 

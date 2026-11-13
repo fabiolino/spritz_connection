@@ -109,7 +109,7 @@ export default function Ticket() {
 
       {!error && !ticket && <p style={{ color: colors.muted, fontSize: 14 }}>Chargement…</p>}
 
-      {ticket && !ticket.paid && !ticket.failed && !ticket.external && (
+      {ticket && !ticket.expired && !ticket.paid && !ticket.failed && !ticket.external && (
         <div style={{ textAlign: "center", padding: "40px 10px" }}>
           <Loader2 size={34} color={colors.orange} style={{ animation: "spin 1s linear infinite" }} />
           <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
@@ -156,7 +156,22 @@ export default function Ticket() {
         </div>
       )}
 
-      {!isCancelled && ticket && (ticket.paid || ticket.external) && (
+      {!isCancelled && ticket && ticket.expired && (
+        <div style={{ textAlign: "center", padding: "40px 10px" }}>
+          <XCircle size={38} color={colors.red} />
+          <p style={{ fontSize: 16, fontWeight: 700, margin: "16px 0 6px" }}>Le délai de réservation est écoulé</p>
+          <p style={{ fontSize: 13, color: colors.muted, lineHeight: 1.5, margin: "0 0 18px" }}>
+            Les places ont été remises à disposition. Tu peux retourner sur l'événement pour vérifier s'il reste des places et réserver à nouveau.
+          </p>
+          {ticket.event && (
+            <button onClick={() => navigate(`/event/${ticket.event.id}`)} style={{ background: colors.orange, color: "#fff", border: "none", borderRadius: 14, padding: "12px 20px", fontWeight: 700, cursor: "pointer" }}>
+              Retour à l'événement
+            </button>
+          )}
+        </div>
+      )}
+
+      {!isCancelled && ticket && !ticket.expired && (ticket.paid || ticket.external) && (
         <>
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <CheckCircle2 size={40} color={colors.olive} />

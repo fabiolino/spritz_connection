@@ -166,9 +166,11 @@ export default async function handler(req, res) {
           (profiles || []).forEach((p) => (names[p.id] = p.name));
         }
         const cleanName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        const normImportName = String(imp.name || "").replace(/[\u200B-\u200D\uFEFF\u2060]/g, "").replace(/\s+/g, " ").trim().slice(0, 80).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const externalRef = `${imp.source}:${imp.external_id}:${normImportName}`;
         const first = cleanName(imp.name).split(" ")[0];
         const candidates = (regs || [])
-          .map((r) => ({ id: r.id, name: r.guest_name || names[r.user_id] || "Participant", paid: !!r.paid, amount: Number(r.amount) || 0, external: !!r.external, externalRef: r.external_ref }))
+          .map((r) => ({ id: r.id, name: r.guest_name || names[r.user_id] || "Participant", paid: !!r.paid, amount: Number(r.amount) || 0, external: !!r.external, externalRef: r.external_ref, alreadyLinked: r.external_ref === externalRef }))
           .filter((r) => cleanName(r.name).split(" ").includes(first));
         reviews.push({
           id: imp.id,

@@ -42,6 +42,9 @@ export default function AdminExternalImports({ adminSecret, events }) {
   const [busy, setBusy] = useState(null);
   const [showDone, setShowDone] = useState(false);
   const [script, setScript] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewChoice, setReviewChoice] = useState({});
+  const [reviewBusy, setReviewBusy] = useState(null);
 
   async function call(body) {
     const res = await fetch("/api/manage-guests", {
@@ -62,8 +65,12 @@ export default function AdminExternalImports({ adminSecret, events }) {
     setLoading(true);
     setError("");
     try {
-      const data = await call({ action: "external-links" });
+      const [data, reviewData] = await Promise.all([
+        call({ action: "external-links" }),
+        call({ action: "external-review-list" })
+      ]);
       setLinks(data.links);
+      setReviews(reviewData.reviews || []);
     } catch (err) {
       setError(err.message);
     }
@@ -86,6 +93,24 @@ export default function AdminExternalImports({ adminSecret, events }) {
       setError(err.message);
     }
     setBusy(null);
+  }
+
+  async function resolveReview(item) {
+    const registrationId = reviewChoice[item.id];
+    if (!registrationId) {
+      setError("Choisis l'inscription Spritz qui correspond à cette personne.");
+      return;
+    }
+    setReviewBusy(item.id);
+    setError("");
+    try {
+      await call({ action: "external-review-resolve", importId: item.id, registrationId });
+      setNotice(`Rapprochement validé pour ${item.name}.`);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+    setReviewBusy(null);
   }
 
   async function showScript() {
@@ -184,6 +209,49 @@ export default function AdminExternalImports({ adminSecret, events }) {
               </button>
               {showDone && done.map((l) => <Row key={l.externalId} l={l} />)}
             </>
+          )}
+
+          {reviews.length > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${colors.border}` }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#9A6B00", marginBottom: 8 }}>
+                Identités à vérifier ({reviews.length})
+              </div>
+              <p style={{ fontSize: 12, color: colors.muted, lineHeight: 1.45, margin: "0 0 10px" }}>
+                Le prénom ou le nom ne suffit pas pour fusionner deux inscriptions. Vérifie la personne et sélectionne son inscription existante ; aucun paiement ne sera modifié.
+              </p>
+              {reviews.map((item) => (
+                <div key={item.id} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: colors.ink }}>{item.name}</div>
+                  <div style={{ fontSize: 11.5, color: colors.muted, margin: "3px 0 8px" }}>{item.eventTitle} · {shortDate(item.received_at)}</div>
+                  {item.candidates.length > 0 ? (
+                    <>
+                      <select
+                        value={reviewChoice[item.id] || ""}
+                        onChange={(e) => setReviewChoice((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        style={{ ...selectStyle, width: "100%", marginBottom: 8 }}
+                      >
+                        <option value="">Choisir l'inscription existante…</option>
+                        {item.candidates.map((candidate) => (
+                          <option key={candidate.id} value={candidate.id} disabled={!!candidate.externalRef}>
+                            {candidate.name} · {candidate.paid ? "payé" : candidate.external ? "externe / à encaisser" : "paiement à vérifier"} · {Number(candidate.amount).toLocaleString("fr-FR")} €
+                            {candidate.externalRef ? " · déjà rattaché" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={!reviewChoice[item.id] || reviewBusy === item.id}
+                        onClick={() => resolveReview(item)}
+                        style={{ ...btn, background: colors.orange, color: "#fff", opacity: !reviewChoice[item.id] || reviewBusy === item.id ? 0.5 : 1 }}
+                      >
+                        {reviewBusy === item.id ? "Validation…" : "Confirmer le rapprochement"}
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12, color: colors.muted }}>Aucune inscription correspondante trouvée : l'import reste en attente de vérification.</div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}

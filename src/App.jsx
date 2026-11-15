@@ -37,6 +37,7 @@ import Privacy from "./pages/Privacy.jsx";
 import Conditions from "./pages/Conditions.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
+import BroadcastBanner from "./components/BroadcastBanner.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
 import { useIsDesktop } from "./lib/useIsDesktop";
 // Après la connexion par lien magique, renvoie vers la page mémorisée (ex. un événement)
@@ -86,6 +87,7 @@ export default function App() {
       <CategoriesProvider>
       <Frame>
         <AfterLoginRedirect />
+        <BroadcastBanner />
         <Routes>
           <Route path="/" element={<Feed />} />
           <Route path="/event/:id" element={<EventDetail />} />

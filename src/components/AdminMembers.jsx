@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Star, Smartphone, Bell, Copy, Check, Crown, Trash2, Search } from "lucide-react";
 import { colors } from "../lib/theme";
+import AdminBroadcast from "./AdminBroadcast.jsx";
 
 const PLATFORM_LABEL = {
   iphone: "iPhone",
@@ -233,6 +234,8 @@ export default function AdminMembers({ members, setMembers, adminSecret, onToggl
           </div>
         ))}
       </div>
+
+      <AdminBroadcast adminSecret={adminSecret} />
 
       <div style={{ position: "relative", marginBottom: 8 }}>
         <Search size={14} color={colors.muted} style={{ position: "absolute", left: 11, top: 11 }} />

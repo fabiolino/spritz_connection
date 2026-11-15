@@ -47,6 +47,9 @@
     },
     "api/venue-recap.js": {
       "maxDuration": 60
+    },
+    "api/manage-guests.js": {
+      "maxDuration": 60
     }
   }
 }

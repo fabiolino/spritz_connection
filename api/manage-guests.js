@@ -13,6 +13,7 @@ import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
 import { ratingsFor } from "./_ratings.js";
 import { contactsFor } from "./_contacts.js";
 import { sendListCampaign, buildUpdateHtml } from "./_announce.js";
+import { sendBroadcast, listBroadcasts, broadcastAudience } from "./_broadcast.js";
 import {
   addTaken,
   parseQuantity,
@@ -61,6 +62,26 @@ export default async function handler(req, res) {
   }
 
   try {
+    // --- Message à tous (notification, bandeau dans l'app, e-mail) ---
+    if (action === "broadcast-info") {
+      const [audience, history] = await Promise.all([broadcastAudience(supabaseAdmin), listBroadcasts(supabaseAdmin)]);
+      return res.status(200).json({ audience, history });
+    }
+    if (action === "broadcast-send") {
+      try {
+        const result = await sendBroadcast(supabaseAdmin, req.body);
+        return res.status(200).json({ ok: true, ...result });
+      } catch (err) {
+        if (err.status === 400) return res.status(400).json({ error: err.message });
+        throw err;
+      }
+    }
+    if (action === "broadcast-hide") {
+      const { error } = await supabaseAdmin.from("admin_broadcasts").update({ show_banner: false }).eq("id", req.body.broadcastId);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
+    }
+
     // --- Nouveautés de l'app : brouillons, publication (email à la liste + notification) ---
     if (action === "updates-list") {
       const { data } = await supabaseAdmin.from("app_updates").select("*").order("created_at", { ascending: false }).limit(30);

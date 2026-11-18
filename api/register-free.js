@@ -294,6 +294,7 @@ export default async function handler(req, res) {
       guest_name: guest?.name || null,
       guest_email: guest?.email || null,
       guest_phone: phone,
+      no_photo: !!req.body.noPhoto,
       quantity,
       attendee_names: readAttendeeNames(req.body.attendeeNames, quantity),
       heard_from: readHeardFrom(req.body),

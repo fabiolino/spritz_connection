@@ -11,7 +11,7 @@ import { geocodeAddress } from "./_geocode.js";
 import { ingest, listLinks, setLink, processPending } from "./_external.js";
 import { notifyWaitlist, waitlistFor } from "./_waitlist.js";
 import { ratingsFor } from "./_ratings.js";
-import { contactsFor } from "./_contacts.js";
+import { contactsFor, mediaFor, mediaDelete } from "./_contacts.js";
 import { sendListCampaign, buildUpdateHtml } from "./_announce.js";
 import { sendBroadcast, listBroadcasts, broadcastAudience } from "./_broadcast.js";
 import {
@@ -271,7 +271,7 @@ export default async function handler(req, res) {
       if (!eventId) return res.status(400).json({ error: "eventId manquant" });
       const { data: regs, error: regsError } = await supabaseAdmin
         .from("registrations")
-        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at, source, reservation_expired_at")
+        .select("id, user_id, option, amount, ticket_code, paid, paid_at, created_at, external, guest_name, guest_email, guest_phone, quantity, attendee_names, confirmation_sent_at, source, reservation_expired_at, no_photo")
         .eq("event_id", eventId)
         .or("paid.eq.true,external.eq.true")
         .is("reservation_expired_at", null)
@@ -301,8 +301,10 @@ export default async function handler(req, res) {
       const waitlist = await waitlistFor(supabaseAdmin, eventId);
       const ratings = await ratingsFor(supabaseAdmin, eventId);
       const contacts = await contactsFor(supabaseAdmin, eventId);
+      const media = await mediaFor(supabaseAdmin, eventId);
       return res.status(200).json({
         contacts,
+        media,
         waitlist: waitlist.map((w) => ({ id: w.id, name: w.name, phone: w.phone, email: w.email, quantity: w.quantity, notified: w.status === "notified", at: w.created_at })),
         ratings,
         tickets: (regs || []).map((r) => ({
@@ -324,9 +326,17 @@ export default async function handler(req, res) {
           phone: r.guest_phone || null,
           emailed: !!r.confirmation_sent_at,
           sentAt: r.confirmation_sent_at || null,
-          options: optionsByReg[r.id] || []
+          options: optionsByReg[r.id] || [],
+          noPhoto: !!r.no_photo
         }))
       });
+    }
+
+    // Suppression d'une photo ou vidéo déposée (Admin)
+    if (action === "media-delete") {
+      const result = await mediaDelete(supabaseAdmin, req.body.photoId);
+      if (result.error) return res.status(400).json({ error: result.error });
+      return res.status(200).json({ ok: true });
     }
 
     // Valider (ou annuler) à la main le paiement d'une réservation faite par lien externe

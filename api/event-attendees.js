@@ -11,6 +11,8 @@
 //   POST {action:"contact-info", eventId}         → infos d'une soirée pour /photos et /bienvenue
 //   POST {action:"contact-save", eventId, …}      → contact laissé (photos ou QR de table) + photos
 //   POST {action:"contact-photos", eventId}       → photos, pour qui a déjà laissé son email
+//   POST {action:"media-upload-url", eventId, …}  → lien d'envoi signé pour une photo/vidéo
+//   POST {action:"media-register", eventId, path} → ajoute le fichier envoyé à la galerie
 
 import { createClient } from "@supabase/supabase-js";
 import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brevo.js";
@@ -18,7 +20,7 @@ import { buildIcs } from "./_calendar.js";
 import { joinWaitlist } from "./_waitlist.js";
 import { rateEvent } from "./_ratings.js";
 import { announceNewEvents } from "./_announce.js";
-import { contactEventInfo, eventPhotos, saveEventContact } from "./_contacts.js";
+import { contactEventInfo, eventPhotos, saveEventContact, mediaUploadUrl, mediaRegister } from "./_contacts.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -214,6 +216,22 @@ export default async function handler(req, res) {
       return res.status(200).json(action === "contact-info" ? { event: result } : result);
     } catch (err) {
       console.error("Erreur contact soirée:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
+  // Photos et vidéos déposées par les participants (page /photos)
+  if (action === "media-upload-url" || action === "media-register") {
+    try {
+      const auth = req.headers.authorization || "";
+      const accessToken = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+      const result = action === "media-upload-url"
+        ? await mediaUploadUrl(supabaseAdmin, req.body || {}, accessToken)
+        : await mediaRegister(supabaseAdmin, req.body || {}, accessToken);
+      if (result.error) return res.status(result.status || 400).json({ error: result.error });
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error("Erreur dépôt photo:", err);
       return res.status(500).json({ error: "Erreur serveur" });
     }
   }

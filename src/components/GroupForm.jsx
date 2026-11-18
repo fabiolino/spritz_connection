@@ -41,7 +41,7 @@ function savedPhone() {
 }
 
 export function emptyGroup() {
-  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: savedPhone(), heardFrom: savedHeardFrom(), heardFromSaved: !!savedHeardFrom() };
+  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: savedPhone(), heardFrom: savedHeardFrom(), heardFromSaved: !!savedHeardFrom(), noPhoto: false };
 }
 
 const PHONE_OK = (v) => {
@@ -63,6 +63,7 @@ export function groupPayload(group, user) {
     attendeeNames: group.names.slice(0, group.quantity - 1).map((n) => n.trim()).filter(Boolean),
     refCode: getCrewRef(), // lien perso d'un membre Spritz Crew, s'il y en a un
     heardFrom: group.heardFrom || null, // « Comment nous as-tu connus ? »
+    noPhoto: !!group.noPhoto, // préfère ne pas apparaître sur les photos de la soirée
     ...(user
       ? {}
       : {
@@ -322,6 +323,21 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
           ))}
         </div>
       )}
+
+      <div style={{ ...sectionStyle(false), gap: 6 }}>
+        <p style={{ fontSize: 11.5, color: colors.muted, margin: 0, lineHeight: 1.45 }}>
+          📸 Des photos et vidéos sont prises pendant la soirée et partagées avec les participants (app, email, Instagram). Tu peux demander le retrait d'une photo à tout moment.
+        </p>
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, cursor: "pointer", lineHeight: 1.4 }}>
+          <input
+            type="checkbox"
+            checked={!!group.noPhoto}
+            onChange={(e) => set({ noPhoto: e.target.checked })}
+            style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }}
+          />
+          <span>Je préfère ne pas apparaître sur les photos</span>
+        </label>
+      </div>
     </div>
   );
 }

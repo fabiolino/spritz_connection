@@ -37,7 +37,7 @@ const APP_URL = "https://spritz-connection.vercel.app";
 function photosMessage(event) {
   return [
     `Grazie à toutes et à tous pour ${event?.title ? `« ${event.title} »` : "la soirée"} ! 🍹`,
-    "Les photos de la soirée sont en ligne, retrouvez-vous ici 📸",
+    "📸 Vous avez pris des photos ou des vidéos ? Déposez-les ici pour que tout le monde en profite, et retrouvez celles des autres :",
     `${APP_URL}/photos/${event?.id}`,
     "",
     "En laissant votre email sur la page, vous recevrez aussi les invitations à nos prochaines soirées, en avant-première."
@@ -45,7 +45,7 @@ function photosMessage(event) {
 }
 
 // Admin, sous la liste des billets : nouveaux à accueillir, liste d'attente, notes de la soirée
-export default function AdminEventExtras({ event, tickets, extras }) {
+export default function AdminEventExtras({ event, tickets, extras, adminSecret }) {
   const [notice, setNotice] = useState("");
   const [winner, setWinner] = useState(null);
   const newcomers = (tickets || []).filter((t) => t.firstTime);
@@ -54,6 +54,19 @@ export default function AdminEventExtras({ event, tickets, extras }) {
   const isPast = event && new Date(event.event_date).getTime() < Date.now();
   const msg = welcomeMessage(event, newcomers);
   const contacts = extras?.contacts || [];
+  const [removed, setRemoved] = useState([]);
+  const media = (extras?.media || []).filter((m) => !removed.includes(m.id));
+  const noPhoto = (tickets || []).filter((t) => t.noPhoto);
+  async function deleteMedia(m) {
+    if (!window.confirm(`Supprimer ${m.media_type === "video" ? "cette vidéo" : "cette photo"} ? C'est définitif.`)) return;
+    const res = await fetch("/api/manage-guests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminSecret, action: "media-delete", photoId: m.id })
+    });
+    if (res.ok) setRemoved((r) => [...r, m.id]);
+    else setNotice("Suppression impossible, réessaie.");
+  }
   const photosMsg = photosMessage(event);
   const copy = (text, done) =>
     navigator.clipboard
@@ -133,8 +146,8 @@ export default function AdminEventExtras({ event, tickets, extras }) {
           </div>
           <p style={small}>
             Pour les personnes inscrites via Meet5 ou ailleurs, sans email dans l'app. Pendant la soirée : pose le QR code sur les tables. Après : partage le lien
-            des photos dans le groupe Meet5. Chacun laisse son email, reçoit le lendemain le mail de remerciement (avis Google, photos) et les invitations aux
-            prochaines soirées.
+            des photos dans le groupe Meet5 pour inviter chacun à déposer ses photos et vidéos. Chacun laisse son email, reçoit le soir même le mail de
+            remerciement (avis Google, dépôt de photos) et les invitations aux prochaines soirées.
           </p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <a style={btn} href={`/event/${event.id}/qr-table`} target="_blank" rel="noreferrer">
@@ -168,6 +181,42 @@ export default function AdminEventExtras({ event, tickets, extras }) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {noPhoto.length > 0 && (
+            <p style={{ ...small, marginTop: 10, color: colors.ink }}>
+              📵 Ne souhaitent pas apparaître sur les photos : <strong>{noPhoto.map((t) => t.name).join(", ")}</strong>
+            </p>
+          )}
+          <div style={{ ...title, marginTop: 12 }}>
+            Photos et vidéos déposées ({media.length})
+            <a href={`/photos/${event.id}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 11.5, color: colors.orange }}>
+              Ouvrir la page
+            </a>
+          </div>
+          {media.length === 0 ? (
+            <p style={{ ...small, margin: 0 }}>Aucune pour l'instant. Tout le monde peut en déposer dès le début de la soirée, depuis la page photos.</p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+              {media.map((m) => (
+                <div key={m.id} style={{ position: "relative", aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: colors.bg }}>
+                  <a href={m.photo_url} target="_blank" rel="noreferrer" title={m.uploader_name || m.uploader_email || ""}>
+                    {m.media_type === "video" ? (
+                      <video src={m.photo_url} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <img src={m.photo_url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    )}
+                  </a>
+                  {m.media_type === "video" && <span style={{ position: "absolute", left: 4, bottom: 2, fontSize: 12 }}>🎬</span>}
+                  <button
+                    onClick={() => deleteMedia(m)}
+                    aria-label="Supprimer"
+                    style={{ position: "absolute", top: 3, right: 3, border: "none", borderRadius: 20, background: "rgba(6,43,73,0.75)", color: "#fff", fontSize: 11, padding: "1px 6px", cursor: "pointer" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           )}
           {contacts.length > 0 && (

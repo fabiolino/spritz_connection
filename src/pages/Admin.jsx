@@ -413,7 +413,7 @@ export default function Admin() {
         return;
       }
       setEventTickets(data.tickets || []);
-      setTicketExtras({ waitlist: data.waitlist || [], ratings: data.ratings || null, contacts: data.contacts || [] });
+      setTicketExtras({ waitlist: data.waitlist || [], ratings: data.ratings || null, contacts: data.contacts || [], media: data.media || [] });
       setLoadingTickets(false);
     } catch (err) {
       setTicketsError("Impossible de contacter le serveur");
@@ -1006,6 +1006,11 @@ export default function Admin() {
                               1re fois
                             </span>
                           )}
+                          {t.noPhoto && (
+                            <span title="Préfère ne pas apparaître sur les photos" style={{ marginLeft: 6, background: colors.navy, color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 10.5, fontWeight: 800 }}>
+                              📵 pas de photo
+                            </span>
+                          )}
                           {(t.quantity || 1) > 1 && (
                             <span
                               style={{ marginLeft: 6, background: colors.orange, color: "#fff", borderRadius: 20, padding: "1px 7px", fontSize: 10.5, fontWeight: 800 }}
@@ -1140,7 +1145,7 @@ export default function Admin() {
         )}
 
         {selectedEventId && eventTickets && ticketExtras && (
-          <AdminEventExtras event={allEvents.find((e) => e.id === selectedEventId)} tickets={eventTickets} extras={ticketExtras} />
+          <AdminEventExtras event={allEvents.find((e) => e.id === selectedEventId)} tickets={eventTickets} extras={ticketExtras} adminSecret={adminSecret} />
         )}
 
         {selectedEventId && (

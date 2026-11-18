@@ -4,6 +4,7 @@ import { Camera, X } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext.jsx";
 import ContactForm, { postContact } from "../components/ContactForm.jsx";
+import MediaUploader, { rememberIdentity } from "../components/MediaUploader.jsx";
 
 const GOOGLE_REVIEW_URL = "https://g.page/r/CQoIqirTJtVGEBM/review";
 const INSTAGRAM_URL = "https://www.instagram.com/spritz_connection/";
@@ -75,7 +76,7 @@ export default function EventPhotos() {
     <div style={{ padding: "28px 20px 110px" }}>
       <div style={{ fontSize: 11, letterSpacing: "0.18em", fontWeight: 700, color: colors.orange }}>SPRITZ CONNECTION</div>
       <h1 style={{ fontFamily: fonts.display, fontSize: 26, color: colors.navy, margin: "4px 0 4px", lineHeight: 1.15 }}>
-        {photos ? `Grazie${firstName ? " " + firstName : ""} ! 📸` : "Les photos de la soirée 📸"}
+        {photos ? `Grazie${firstName ? " " + firstName : ""} ! 📸` : "Photos et vidéos de la soirée 📸"}
       </h1>
       <p style={{ margin: "0 0 18px", color: colors.muted, fontSize: 14 }}>
         {event ? (
@@ -92,18 +93,21 @@ export default function EventPhotos() {
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 800, color: colors.navy, marginBottom: 6 }}>
             <Camera size={18} color={colors.orange} />
-            {event.photoCount > 0 ? `${event.photoCount} photo${event.photoCount > 1 ? "s" : ""} t'attendent` : "Les photos arrivent bientôt"}
+            {event.photoCount > 0
+              ? `${event.photoCount} souvenir${event.photoCount > 1 ? "s" : ""} t'attend${event.photoCount > 1 ? "ent" : ""}`
+              : "Sois le premier ou la première à partager tes photos !"}
           </div>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: "0 0 16px" }}>
-            Laisse ton prénom et ton email pour les voir. Tu recevras aussi les invitations à nos prochaines soirées, en avant-première.
+            Laisse ton prénom et ton email pour voir les photos et vidéos de la soirée, et <strong>déposer les tiennes</strong>. Tu recevras aussi les invitations à nos prochaines soirées, en avant-première.
           </p>
           <ContactForm
             eventId={id}
             source="photos"
-            submitLabel="Voir les photos"
+            submitLabel="Voir et déposer mes photos"
             consentText="J'accepte de recevoir par email les photos et les invitations aux prochaines soirées Spritz Connection."
             onDone={(d) => {
               remember(id);
+              if (d.email) rememberIdentity(d.email, d.firstName || "");
               setFirstName(d.firstName || "");
               setEvent(d.event || event);
               setPhotos(d.photos || []);
@@ -114,19 +118,28 @@ export default function EventPhotos() {
 
       {photos && (
         <>
+          {event?.uploadOpen && <MediaUploader eventId={id} isLoggedIn={!!user} onAdded={(p) => p && setPhotos((list) => [...(list || []), p])} />}
+
           {photos.length === 0 ? (
             <div style={{ ...card, textAlign: "center", fontSize: 14, lineHeight: 1.5 }}>
-              Les photos ne sont pas encore en ligne. Tu recevras le lien par email dès qu'elles le sont, avec nos prochaines soirées.
+              Pas encore de photo ni de vidéo. Dépose les tiennes pour lancer la galerie !
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
               {photos.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setZoom(p.photo_url)}
-                  style={{ padding: 0, border: "none", background: colors.border, borderRadius: 12, overflow: "hidden", aspectRatio: "1 / 1", cursor: "zoom-in" }}
+                  onClick={() => setZoom(p)}
+                  style={{ position: "relative", padding: 0, border: "none", background: colors.border, borderRadius: 12, overflow: "hidden", aspectRatio: "1 / 1", cursor: "zoom-in" }}
                 >
-                  <img src={p.photo_url} alt="Photo de la soirée" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {p.media_type === "video" ? (
+                    <>
+                      <video src={`${p.photo_url}#t=0.5`} muted playsInline preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>▶</span>
+                    </>
+                  ) : (
+                    <img src={p.photo_url} alt="Photo de la soirée" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  )}
                 </button>
               ))}
             </div>
@@ -178,7 +191,11 @@ export default function EventPhotos() {
           <button aria-label="Fermer" onClick={() => setZoom(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#fff", cursor: "pointer" }}>
             <X size={28} />
           </button>
-          <img src={zoom} alt="Photo de la soirée" style={{ maxWidth: "100%", maxHeight: "88vh", borderRadius: 10 }} />
+          {zoom.media_type === "video" ? (
+            <video src={zoom.photo_url} controls autoPlay playsInline onClick={(e) => e.stopPropagation()} style={{ maxWidth: "100%", maxHeight: "88vh", borderRadius: 10 }} />
+          ) : (
+            <img src={zoom.photo_url} alt="Photo de la soirée" style={{ maxWidth: "100%", maxHeight: "88vh", borderRadius: 10 }} />
+          )}
         </div>
       )}
     </div>

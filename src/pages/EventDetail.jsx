@@ -132,7 +132,7 @@ export default function EventDetail() {
 
       const { data: photoRows } = await supabase
         .from("event_photos")
-        .select("id, photo_url, user_id")
+        .select("id, photo_url, user_id, media_type")
         .eq("event_id", id)
         .order("created_at", { ascending: true });
       if (photoRows) setPhotos(photoRows);
@@ -251,6 +251,9 @@ export default function EventDetail() {
 
   const cat = getCategory(event.category);
   const coverUrl = event.cover_photo_url || cat.default_cover_url;
+  // Galerie participative : ouverte dès le début de la soirée et pendant 60 jours
+  const startMs = new Date(event.event_date).getTime();
+  const mediaOpen = Date.now() >= startMs - 30 * 60 * 1000 && Date.now() <= startMs + 60 * 24 * 3600 * 1000;
 
   async function handleFreeRegister() {
     const check = groupError(group, user);
@@ -375,6 +378,29 @@ export default function EventDetail() {
           Cette soirée est passée. Prochaine édition le{" "}
           {new Date(nextEdition.event_date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" })}
           {" "}→ voir et réserver
+        </button>
+      )}
+      {mediaOpen && (
+        <button
+          onClick={() => navigate(`/photos/${id}`)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            width: "100%",
+            border: "none",
+            cursor: "pointer",
+            background: colors.navy,
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 700,
+            lineHeight: 1.35
+          }}
+        >
+          <Camera size={17} />
+          {photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? "s" : ""} et vidéos · dépose les tiennes` : "Photos et vidéos de la soirée · dépose les tiennes"}
         </button>
       )}
       {/* En-tête : même langage visuel que les cartes de la page d'accueil (photo pleine largeur,
@@ -952,24 +978,15 @@ export default function EventDetail() {
           <InviteButtons event={event} url={eventInviteUrl(id, null, profile?.referral_code)} style={{ marginTop: -12, marginBottom: 26 }} />
         )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <SectionTitle style={{ margin: 0 }}>Souvenirs de la soirée</SectionTitle>
-          {user && (
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                color: colors.orange,
-                cursor: uploadingPhoto ? "not-allowed" : "pointer"
-              }}
+        <div id="souvenirs" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <SectionTitle style={{ margin: 0 }}>Photos et vidéos de la soirée</SectionTitle>
+          {mediaOpen && (
+            <button
+              onClick={() => navigate(`/photos/${id}`)}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: colors.orange, background: "none", border: "none", cursor: "pointer" }}
             >
-              <Camera size={15} />
-              {uploadingPhoto ? "Envoi…" : "Ajouter"}
-              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: "none" }} />
-            </label>
+              <Camera size={15} /> Ajouter les miennes
+            </button>
           )}
         </div>
 
@@ -977,17 +994,30 @@ export default function EventDetail() {
 
         {photos.length === 0 ? (
           <p style={{ fontSize: 12.5, color: colors.muted }}>
-            Pas encore de photo — les personnes inscrites à cet événement pourront en ajouter une fois la soirée passée.
+            {mediaOpen
+              ? "Pas encore de photo ni de vidéo : sois le premier ou la première à partager les tiennes !"
+              : "Dès le début de la soirée, chacun pourra déposer ici ses photos et vidéos."}
           </p>
         ) : (
           <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
             {photos.map((p) => (
-              <a key={p.id} href={p.photo_url} target="_blank" rel="noreferrer" style={{ flexShrink: 0 }}>
-                <img
-                  src={p.photo_url}
-                  alt="Photo de l'événement"
-                  style={{ width: 130, height: 130, objectFit: "cover", borderRadius: 14, border: `1px solid ${colors.border}` }}
-                />
+              <a key={p.id} href={p.photo_url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, position: "relative" }}>
+                {p.media_type === "video" ? (
+                  <video
+                    src={`${p.photo_url}#t=0.5`}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    style={{ width: 130, height: 130, objectFit: "cover", borderRadius: 14, border: `1px solid ${colors.border}`, display: "block" }}
+                  />
+                ) : (
+                  <img
+                    src={p.photo_url}
+                    alt="Photo de l'événement"
+                    style={{ width: 130, height: 130, objectFit: "cover", borderRadius: 14, border: `1px solid ${colors.border}` }}
+                  />
+                )}
+                {p.media_type === "video" && <span style={{ position: "absolute", left: 8, bottom: 6, fontSize: 18 }}>🎬</span>}
               </a>
             ))}
           </div>

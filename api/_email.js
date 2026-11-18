@@ -491,23 +491,28 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
   <tr><td style="padding:20px 22px 6px;font-size:15px;line-height:1.6">
     <p style="margin:0 0 12px">Ciao${firstName ? " " + esc(firstName) : ""} !</p>
     <p style="margin:0 0 12px">Merci d'avoir partagé <strong>${esc(event.title)}</strong> avec nous. On espère que tu as passé un super moment et que tu as fait de belles rencontres.</p>
-    <p style="margin:0 0 6px">Ton avis nous aide à faire encore mieux la prochaine fois : il suffit d'une étoile.</p>
+    <p style="margin:0">Deux petites choses tant que c'est encore tout chaud 👇</p>
   </td></tr>
-  <tr><td align="center" style="padding:10px 22px 8px">${registrationId ? ratingStarsHtml(registrationId) : button(GOOGLE_REVIEW_URL, "⭐ Laisser un avis Google")}</td></tr>
-  ${photoCount > 0
-    ? `<tr><td style="padding:14px 22px 0">
-    <div style="background:${CREAM};border-radius:14px;padding:16px;text-align:center">
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📷 ${photoCount} photo${photoCount > 1 ? "s" : ""} de la soirée en ligne</div>
-      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">Retrouve-toi sur les photos et partage-les avec tes amis.</div>
-      ${button(photosUrl, "Voir les photos", false)}
-    </div>
-  </td></tr>`
-    : ""}
   <tr><td style="padding:14px 22px 0">
     <div style="border:2px solid ${ORANGE};border-radius:14px;padding:16px;text-align:center">
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📸 Retrouve les photos de la soirée sur Instagram</div>
-      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">Abonne-toi à @spritz_connection : photos des soirées, prochaines dates et petits concours. Et identifie-toi sur les photos !</div>
-      ${button(INSTAGRAM_URL, "Suivre @spritz_connection")}
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">⭐ La soirée t'a plu ? Dis-le sur Google</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">30 secondes, et ça aide d'autres personnes à découvrir nos soirées. Grazie !</div>
+      ${button(GOOGLE_REVIEW_URL, "Laisser un avis Google")}
+    </div>
+  </td></tr>
+  <tr><td style="padding:14px 22px 0">
+    <div style="background:${CREAM};border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📸 Dépose tes photos et vidéos de la soirée</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">${photoCount > 0 ? `Déjà ${photoCount} souvenir${photoCount > 1 ? "s" : ""} en ligne : retrouve-toi dessus et ajoute les tiens.` : "Tu as pris des photos ou des vidéos ? Partage-les avec tout le groupe, en quelques secondes."}</div>
+      ${button(photosUrl, "Voir et déposer mes photos", false)}
+    </div>
+  </td></tr>
+  ${registrationId ? `<tr><td align="center" style="padding:14px 22px 0">${ratingStarsHtml(registrationId)}</td></tr>` : ""}
+  <tr><td style="padding:14px 22px 0">
+    <div style="border:2px solid ${ORANGE};border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">📱 Suis-nous sur Instagram</div>
+      <div style="font-size:14px;line-height:1.55;margin-bottom:12px">Abonne-toi à @spritz_connection : photos des soirées, prochaines dates et petits concours.</div>
+      ${button(INSTAGRAM_URL, "Suivre @spritz_connection", false)}
     </div>
   </td></tr>
   ${nextSameType
@@ -541,8 +546,9 @@ export function buildThanksEmail({ event, recipientName, hasAccount, recipientEm
   const text = [
     `Ciao${firstName ? " " + firstName : ""} !`,
     `Merci d'avoir partagé ${event.title} avec nous.`,
-    registrationId ? `Comment était la soirée ? Donne ta note : ${appUrl()}/note/${registrationId}` : `Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
-    ...(photoCount > 0 ? [`Les photos de la soirée : ${photosUrl}`] : []),
+    `La soirée t'a plu ? Un avis Google nous aiderait énormément (30 secondes) : ${GOOGLE_REVIEW_URL}`,
+    `Dépose tes photos et vidéos de la soirée : ${photosUrl}`,
+    ...(registrationId ? [`Ta note de la soirée : ${appUrl()}/note/${registrationId}`] : []),
     `Retrouve les photos de la soirée et nos prochaines dates sur Instagram, abonne-toi : ${INSTAGRAM_URL}`,
     "",
     nextSameType

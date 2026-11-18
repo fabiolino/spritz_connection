@@ -2,8 +2,9 @@
 // Vercel déclarée dans vercel.json ("crons"). Accès réservé : Vercel envoie
 // "Authorization: Bearer <CRON_SECRET>" automatiquement.
 //
-// 1. REMERCIEMENT après l'événement (avec le lien d'avis Google + prochaines soirées)
-//    - événements commencés il y a plus de 10 h et il y a moins de 4 jours
+// 1. REMERCIEMENT après l'événement (avis Google, dépôt de photos/vidéos, prochaines soirées)
+//    - le soir même : événements commencés il y a plus de 3 h 30 et il y a moins de 4 jours,
+//      jamais entre minuit et 9 h (Paris) ; une tâche Supabase appelle ?only=thanks toutes les 30 min
 //    - une seule fois par personne et par événement (registrations.thanks_sent_at)
 // 3. JOUR J (« C'est ce soir ») : événements qui commencent dans 1 h à 15 h, une fois par inscription
 //    (registrations.dayof_sent_at), sauf inscriptions faites dans les 3 dernières heures
@@ -31,9 +32,16 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HOUR = 3600 * 1000;
 
 export default async function handler(req, res) {
+  // Deux appelants autorisés : la tâche quotidienne Vercel (CRON_SECRET) et la tâche
+  // Supabase toutes les 30 min (pg_cron, même clé que l'annonce des nouvelles soirées).
   const secret = process.env.CRON_SECRET;
   const auth = req.headers.authorization || "";
-  if (!secret || auth !== `Bearer ${secret}`) {
+  let allowed = !!secret && auth === `Bearer ${secret}`;
+  if (!allowed && auth.startsWith("Bearer ")) {
+    const { data: s } = await supabaseAdmin.from("app_settings").select("value").eq("key", "announce_secret").maybeSingle();
+    allowed = !!s?.value && auth === `Bearer ${s.value}`;
+  }
+  if (!allowed) {
     return res.status(401).json({ error: "Non autorisé" });
   }
   const dry = req.query?.dry === "1";
@@ -46,12 +54,18 @@ export default async function handler(req, res) {
     const now = Date.now();
     const out = { dry };
 
-    if (!only || only === "thanks") {
+    // Remerciement « à chaud » : le soir même, environ 3 h 30 après le début de la soirée
+    // (Aperitivo 19 h → ~22 h 30). Jamais entre minuit et 9 h (heure de Paris) : ce qui
+    // tomberait la nuit part le lendemain matin.
+    const parisHour = Number(new Date(now).toLocaleString("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }));
+    const quietHours = parisHour < 9;
+    if ((!only || only === "thanks") && quietHours) out.thanks = { skipped: "heures de nuit" };
+    if ((!only || only === "thanks") && !quietHours) {
       const nextEvents = await loadNextEvents();
       out.thanks = await runPass({
         kind: "thanks",
         from: new Date(now - 96 * HOUR).toISOString(),
-        to: new Date(now - 10 * HOUR).toISOString(),
+        to: new Date(now - 3.5 * HOUR).toISOString(),
         column: "thanks_sent_at",
         tag: "remerciement",
         build: (event, person) => {

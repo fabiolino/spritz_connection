@@ -37,6 +37,7 @@ import Privacy from "./pages/Privacy.jsx";
 import Conditions from "./pages/Conditions.jsx";
 import Communities from "./pages/Communities.jsx";
 import CommunityJoin from "./pages/CommunityJoin.jsx";
+import Soirees from "./pages/Soirees.jsx";
 import BroadcastBanner from "./components/BroadcastBanner.jsx";
 import BottomNav, { NAV_HEIGHT, useBottomNavVisible } from "./components/BottomNav.jsx";
 import { useIsDesktop } from "./lib/useIsDesktop";
@@ -119,6 +120,8 @@ export default function App() {
           <Route path="/conditions" element={<Conditions />} />
           <Route path="/communities" element={<Communities />} />
           <Route path="/c/:code" element={<CommunityJoin />} />
+          <Route path="/soirees" element={<Soirees />} />
+          <Route path="/dopolavoro" element={<Soirees series="dopolavoro" />} />
       </Routes>
         <PageSpace />
         <BottomNav />

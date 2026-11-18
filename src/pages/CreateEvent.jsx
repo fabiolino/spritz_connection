@@ -8,6 +8,7 @@ import PasswordInput from "../components/PasswordInput.jsx";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import AgeRangeSlider from "../components/AgeRangeSlider";
+import KnownAddressPicker from "../components/KnownAddressPicker.jsx";
 
 const inputStyle = {
   width: "100%",
@@ -68,7 +69,7 @@ export default function CreateEvent() {
   useEffect(() => {
     supabase
       .from("venues")
-      .select("id, name")
+      .select("id, name, address")
       .order("name", { ascending: true })
       .then(({ data }) => setVenues(data || []));
   }, []);
@@ -195,7 +196,7 @@ export default function CreateEvent() {
           <select
             style={inputStyle}
             value={form.venueId}
-            onChange={(e) => update("venueId", e.target.value)}
+            onChange={(e) => { const id = e.target.value; const v = venues.find((x) => String(x.id) === id); setForm((f) => ({ ...f, venueId: id, address: f.address || (v && v.address) || "" })); }}
           >
             <option value="">Aucun lieu partenaire</option>
             {venues.map((v) => (
@@ -344,6 +345,7 @@ export default function CreateEvent() {
 
         <div>
           <label style={labelStyle}>Adresse</label>
+          <KnownAddressPicker onPick={(p) => setForm((f) => ({ ...f, address: p.address, venueId: p.venueId || f.venueId }))} />
           <input required style={inputStyle} value={form.address} onChange={(e) => update("address", e.target.value)} placeholder="12 Quai de Valmy, 75010 Paris" />
         </div>
 

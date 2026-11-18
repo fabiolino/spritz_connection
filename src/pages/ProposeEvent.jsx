@@ -7,6 +7,7 @@ import { CategoryIcon } from "../lib/eventIcons";
 import AgeRangeSlider from "../components/AgeRangeSlider";
 import { useAuth } from "../lib/AuthContext";
 import { authHeaders } from "../lib/sumupClient";
+import KnownAddressPicker from "../components/KnownAddressPicker.jsx";
 
 const inputStyle = {
   width: "100%",
@@ -226,6 +227,7 @@ export default function ProposeEvent() {
 
         <div>
           <label style={labelStyle}>Adresse</label>
+          <KnownAddressPicker onPick={(p) => update("address", p.address)} />
           <input required style={inputStyle} value={form.address} onChange={(e) => update("address", e.target.value)} />
         </div>
 

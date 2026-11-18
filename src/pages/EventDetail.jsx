@@ -49,6 +49,7 @@ export default function EventDetail() {
   const [group, setGroup] = useState(emptyGroup());
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState("");
+  const [nextEdition, setNextEdition] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -94,6 +95,21 @@ export default function EventDetail() {
       }
       setInvitePreview(null);
       setLoaded(true);
+
+      // Lien vers une soirée passée (ex. ancien lien recopié sur Meet5) :
+      // on propose la prochaine édition du même rendez-vous.
+      setNextEdition(null);
+      if (data.event_date && new Date(data.event_date).getTime() < Date.now() - 6 * 3600 * 1000) {
+        const { data: upcoming } = await supabase
+          .from("events")
+          .select("id, title, event_date")
+          .eq("title", data.title)
+          .eq("approved", true)
+          .gte("event_date", new Date().toISOString())
+          .order("event_date", { ascending: true })
+          .limit(1);
+        if (upcoming && upcoming[0] && upcoming[0].id !== data.id) setNextEdition(upcoming[0]);
+      }
 
       const { data: optionRows } = await supabase
         .from("event_options")
@@ -339,6 +355,28 @@ export default function EventDetail() {
 
   return (
     <div style={{ paddingBottom: 40 }}>
+      {nextEdition && (
+        <button
+          onClick={() => navigate(`/event/${nextEdition.id}`)}
+          style={{
+            display: "block",
+            width: "100%",
+            border: "none",
+            cursor: "pointer",
+            background: colors.orange,
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 700,
+            textAlign: "center",
+            lineHeight: 1.35
+          }}
+        >
+          Cette soirée est passée. Prochaine édition le{" "}
+          {new Date(nextEdition.event_date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Paris" })}
+          {" "}→ voir et réserver
+        </button>
+      )}
       {/* En-tête : même langage visuel que les cartes de la page d'accueil (photo pleine largeur,
           bloc date jaune, titre Fraunces), en grand */}
       <div

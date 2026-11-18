@@ -253,6 +253,32 @@ async function consumeAutolink(supabaseAdmin, title) {
   return eventId;
 }
 
+// Rattachement automatique par type de soirée : une nouvelle annonce dont le titre évoque
+// un apéro italien, un karaoké ou une dégustation est reliée à la PROCHAINE soirée Spritz
+// du même type (approuvée, à venir). Modifiable ensuite depuis l'Admin (« Changer »).
+const AUTO_TYPES = [
+  { keys: ["aperitivo", "aperitif", "apero"], eventTitle: "aperitivo" },
+  { keys: ["karaoke"], eventTitle: "karaoke" },
+  { keys: ["di-vino", "divino", "degustation"], eventTitle: "di-vino" }
+];
+
+export async function autoMatchEvent(supabaseAdmin, title, at = new Date()) {
+  const t = normName(title);
+  const type = AUTO_TYPES.find((ty) => ty.keys.some((k) => t.includes(k)));
+  if (!type) return null;
+  // Une soirée en cours (commencée il y a moins de 6 h) compte encore comme « prochaine »
+  const from = new Date(new Date(at).getTime() - 6 * 3600 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("events")
+    .select("id, title, event_date")
+    .eq("approved", true)
+    .gte("event_date", from)
+    .order("event_date", { ascending: true })
+    .limit(30);
+  const ev = (data || []).find((e) => normName(e.title).includes(type.eventTitle));
+  return ev ? ev.id : null;
+}
+
 // Reçoit un lot d'emails bruts, les enregistre (sans doublon) et les applique.
 export async function ingest(supabaseAdmin, messages) {
   const touched = new Set();
@@ -289,7 +315,7 @@ export async function ingest(supabaseAdmin, messages) {
       .eq("external_id", parsed.externalId)
       .maybeSingle();
     if (!link) {
-      const eventId = await consumeAutolink(supabaseAdmin, parsed.title);
+      const eventId = (await consumeAutolink(supabaseAdmin, parsed.title)) || (await autoMatchEvent(supabaseAdmin, parsed.title, receivedAt));
       await supabaseAdmin.from("external_links").insert({ source: parsed.source, external_id: parsed.externalId, title: parsed.title, event_id: eventId });
     } else if (parsed.title) {
       await supabaseAdmin.from("external_links").update({ title: parsed.title }).eq("source", parsed.source).eq("external_id", parsed.externalId);

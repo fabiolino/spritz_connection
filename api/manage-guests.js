@@ -632,6 +632,33 @@ export default async function handler(req, res) {
       return res.status(200).json({ stats });
     }
 
+    // « Comment nous as-tu connus ? » : nombre de personnes par canal, sur une période donnée
+    if (action === "heard-from-stats") {
+      const days = Math.min(3650, Math.max(1, parseInt(req.body.days, 10) || 3650));
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+      const { data: regs, error: regsError } = await supabaseAdmin
+        .from("registrations")
+        .select("heard_from, source, quantity, paid, external, event_id, reservation_expired_at")
+        .not("event_id", "is", null)
+        .gte("created_at", since);
+      if (regsError) throw regsError;
+      const counts = {};
+      let answered = 0;
+      let total = 0;
+      for (const r of regs || []) {
+        // Inscriptions confirmées seulement (payées, gratuites, ou à régler sur place)
+        if (!r.paid && (!r.external || r.reservation_expired_at)) continue;
+        const n = r.quantity || 1;
+        total += n;
+        // Les inscriptions importées depuis Meet5 comptent comme « Meet5 »
+        const key = r.heard_from || (r.source === "Autre application" ? "meet5" : null);
+        if (!key) continue;
+        counts[key] = (counts[key] || 0) + n;
+        answered += n;
+      }
+      return res.status(200).json({ counts, answered, total, days });
+    }
+
     if (!eventId) {
       return res.status(400).json({ error: "eventId manquant" });
     }

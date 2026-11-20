@@ -71,6 +71,13 @@ export function readGuest(body, { requireEmail = true, requirePhone = true } = {
   return { name, email: email || null, phone };
 }
 
+// « Comment nous as-tu connus ? » — mêmes clés que HEARD_FROM_OPTIONS dans src/components/GroupForm.jsx
+export const HEARD_FROM = ["meet5", "instagram", "facebook", "ami", "lieu", "whatsapp", "google", "meetup", "autre"];
+export function readHeardFrom(body) {
+  const v = String(body?.heardFrom || "").trim().toLowerCase();
+  return HEARD_FROM.includes(v) ? v : null;
+}
+
 // Prénoms des autres personnes du groupe (facultatifs) — au plus quantity - 1 noms
 export function readAttendeeNames(value, quantity) {
   if (!Array.isArray(value) || quantity < 2) return null;

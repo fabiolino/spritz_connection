@@ -164,6 +164,7 @@ async function applyImport(supabaseAdmin, imp, eventId) {
       user_id: null,
       guest_name: imp.name,
       source: EXTERNAL_SOURCE_LABEL,
+      heard_from: imp.source === "meet5" ? "meet5" : null,
       external_ref: ref,
       quantity: 1,
       attendee_names: [],

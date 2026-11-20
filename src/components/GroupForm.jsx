@@ -6,6 +6,30 @@ import { getCrewRef } from "../lib/referral";
 export const MAX_GROUP = 10; // aligné avec api/_registration.js
 
 const PHONE_KEY = "spritz_phone";
+const HEARD_KEY = "spritz_heard_from";
+
+// « Comment nous as-tu connus ? » — mêmes clés que HEARD_FROM dans api/_registration.js
+export const HEARD_FROM_OPTIONS = [
+  { key: "meet5", label: "Meet5" },
+  { key: "instagram", label: "Instagram" },
+  { key: "facebook", label: "Facebook" },
+  { key: "ami", label: "Un·e ami·e" },
+  { key: "lieu", label: "Le lieu de la soirée" },
+  { key: "whatsapp", label: "Groupe WhatsApp" },
+  { key: "google", label: "Google / site web" },
+  { key: "meetup", label: "Meetup" },
+  { key: "autre", label: "Autre" }
+];
+
+// Réponse déjà donnée sur cet appareil : on ne repose pas la question
+function savedHeardFrom() {
+  try {
+    const v = localStorage.getItem(HEARD_KEY) || "";
+    return HEARD_FROM_OPTIONS.some((o) => o.key === v) ? v : "";
+  } catch {
+    return "";
+  }
+}
 
 // Le mobile saisi une fois est gardé sur l'appareil pour préremplir les inscriptions suivantes
 function savedPhone() {
@@ -17,7 +41,7 @@ function savedPhone() {
 }
 
 export function emptyGroup() {
-  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: savedPhone() };
+  return { quantity: 1, names: [], guestName: "", guestEmail: "", guestPhone: savedPhone(), heardFrom: savedHeardFrom(), heardFromSaved: !!savedHeardFrom() };
 }
 
 const PHONE_OK = (v) => {
@@ -29,6 +53,7 @@ const PHONE_OK = (v) => {
 export function groupPayload(group, user) {
   try {
     if (group.guestPhone.trim()) localStorage.setItem(PHONE_KEY, group.guestPhone.trim());
+    if (group.heardFrom) localStorage.setItem(HEARD_KEY, group.heardFrom);
   } catch {
     /* stockage indisponible : sans importance */
   }
@@ -37,6 +62,7 @@ export function groupPayload(group, user) {
     guestPhone: group.guestPhone.trim(), // mobile obligatoire, avec ou sans compte
     attendeeNames: group.names.slice(0, group.quantity - 1).map((n) => n.trim()).filter(Boolean),
     refCode: getCrewRef(), // lien perso d'un membre Spritz Crew, s'il y en a un
+    heardFrom: group.heardFrom || null, // « Comment nous as-tu connus ? »
     ...(user
       ? {}
       : {
@@ -60,6 +86,7 @@ export function groupError(group, user, { requireEmail = true } = {}) {
   }
   if (!group.guestPhone.trim()) return "Indique ton numéro de mobile : on ne t'appelle qu'en cas de problème.";
   if (!PHONE_OK(group.guestPhone)) return "Le numéro de mobile ne semble pas valide.";
+  if (!group.heardFrom) return "Dis-nous comment tu nous as connus (une réponse suffit).";
   return "";
 }
 
@@ -238,6 +265,43 @@ export default function GroupForm({ group, onChange, user, seatsLeft, requireEma
           />
           <p style={{ fontSize: 11, color: colors.muted, margin: "-2px 2px 0", lineHeight: 1.4 }}>
             Transmis au lieu de la soirée, uniquement pour te joindre si besoin le jour J.
+          </p>
+        </div>
+      )}
+
+      {!group.heardFromSaved && (
+        <div style={sectionStyle(false)}>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>
+            Comment nous as-tu connus ? <span style={{ color: colors.orange }}>*</span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {HEARD_FROM_OPTIONS.map((o) => {
+              const on = group.heardFrom === o.key;
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => set({ heardFrom: o.key })}
+                  style={{
+                    border: `1.5px solid ${on ? colors.orange : colors.border}`,
+                    background: on ? "rgba(240,90,25,0.1)" : colors.surface,
+                    color: on ? colors.orange : colors.ink,
+                    fontWeight: on ? 700 : 500,
+                    borderRadius: 99,
+                    padding: "7px 12px",
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 11, color: colors.muted, margin: "-2px 2px 0", lineHeight: 1.4 }}>
+            Une seule fois : ça nous aide à savoir où parler de nos soirées.
           </p>
         </div>
       )}

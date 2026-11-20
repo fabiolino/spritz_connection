@@ -11,20 +11,6 @@ import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
 import { shareContent } from "../lib/share";
 
-const DEMO_EVENTS = [
-  {
-    id: "demo-1",
-    title: "Spritz al Tramonto",
-    organizer: "Fabio",
-    event_date: "2026-09-12T19:00:00",
-    address: "12 Quai de Valmy, 75010 Paris",
-    seats: 40,
-    taken: 27,
-    category: "apero",
-    latitude: 48.8709,
-    longitude: 2.3661
-  }
-];
 
 const RADII = [5, 10, 20];
 
@@ -32,8 +18,10 @@ export default function Feed() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
   const { categories, getCategory } = useCategories();
-  const [events, setEvents] = useState(DEMO_EVENTS);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [showJoinBanner, setShowJoinBanner] = useState(false); // Association pas encore active — désactivé pour le moment
   const [shareMsg, setShareMsg] = useState("");
 
@@ -48,20 +36,36 @@ export default function Feed() {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setLoadError(false);
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .eq("approved", true)
-        .gte("event_date", sevenDaysAgo.toISOString())
-        .order("event_date", { ascending: true });
-      if (!error && data) setEvents(data);
+      // Jusqu'à 3 essais (réseau mobile instable) avant d'afficher une erreur
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data, error } = await supabase
+            .from("events")
+            .select("*")
+            .eq("approved", true)
+            .gte("event_date", sevenDaysAgo.toISOString())
+            .order("event_date", { ascending: true });
+          if (!error && data) {
+            setEvents(data);
+            setLoading(false);
+            return;
+          }
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+      setLoadError(true);
       setLoading(false);
     }
     load();
-  }, []);
+    const onVisible = () => { if (document.visibilityState === "visible") setReloadKey((k) => k + 1); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [reloadKey]);
 
   function requestLocation() {
     setLocationError("");
@@ -332,7 +336,21 @@ export default function Feed() {
 
       {loading && <p style={{ color: colors.muted, fontSize: 13 }}>Chargement…</p>}
 
-      {!loading && visibleEvents.length === 0 && (
+      {!loading && loadError && (
+        <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 14, marginBottom: 20, textAlign: "center" }}>
+          <p style={{ color: colors.ink, fontSize: 13.5, margin: "0 0 10px" }}>
+            Impossible de charger les soirées. Vérifie ta connexion.
+          </p>
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            style={{ background: colors.orange, color: "#fff", border: "none", borderRadius: 99, padding: "9px 18px", fontWeight: 700, fontSize: 13.5, cursor: "pointer", fontFamily: fonts.body }}
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && visibleEvents.length === 0 && (
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 20 }}>
           Aucun événement pour le moment avec ces filtres.
         </p>

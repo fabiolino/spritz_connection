@@ -14,7 +14,7 @@ const ORANGE = "#F05A19";
 const INK = "#062B49";
 const MUTED = "#5C6B7A";
 const CREAM = "#FFFAF0";
-const CATEGORY_IMAGES = ["concert", "karaoke", "apero", "diner", "theatre", "danse", "autre"];
+const CATEGORY_IMAGES = ["concert", "karaoke", "apero", "diner", "theatre", "danse", "afterwork", "autre"];
 
 function appUrl() {
   return (process.env.PUBLIC_APP_URL || "https://spritz-connection.vercel.app").replace(/\/$/, "");

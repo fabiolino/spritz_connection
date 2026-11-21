@@ -83,6 +83,15 @@ function DanseGlyph({ size }) {
   );
 }
 
+function AfterworkGlyph({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M7 3h10c0 4.5-2 7.5-5 7.5S7 7.5 7 3z" fill={colors.orange} />
+      <path d="M12 10.5V20M8 21h8" stroke={colors.orange} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function AutreGlyph({ size }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -98,6 +107,7 @@ const GLYPHS = {
   diner: DinerGlyph,
   theatre: TheatreGlyph,
   danse: DanseGlyph,
+  afterwork: AfterworkGlyph,
   autre: AutreGlyph
 };
 
@@ -145,6 +155,10 @@ export function DanseIcon({ size }) {
   return <PhotoBadge src="/categories/danse.png" size={size} />;
 }
 
+export function AfterworkIcon({ size }) {
+  return <PhotoBadge src="/categories/afterwork.png" size={size} />;
+}
+
 export function AutreIcon({ size }) {
   return <PhotoBadge src="/categories/autre.png" size={size} />;
 }
@@ -156,6 +170,7 @@ export const ICON_COMPONENTS = {
   diner: DinerIcon,
   theatre: TheatreIcon,
   danse: DanseIcon,
+  afterwork: AfterworkIcon,
   autre: AutreIcon
 };
 

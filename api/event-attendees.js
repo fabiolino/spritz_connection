@@ -27,7 +27,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const CATEGORY_IMAGES = ["concert", "karaoke", "apero", "diner", "theatre", "danse", "autre"];
+const CATEGORY_IMAGES = ["concert", "karaoke", "apero", "diner", "theatre", "danse", "afterwork", "autre"];
 
 async function validToken(eventId, token) {
   if (!eventId || !token) return false;

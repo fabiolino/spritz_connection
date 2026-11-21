@@ -387,7 +387,7 @@ export default function Feed() {
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background: hasPhoto ? `url(${coverUrl}) center/cover` : band.bg,
+                  background: hasPhoto ? `url(${coverUrl}) center 30% / cover` : band.bg,
                   filter: hasPhoto ? PHOTO_FILTER : "none"
                 }}
               />

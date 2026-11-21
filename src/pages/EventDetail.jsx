@@ -416,7 +416,7 @@ export default function EventDetail() {
         }}
       >
         {coverUrl && (
-          <div style={{ position: "absolute", inset: 0, background: `url(${coverUrl}) center/cover`, filter: PHOTO_FILTER }} />
+          <div style={{ position: "absolute", inset: 0, background: `url(${coverUrl}) center 30% / cover`, filter: PHOTO_FILTER }} />
         )}
         <div
           style={{

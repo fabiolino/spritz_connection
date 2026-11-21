@@ -9,6 +9,7 @@ import { colors, fonts, categoryBand, PHOTO_FILTER } from "../lib/theme";
 import { distanceKm } from "../lib/categories";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import { eventCover } from "../lib/covers";
 import { shareContent } from "../lib/share";
 
 
@@ -359,7 +360,7 @@ export default function Feed() {
       {visibleEvents.map((e) => {
         const cat = getCategory(e.category);
         const d = userLocation ? distanceKm(userLocation.lat, userLocation.lon, e.latitude, e.longitude) : null;
-        const coverUrl = e.cover_photo_url || cat.default_cover_url;
+        const coverUrl = eventCover(e, cat);
         const hasPhoto = !!coverUrl;
         const dateObj = new Date(e.event_date);
         const weekday = dateObj.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "").toUpperCase();

@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { colors, fonts, categoryBand, PHOTO_FILTER } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import { eventCover } from "../lib/covers";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
@@ -250,7 +251,7 @@ export default function EventDetail() {
   }
 
   const cat = getCategory(event.category);
-  const coverUrl = event.cover_photo_url || cat.default_cover_url;
+  const coverUrl = eventCover(event, cat);
   const band = categoryBand(cat);
   // Galerie participative : ouverte dès le début de la soirée et pendant 60 jours
   const startMs = new Date(event.event_date).getTime();
@@ -1073,7 +1074,7 @@ function Field({ icon, children }) {
 
 // Aperçu d'un événement privé pour une personne arrivée via un lien d'invitation (WhatsApp / SMS)
 function InviteLanding({ event, category, user, error, onLogin, onBack }) {
-  const coverUrl = event.cover_photo_url || category?.default_cover_url;
+  const coverUrl = eventCover(event, category);
   return (
     <div style={{ paddingBottom: 40 }}>
       <div style={{ padding: "18px 20px 0" }}>

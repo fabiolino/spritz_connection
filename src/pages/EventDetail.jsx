@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Calendar, User, MapPin, Phone, MessageCircle, ChevronLeft, Check, Share2, Users, Camera, Images, ExternalLink, Tag, Square, CheckSquare, Image as ImageIcon } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
-import { colors, fonts } from "../lib/theme";
+import { colors, fonts, categoryBand, PHOTO_FILTER } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
+import { eventCover } from "../lib/covers";
 import { useAuth } from "../lib/AuthContext";
 import { shareContent } from "../lib/share";
 import { authHeaders } from "../lib/sumupClient";
@@ -250,7 +251,8 @@ export default function EventDetail() {
   }
 
   const cat = getCategory(event.category);
-  const coverUrl = event.cover_photo_url || cat.default_cover_url;
+  const coverUrl = eventCover(event, cat);
+  const band = categoryBand(cat);
   // Galerie participative : ouverte dès le début de la soirée et pendant 60 jours
   const startMs = new Date(event.event_date).getTime();
   const mediaOpen = Date.now() >= startMs - 30 * 60 * 1000 && Date.now() <= startMs + 60 * 24 * 3600 * 1000;
@@ -410,9 +412,12 @@ export default function EventDetail() {
           position: "relative",
           height: 300,
           overflow: "hidden",
-          background: coverUrl ? `url(${coverUrl}) center/cover` : "linear-gradient(160deg, rgba(240,90,25,0.9), rgba(255,197,43,0.8))"
+          background: band.bg
         }}
       >
+        {coverUrl && (
+          <div style={{ position: "absolute", inset: 0, background: `url(${coverUrl}) center/cover`, filter: PHOTO_FILTER }} />
+        )}
         <div
           style={{
             position: "absolute",
@@ -438,7 +443,7 @@ export default function EventDetail() {
         </div>
 
         <div style={{ position: "absolute", top: 64, left: 16, right: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: colors.orange, borderRadius: 20, padding: "3px 10px" }}>{cat.label}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: band.fg, background: band.bg, borderRadius: 20, padding: "3px 10px" }}>{cat.label}</span>
           {event.is_free && (
             <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 10px" }}>Gratuit</span>
           )}
@@ -483,7 +488,30 @@ export default function EventDetail() {
           </div>
         </div>
       </div>
-      <div style={{ height: 6, background: colors.orange }} />
+      <div style={{ position: "relative", height: 8, background: band.bg }}>
+        {coverUrl && (
+          <div
+            aria-label={cat.label}
+            title={cat.label}
+            style={{
+              position: "absolute",
+              right: 16,
+              top: -40,
+              width: 76,
+              height: 76,
+              borderRadius: "50%",
+              background: band.bg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 6px rgba(6,43,73,0.3)",
+              zIndex: 2
+            }}
+          >
+            <CategoryIcon category={cat} size={66} />
+          </div>
+        )}
+      </div>
       {shareMsg && <p style={{ textAlign: "center", fontSize: 11.5, color: colors.muted, margin: "6px 0 0" }}>{shareMsg}</p>}
 
       <div
@@ -1046,7 +1074,7 @@ function Field({ icon, children }) {
 
 // Aperçu d'un événement privé pour une personne arrivée via un lien d'invitation (WhatsApp / SMS)
 function InviteLanding({ event, category, user, error, onLogin, onBack }) {
-  const coverUrl = event.cover_photo_url || category?.default_cover_url;
+  const coverUrl = eventCover(event, category);
   return (
     <div style={{ paddingBottom: 40 }}>
       <div style={{ padding: "18px 20px 0" }}>

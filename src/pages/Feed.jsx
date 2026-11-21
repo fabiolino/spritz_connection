@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
-import { colors, fonts } from "../lib/theme";
+import { colors, fonts, categoryBand, PHOTO_FILTER } from "../lib/theme";
 import { distanceKm } from "../lib/categories";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
@@ -366,99 +366,100 @@ export default function Feed() {
         const day = dateObj.toLocaleDateString("fr-FR", { day: "numeric" });
         const month = dateObj.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase();
         const timeStr = dateObj.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        const band = categoryBand(cat);
         return (
           <div
             key={e.id}
             onClick={() => navigate(`/event/${e.id}`)}
             style={{
               position: "relative",
-              height: 206,
               borderRadius: 20,
               overflow: "hidden",
-              marginBottom: 14,
+              marginBottom: 16,
               cursor: "pointer",
-              background: hasPhoto
-                ? `url(${coverUrl})`
-                : "linear-gradient(160deg, rgba(240,90,25,0.85), rgba(255,197,43,0.75))",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
+              background: band.bg,
               boxShadow: "0 8px 18px rgba(6,43,73,0.18)"
             }}
           >
-            {!hasPhoto && (
-              <div style={{ position: "absolute", top: "28%", left: "50%", transform: "translate(-50%, -50%)" }}>
-                <CategoryIcon category={cat} size={58} />
-              </div>
-            )}
-            {hasPhoto && (
+            <div style={{ position: "relative", height: 158, overflow: "hidden" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: hasPhoto ? `url(${coverUrl}) center/cover` : band.bg,
+                  filter: hasPhoto ? PHOTO_FILTER : "none"
+                }}
+              />
               <div
                 style={{
                   position: "absolute",
                   top: 10,
                   left: 10,
-                  width: 34,
-                  height: 34,
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  border: "2px solid #fff",
-                  boxShadow: "0 2px 6px rgba(6,43,73,0.35)",
-                  flexShrink: 0
+                  background: colors.navy,
+                  borderRadius: 12,
+                  padding: "5px 8px",
+                  textAlign: "center",
+                  color: "#FFFAF0",
+                  minWidth: 42
                 }}
               >
-                <img src="/logo.jpg" alt="Spritz Connection" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <b style={{ display: "block", fontSize: 9.5, letterSpacing: "0.08em" }}>{weekday}</b>
+                <strong style={{ display: "block", color: colors.gold, fontSize: 26, lineHeight: 0.95, fontFamily: fonts.display }}>{day}</strong>
+                <b style={{ display: "block", fontSize: 9.5, letterSpacing: "0.08em" }}>{month}</b>
               </div>
-            )}
-
-            <div style={{ position: "absolute", top: 10, left: hasPhoto ? 52 : 10, right: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.orange, borderRadius: 20, padding: "3px 9px" }}>
-                {cat.label}
-              </span>
-              {e.is_free && (
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 9px" }}>
-                  Gratuit
-                </span>
-              )}
-              {e.visibility === "private" && (
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.navy, background: colors.gold, borderRadius: 20, padding: "3px 9px" }}>
-                  🔒 Privé
-                </span>
-              )}
-              {d !== null && (
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#fff", marginLeft: "auto", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
-                  {d.toFixed(1)} km
-                </span>
-              )}
-            </div>
-
-            <div
-              style={{
-                position: "absolute",
-                left: 14,
-                right: 14,
-                bottom: 12,
-                display: "flex",
-                gap: 10,
-                alignItems: "flex-end",
-                color: "#fff",
-                textShadow: hasPhoto ? "0 2px 8px rgba(6,43,73,0.85), 0 1px 2px rgba(6,43,73,0.9)" : "none"
-              }}
-            >
-              <div style={{ width: 40, flexShrink: 0, textAlign: "center" }}>
-                <b style={{ display: "block", fontSize: 10, letterSpacing: "0.08em" }}>{weekday}</b>
-                <strong style={{ display: "block", color: colors.gold, fontSize: 28, lineHeight: 0.95, fontFamily: fonts.display }}>{day}</strong>
-                <b style={{ display: "block", fontSize: 10, letterSpacing: "0.08em" }}>{month}</b>
-              </div>
-              <div style={{ borderLeft: "1px solid rgba(255,255,255,0.4)", paddingLeft: 10, minWidth: 0, flex: 1 }}>
-                <h3 style={{ fontFamily: fonts.display, fontSize: 17, margin: "0 0 5px", lineHeight: 1.1 }}>{e.title}</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, opacity: 0.92, marginBottom: 2 }}>
-                  <Calendar size={11} /> {timeStr} <span style={{ opacity: 0.6 }}>·</span> <User size={11} /> {e.organizer}
-                </div>
-                {e.seats > 0 && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: e.taken >= e.seats ? colors.red : "rgba(255,255,255,0.85)" }}>
-                    {e.taken}/{e.seats} places
-                  </div>
+              <div style={{ position: "absolute", top: 10, right: 10, left: 70, display: "flex", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
+                {e.is_free && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: colors.olive, borderRadius: 20, padding: "3px 9px" }}>
+                    Gratuit
+                  </span>
+                )}
+                {e.visibility === "private" && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.navy, background: colors.gold, borderRadius: 20, padding: "3px 9px" }}>
+                    🔒 Privé
+                  </span>
+                )}
+                {d !== null && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.navy, background: "rgba(255,250,240,0.92)", borderRadius: 20, padding: "3px 9px" }}>
+                    {d.toFixed(1)} km
+                  </span>
                 )}
               </div>
+            </div>
+
+            {/* Médaillon du picto, à cheval sur la photo et le bandeau */}
+            <div
+              aria-label={cat.label}
+              title={cat.label}
+              style={{
+                position: "absolute",
+                top: 158 - 32,
+                right: 14,
+                width: 64,
+                height: 64,
+                borderRadius: "50%",
+                background: band.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 6px rgba(6,43,73,0.25)"
+              }}
+            >
+              <CategoryIcon category={cat} size={56} />
+            </div>
+
+            <div style={{ padding: "12px 86px 13px 14px", color: band.fg }}>
+              <i style={{ display: "block", width: 34, height: 5, background: band.ribbon, borderRadius: 99, transform: "rotate(-6deg)", marginBottom: 7 }} />
+              <h3 style={{ fontFamily: fonts.display, fontSize: 18, margin: "0 0 5px", lineHeight: 1.1 }}>{e.title}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: band.muted, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700 }}>{cat.label}</span>
+                <span>·</span>
+                <Calendar size={11} /> {timeStr} <span>·</span> <User size={11} /> {e.organizer}
+              </div>
+              {e.seats > 0 && (
+                <div style={{ fontSize: 11, fontWeight: 700, marginTop: 3, color: e.taken >= e.seats ? (band.fg === colors.navy ? colors.red : "#FFB4A6") : band.muted }}>
+                  {e.taken >= e.seats ? "Complet" : `${e.taken}/${e.seats} places`}
+                </div>
+              )}
             </div>
           </div>
         );

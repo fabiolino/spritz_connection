@@ -25,3 +25,32 @@ export const fonts = {
   display: "'Fraunces', Georgia, serif",
   body: "'Space Grotesk', system-ui, sans-serif"
 };
+
+// Visuels de soirée (charte, 21/11/2026) : chaque catégorie a sa couleur de
+// bandeau (colonne event_categories.color), et les photos reçoivent le même
+// réglage « pêchu » : couleurs plus vives, plus de contraste, un peu de chaleur.
+export const PHOTO_FILTER = "saturate(1.28) contrast(1.08) brightness(1.03) sepia(0.06)";
+
+const BAND_FALLBACK = {
+  apero: "#F05A19", afterwork: "#062B49", karaoke: "#FFC52B", concert: "#FFC52B",
+  diner: "#D6432A", danse: "#6B7C4F"
+};
+
+function isLight(hex) {
+  const h = (hex || "").replace("#", "");
+  if (h.length !== 6) return true;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55;
+}
+
+// Couleur du bandeau et du texte posé dessus, pour une catégorie.
+export function categoryBand(cat) {
+  const bg = cat?.color || BAND_FALLBACK[cat?.id] || "#FFFAF0";
+  const light = isLight(bg);
+  return {
+    bg,
+    fg: light ? colors.navy : "#FFFAF0",
+    muted: light ? "rgba(6,43,73,0.75)" : "rgba(255,250,240,0.85)",
+    ribbon: bg === "#F05A19" ? colors.navy : bg === "#FFC52B" ? colors.red : bg === "#062B49" ? colors.orange : bg === "#FFFAF0" ? colors.orange : colors.gold
+  };
+}

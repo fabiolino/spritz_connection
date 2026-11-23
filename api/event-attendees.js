@@ -13,6 +13,8 @@
 //   POST {action:"contact-photos", eventId}       → photos, pour qui a déjà laissé son email
 //   POST {action:"media-upload-url", eventId, …}  → lien d'envoi signé pour une photo/vidéo
 //   POST {action:"media-register", eventId, path} → ajoute le fichier envoyé à la galerie
+//   GET  ?qr=<id inscription>                     → image PNG du QR code du billet (emails)
+//   POST {action:"venue-checkin", token, …}       → contrôle d'un billet à l'entrée (espace lieu)
 
 import { createClient } from "@supabase/supabase-js";
 import { addToSpritzList, checkUnsubscribeSignature, unsubscribe } from "./_brevo.js";
@@ -21,6 +23,7 @@ import { joinWaitlist } from "./_waitlist.js";
 import { rateEvent } from "./_ratings.js";
 import { announceNewEvents } from "./_announce.js";
 import { contactEventInfo, eventPhotos, saveEventContact, mediaUploadUrl, mediaRegister } from "./_contacts.js";
+import { qrPng, isUuid, venueCheckin } from "./_checkin.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -147,6 +150,21 @@ export default async function handler(req, res) {
     return res.status(200).send(buildIcs(ev));
   }
 
+  // QR code d'un billet (image intégrée dans les emails)
+  if (req.method === "GET" && req.query?.qr) {
+    const id = String(req.query.qr).replace(/\.png$/i, "");
+    if (!isUuid(id)) return res.status(400).send("Lien invalide");
+    try {
+      const png = await qrPng(id.toLowerCase());
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.status(200).send(png);
+    } catch (err) {
+      console.error("Erreur QR:", err);
+      return res.status(500).send("Erreur");
+    }
+  }
+
   if (req.method === "GET" && req.query?.og) {
     try {
       return await renderPreview(req, res);
@@ -249,6 +267,19 @@ export default async function handler(req, res) {
     }
   }
 
+  // Contrôle des billets à l'entrée depuis l'espace lieu (scan du QR code ou validation à la main)
+  if (action === "venue-checkin") {
+    try {
+      const result = await venueCheckin(supabaseAdmin, req.body || {});
+      const { status = 200, ...rest } = result;
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(status).json(rest);
+    } catch (err) {
+      console.error("Erreur contrôle billet:", err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+  }
+
   // Espace lieu (/lieu/<token>) : les soirées du lieu et leurs inscrits, sans compte.
   // Le lien privé (venues.access_token) est donné au lieu par l'admin. Jamais l'email des participants.
   if (action === "venue-space") {
@@ -275,8 +306,9 @@ export default async function handler(req, res) {
       for (const ev of events || []) {
         const { data: regs } = await supabaseAdmin
           .from("registrations")
-          .select("id, user_id, guest_name, guest_phone, quantity, attendee_names, amount, paid, external, created_at")
+          .select("id, user_id, guest_name, guest_phone, quantity, attendee_names, amount, paid, external, created_at, ticket_code, checked_in_at, source")
           .eq("event_id", ev.id)
+          .is("reservation_expired_at", null)
           .or("paid.eq.true,external.eq.true")
           .order("created_at", { ascending: true });
         const list = regs || [];
@@ -307,7 +339,10 @@ export default async function handler(req, res) {
             paid,
             due: total - paid,
             firstTime: firstSet.has(r.id),
-            at: r.created_at
+            at: r.created_at,
+            code: r.ticket_code,
+            source: r.source && r.source !== "app" ? r.source : null,
+            checkedInAt: r.checked_in_at || null
           };
         });
         out.push({
@@ -317,6 +352,7 @@ export default async function handler(req, res) {
           seats: ev.seats,
           places: participants.reduce((n, p) => n + p.quantity, 0),
           newcomers: participants.filter((p) => p.firstTime).length,
+          arrived: participants.filter((p) => p.checkedInAt).reduce((n, p) => n + p.quantity, 0),
           paid: participants.reduce((n, p) => n + p.paid, 0),
           due: participants.reduce((n, p) => n + p.due, 0),
           participants

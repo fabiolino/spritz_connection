@@ -6,6 +6,20 @@ import { colors, fonts } from "../lib/theme";
 import { NotifyPrompt } from "../components/Notifications.jsx";
 import { InstallAppPrompt } from "../components/InstallAppPrompt.jsx";
 import { RescheduleTicket } from "../components/RescheduleTicket.jsx";
+import QRCode from "qrcode";
+
+// QR code du billet : il contient l'adresse de ce billet, scannée à l'entrée depuis l'espace lieu
+function TicketQr({ id }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    const url = `https://spritz-connection.vercel.app/ticket/${id}`;
+    QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: "M", color: { dark: "#062B49", light: "#FFFFFF" } })
+      .then(setSrc)
+      .catch(() => setSrc(null));
+  }, [id]);
+  if (!src) return null;
+  return <img src={src} alt="QR code du billet" style={{ width: 220, height: 220, display: "block", margin: "8px auto 4px", imageRendering: "pixelated" }} />;
+}
 
 function formatEuro(n) {
   const v = Number(n) || 0;
@@ -182,7 +196,7 @@ export default function Ticket() {
                 : ticket.external && !ticket.paid
                 ? `Ta réservation est enregistrée ! Il ne reste plus qu'à régler ${formatEuro(ticket.amount)} via SumUp. Montre ensuite cette confirmation à l'entrée.`
                 : isFree
-                ? `Ton inscription${quantity > 1 ? ` pour ${quantity} personnes` : ""} est confirmée. Montre ce code à l'entrée, on a hâte de vous voir !`
+                ? `Ton inscription${quantity > 1 ? ` pour ${quantity} personnes` : ""} est confirmée. Montre ce QR code à l'entrée, on a hâte de vous voir !`
                 : `Ton paiement est confirmé${quantity > 1 ? ` pour ${quantity} personnes` : ""}. Montre ce billet à l'entrée, on a hâte de ${quantity > 1 ? "vous" : "te"} voir !`}
             </p>
           </div>
@@ -287,10 +301,22 @@ export default function Ticket() {
             <div style={{ borderTop: `2px dashed ${colors.border}`, margin: "14px 0 0" }} />
 
             <div style={{ textAlign: "center", padding: "16px 18px 6px" }}>
-              <div style={{ fontSize: 11, color: colors.muted, textTransform: "uppercase", letterSpacing: 1.5 }}>
-                {ticket.external ? "Code de réservation" : "Code à présenter"}
-              </div>
-              <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 38, fontWeight: 800, letterSpacing: 6, color: colors.ink, margin: "4px 0" }}>
+              {!isMembership && ticket.checkedInAt ? (
+                <div style={{ background: "rgba(107,124,79,0.15)", color: colors.olive, borderRadius: 14, padding: "14px 12px", marginBottom: 10, fontWeight: 700, fontSize: 14 }}>
+                  <CheckCircle2 size={18} style={{ verticalAlign: "-4px", marginRight: 6 }} />
+                  Entrée validée le{" "}
+                  {new Date(ticket.checkedInAt).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, color: colors.muted, textTransform: "uppercase", letterSpacing: 1.5 }}>
+                    {isMembership ? "Code" : "QR code à présenter à l'entrée"}
+                  </div>
+                  {!isMembership && <TicketQr id={ticket.id} />}
+                </>
+              )}
+              <div style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>{isMembership ? "" : "Code de secours"}</div>
+              <div style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: isMembership ? 38 : 24, fontWeight: 800, letterSpacing: isMembership ? 6 : 4, color: colors.ink, margin: "2px 0 6px" }}>
                 {ticket.code}
               </div>
               {isFree ? (
@@ -420,7 +446,7 @@ export default function Ticket() {
               </span>
             )}
             {ticket.guestName
-              ? "Garde cette page ou fais une capture d'écran : c'est ton justificatif de réservation. Crée un compte avec le même email pour le retrouver automatiquement plus tard dans « Mes billets »."
+              ? "Garde cette page ou fais une capture d'écran du QR code : c'est ton justificatif de réservation. Crée un compte avec le même email pour le retrouver automatiquement plus tard dans « Mes billets »."
               : "Tu retrouveras ce billet à tout moment dans « Mon compte › Mes billets »."}
           </p>
 

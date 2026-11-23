@@ -59,6 +59,17 @@ function calendarLinksHtml(event, ticketUrl) {
   return `<p style="margin:10px 0 0;font-size:13px;color:${MUTED}">🗓️ Ajouter à mon agenda : ${link(googleCalendarUrl(event, { ticketUrl }), "Google")} · ${link(icsUrl(event.id), "iPhone / Outlook")}</p>`;
 }
 
+// QR code du billet (scanné à l'entrée par le lieu) + code de secours en clair
+function qrBlockHtml(reg, label) {
+  const qr = `${appUrl()}/api/event-attendees?qr=${encodeURIComponent(reg.id)}`;
+  return `<div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">${esc(label)}</div>
+      <img src="${esc(qr)}" width="200" height="200" alt="QR code du billet" style="display:block;margin:10px auto 6px;width:200px;height:200px;border:0">
+      <div style="font-size:12px;color:${MUTED}">Code de secours : <strong style="font-family:Menlo,Consolas,monospace;font-size:16px;letter-spacing:3px;color:${INK}">${esc(reg.ticket_code)}</strong></div>
+      <div style="font-size:12px;color:${MUTED};margin-top:4px">L'image ne s'affiche pas ? Touche « Voir mon billet » ci-dessous.</div>
+    </div>`;
+}
+
 // Paragraphe d'accueil pour une première soirée
 function firstTimeHtml() {
   return `<tr><td style="padding:14px 22px 0"><div style="background:#FFF6D6;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.55">
@@ -138,10 +149,7 @@ export function buildTicketEmail({ reg, event, options, recipientName, hasAccoun
   </td></tr>
   ${firstTime ? firstTimeHtml() : ""}
   <tr><td align="center" style="padding:14px 22px 6px">
-    <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">${toPay ? "Code de réservation" : "Code à présenter à l'entrée"}</div>
-      <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
-    </div>
+    ${qrBlockHtml(reg, toPay ? "Ta réservation — QR code à présenter à l'entrée" : "QR code à présenter à l'entrée")}
   </td></tr>
   ${receiptHtml}
   <tr><td align="center" style="padding:16px 22px 4px">
@@ -426,10 +434,7 @@ export function buildReminderEmail({ reg, event, recipientName, recipientEmail, 
     ${calendarLinksHtml(event, ticketUrl)}
   </td></tr>
   <tr><td align="center" style="padding:14px 22px 6px">
-    <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">Code à présenter à l'entrée</div>
-      <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
-    </div>
+    ${qrBlockHtml(reg, "QR code à présenter à l'entrée")}
   </td></tr>
   <tr><td align="center" style="padding:16px 22px 4px">${button(ticketUrl, "Voir mon billet")}</td></tr>
   ${inviteFriendsHtml(event, refCode, {
@@ -593,10 +598,7 @@ export function buildDayOfEmail({ reg, event, recipientName, recipientEmail, fir
   </td></tr>
   ${firstTime ? firstTimeHtml() : ""}
   <tr><td align="center" style="padding:14px 22px 6px">
-    <div style="border:2px dashed #EADFC4;border-radius:14px;padding:14px">
-      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${MUTED}">Code à présenter à l'entrée</div>
-      <div style="font-family:Menlo,Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:6px;margin-top:4px">${esc(reg.ticket_code)}</div>
-    </div>
+    ${qrBlockHtml(reg, "QR code à présenter à l'entrée")}
   </td></tr>
   <tr><td align="center" style="padding:16px 22px 4px">${button(ticketUrl, "Voir mon billet")}</td></tr>
   <tr><td style="padding:12px 22px 0;font-size:13px;line-height:1.5;color:${MUTED}">Un empêchement de dernière minute ? Réponds simplement à cet email : ta place pourra profiter à quelqu'un de la liste d'attente.</td></tr>

@@ -109,7 +109,7 @@ async function handleTicket(req, res) {
 
   let { data: reg, error } = await supabaseAdmin
     .from("registrations")
-    .select("id, event_id, user_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at, reservation_expires_at, reservation_expired_at")
+    .select("id, event_id, user_id, option, amount, paid, ticket_code, sumup_checkout_id, sumup_account, created_at, paid_at, external, guest_name, quantity, attendee_names, confirmation_sent_at, reservation_expires_at, reservation_expired_at, checked_in_at")
     .eq("id", registrationId)
     .maybeSingle();
   if (error || !reg) {
@@ -176,6 +176,7 @@ async function handleTicket(req, res) {
       external: !!reg.external,
       expired: reservationExpired,
       expiresAt: reg.reservation_expires_at || null,
+      checkedInAt: reg.checked_in_at || null,
       guestName: reg.guest_name || null,
       emailed: !!reg.confirmation_sent_at,
       quantity: reg.quantity || 1,

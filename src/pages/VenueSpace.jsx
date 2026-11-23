@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { RefreshCw, Phone, Users, Mail, Share, PlusSquare } from "lucide-react";
+import { RefreshCw, Phone, Users, Mail, Share, PlusSquare, ScanLine, CheckCircle2, Undo2 } from "lucide-react";
 import { colors, fonts } from "../lib/theme";
+import TicketScanner, { checkin } from "../components/TicketScanner.jsx";
 
 function euro(n) {
   const v = Number(n) || 0;
@@ -30,6 +31,7 @@ export default function VenueSpace() {
   const [loading, setLoading] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [showPast, setShowPast] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,7 +93,33 @@ export default function VenueSpace() {
         {data?.venue?.address && <div style={{ fontSize: 13, opacity: 0.85 }}>{data.venue.address}</div>}
       </div>
 
+      {scanning && <TicketScanner token={token} onClose={() => { setScanning(false); load(); }} onChecked={load} />}
+
       <div style={{ padding: "16px 20px 0" }}>
+        {data && (
+          <button
+            onClick={() => setScanning(true)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              background: colors.orange,
+              color: "#fff",
+              border: "none",
+              borderRadius: 16,
+              padding: "16px 14px",
+              fontSize: 17,
+              fontWeight: 800,
+              cursor: "pointer",
+              boxShadow: "0 6px 16px rgba(240,90,25,0.3)",
+              marginBottom: 14
+            }}
+          >
+            <ScanLine size={22} /> Scanner les billets
+          </button>
+        )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
           <span style={{ fontSize: 12, color: colors.muted }}>
             {updatedAt ? `Mis à jour à ${updatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · actualisation automatique` : "Chargement…"}
@@ -124,7 +152,7 @@ export default function VenueSpace() {
         )}
 
         {upcoming.map((e) => (
-          <EventBlock key={e.id} e={e} now={now} />
+          <EventBlock key={e.id} e={e} now={now} token={token} onChange={load} />
         ))}
 
         {past.length > 0 && (
@@ -158,7 +186,17 @@ export default function VenueSpace() {
   );
 }
 
-function EventBlock({ e, past }) {
+function EventBlock({ e, past, token, onChange }) {
+  const [busy, setBusy] = useState(null);
+  async function mark(p, undo) {
+    if (undo && !window.confirm(`Annuler l'entrée de ${p.name} ?`)) return;
+    setBusy(p.code);
+    const r = await checkin({ token, eventId: e.id, code: p.code, via: "liste", undo });
+    setBusy(null);
+    if (r.result === "already") window.alert(`${p.name} a déjà été validé·e à ${new Date(r.checkedInAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`);
+    else if (!["ok", "undone"].includes(r.result)) window.alert(r.message || "Impossible de valider ce billet.");
+    onChange?.();
+  }
   const day = parisDate(e.event_date, { day: "numeric" });
   const month = parisDate(e.event_date, { month: "short" }).replace(".", "").toUpperCase();
   const weekday = parisDate(e.event_date, { weekday: "short" }).replace(".", "").toUpperCase();
@@ -178,7 +216,7 @@ function EventBlock({ e, past }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderBottom: `1px solid ${colors.border}` }}>
         {[
-          ["Places", `${e.places}${e.seats ? ` / ${e.seats}` : ""}`],
+          [past ? "Places" : "Arrivés / inscrits", past ? `${e.places}${e.seats ? ` / ${e.seats}` : ""}` : `${e.arrived || 0} / ${e.places}`],
           ["Réglé en prévente", euro(e.paid)],
           ["À encaisser sur place", euro(e.due)]
         ].map(([label, value], i) => (
@@ -217,6 +255,7 @@ function EventBlock({ e, past }) {
               </div>
               {p.with.length > 0 && <div style={{ fontSize: 12, color: colors.muted }}>avec {p.with.join(", ")}</div>}
               {p.detail.length > 0 && <div style={{ fontSize: 12.5, color: colors.ink, marginTop: 2 }}>{p.detail.join(" · ")}</div>}
+              {p.source && <div style={{ fontSize: 11.5, color: colors.muted }}>via {p.source} · code {p.code}</div>}
               {p.phone && (
                 <a href={`tel:${p.phone.replace(/[^\d+]/g, "")}`} style={{ fontSize: 12.5, color: colors.blue, display: "inline-flex", alignItems: "center", gap: 4, marginTop: 3, textDecoration: "none" }}>
                   <Phone size={12} /> {p.phone}
@@ -239,6 +278,26 @@ function EventBlock({ e, past }) {
               </div>
               {p.due > 0 && <div style={{ fontSize: 14, fontWeight: 800, color: colors.navy, marginTop: 4 }}>{euro(p.due)}</div>}
               {p.paid > 0 && <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>{euro(p.paid)} payé</div>}
+              {!past && p.code && (
+                p.checkedInAt ? (
+                  <button
+                    onClick={() => mark(p, true)}
+                    disabled={busy === p.code}
+                    title="Annuler l'entrée"
+                    style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(107,124,79,0.15)", color: colors.olive, border: "none", borderRadius: 20, padding: "5px 9px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                  >
+                    <CheckCircle2 size={13} /> Arrivé {new Date(p.checkedInAt).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" })} <Undo2 size={11} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => mark(p, false)}
+                    disabled={busy === p.code}
+                    style={{ marginTop: 6, background: colors.surface, color: colors.navy, border: `1.5px solid ${colors.navy}`, borderRadius: 20, padding: "5px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                  >
+                    {busy === p.code ? "…" : "✓ Marquer arrivé"}
+                  </button>
+                )
+              )}
             </div>
           </div>
         ))

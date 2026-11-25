@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, User, Shield, Heart, X, LogIn, MapPin, Navigation, Share2, Users2, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
+import { isAdminUser } from "../lib/adminAccess";
 import { colors, fonts, categoryBand, PHOTO_FILTER } from "../lib/theme";
 import { distanceKm } from "../lib/categories";
 import { useCategories } from "../lib/CategoriesContext";
@@ -571,6 +572,7 @@ export default function Feed() {
       >
         <HelpCircle size={15} /> Aide &amp; FAQ
       </button>
+      {isAdminUser(user) && (
       <button
         onClick={() => navigate("/admin")}
         style={{
@@ -590,6 +592,7 @@ export default function Feed() {
       >
         <Shield size={15} /> Espace administrateur
       </button>
+      )}
       </div>
       </div>
     </div>

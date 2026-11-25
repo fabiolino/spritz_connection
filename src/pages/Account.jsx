@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, LogOut, Star, Camera, Ticket, Shield } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
+import { isAdminUser } from "../lib/adminAccess";
 import { colors, fonts } from "../lib/theme";
 import { useCategories } from "../lib/CategoriesContext";
 import { CategoryIcon } from "../lib/eventIcons";
@@ -348,6 +349,7 @@ export default function Account() {
 
       <NotificationSettings />
 
+      {isAdminUser(user) && (
       <button
         onClick={() => navigate("/admin")}
         style={{
@@ -369,6 +371,7 @@ export default function Account() {
       >
         <Shield size={15} /> Espace administrateur
       </button>
+      )}
       <p style={{ textAlign: "center", fontSize: 11, color: colors.muted, margin: "0 0 12px" }}>
         Version de l'app :{" "}
         {new Date(__BUILD_TIME__).toLocaleString("fr-FR", {

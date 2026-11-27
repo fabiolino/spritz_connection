@@ -29,6 +29,30 @@ export function parseScanned(text) {
   return m ? m[0].toLowerCase() : null;
 }
 
+// Montant à encaisser à l'entrée et statut affiché au lieu.
+// Règle : une réservation faite par lien SumUp externe dont le paiement n'a pas été confirmé
+// se règle sur place au tarif « sur place » (non-membre), et non au tarif prévente réservé.
+// event : { price_member, price_nonmember } (facultatif : sans lui, on garde le montant réservé)
+export function doorPayment(reg, event) {
+  const total = Math.round((Number(reg.amount) || 0) * 100) / 100;
+  const paid = total > 0 && reg.paid ? total : 0;
+  const qty = reg.quantity || 1;
+  const unpaidLink = !reg.paid && !!reg.external && !!reg.reservation_expires_at && !reg.formula_id;
+  const pre = Number(event?.price_member);
+  const onsite = Number(event?.price_nonmember);
+  if (unpaidLink && total > 0 && onsite > 0 && onsite >= pre) {
+    const extras = Math.max(0, total - pre * qty); // options choisies à la réservation
+    const due = Math.round((onsite * qty + extras) * 100) / 100;
+    return { paid: 0, due, status: "Non payé en ligne : tarif sur place", unpaidLink: true };
+  }
+  return {
+    paid,
+    due: Math.round((total - paid) * 100) / 100,
+    status: total === 0 ? "Gratuit" : reg.paid ? "Réglé en prévente" : "À régler sur place",
+    unpaidLink: false
+  };
+}
+
 async function venueFromToken(supabaseAdmin, token) {
   const tok = String(token || "").trim();
   if (!/^[0-9a-f]{16,64}$/.test(tok)) return null;
@@ -41,7 +65,7 @@ export async function venueCheckin(supabaseAdmin, body) {
   const venue = await venueFromToken(supabaseAdmin, body.token);
   if (!venue) return { status: 404, error: "Lien de l'espace lieu invalide" };
 
-  const fields = "id, event_id, user_id, guest_name, quantity, attendee_names, amount, paid, external, ticket_code, checked_in_at, reservation_expired_at";
+  const fields = "id, event_id, user_id, guest_name, quantity, attendee_names, amount, paid, external, ticket_code, checked_in_at, reservation_expired_at, reservation_expires_at, formula_id";
   let reg = null;
   const regId = parseScanned(body.scanned);
   if (regId) {
@@ -65,7 +89,7 @@ export async function venueCheckin(supabaseAdmin, body) {
 
   if (!reg) return { status: 200, result: "unknown", message: "Billet inconnu" };
 
-  const { data: event } = await supabaseAdmin.from("events").select("id, title, event_date, venue_id").eq("id", reg.event_id).maybeSingle();
+  const { data: event } = await supabaseAdmin.from("events").select("id, title, event_date, venue_id, price_member, price_nonmember").eq("id", reg.event_id).maybeSingle();
   if (!event || event.venue_id !== venue.id) {
     return { status: 200, result: "other-venue", message: "Ce billet n'est pas pour une soirée de votre établissement", event: event ? { title: event.title, event_date: event.event_date } : null };
   }
@@ -78,15 +102,15 @@ export async function venueCheckin(supabaseAdmin, body) {
     const { data: p } = await supabaseAdmin.from("profiles").select("name, email").eq("id", reg.user_id).maybeSingle();
     name = p?.name || (p?.email ? p.email.split("@")[0] : null);
   }
-  const total = Math.round((Number(reg.amount) || 0) * 100) / 100;
-  const paid = total > 0 && reg.paid ? total : 0;
+  const pay = doorPayment(reg, event);
   const person = {
     name: name || "—",
     code: reg.ticket_code,
     quantity: reg.quantity || 1,
     with: reg.attendee_names || [],
-    status: total === 0 ? "Gratuit" : reg.paid ? "Réglé en prévente" : "À régler sur place",
-    due: Math.round((total - paid) * 100) / 100
+    status: pay.status,
+    due: pay.due,
+    unpaidLink: pay.unpaidLink
   };
   const ev = { id: event.id, title: event.title, event_date: event.event_date };
 

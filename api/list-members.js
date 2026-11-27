@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     // Statistiques pour la vue « Membres & Spritz Crew » : participations, filleuls, notifications
     const [{ data: regs }, { data: refs }, { data: subs }] = await Promise.all([
-      supabaseAdmin.from("registrations").select("user_id, quantity, event_id").not("user_id", "is", null).or("paid.eq.true,external.eq.true"),
+      supabaseAdmin.from("registrations").select("user_id, quantity, event_id").not("user_id", "is", null).is("reservation_expired_at", null).or("paid.eq.true,external.eq.true"),
       supabaseAdmin.from("referrals").select("referrer_id, status"),
       supabaseAdmin.from("push_subscriptions").select("user_id")
     ]);

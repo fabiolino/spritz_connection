@@ -23,7 +23,7 @@ import { joinWaitlist } from "./_waitlist.js";
 import { rateEvent } from "./_ratings.js";
 import { announceNewEvents } from "./_announce.js";
 import { contactEventInfo, eventPhotos, saveEventContact, mediaUploadUrl, mediaRegister } from "./_contacts.js";
-import { qrPng, isUuid, venueCheckin } from "./_checkin.js";
+import { qrPng, isUuid, venueCheckin, doorPayment } from "./_checkin.js";
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -296,7 +296,7 @@ export default async function handler(req, res) {
       const since = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
       const { data: events } = await supabaseAdmin
         .from("events")
-        .select("id, title, event_date, seats, taken")
+        .select("id, title, event_date, seats, taken, price_member, price_nonmember")
         .eq("venue_id", venue.id)
         .eq("approved", true)
         .gte("event_date", since)
@@ -306,7 +306,7 @@ export default async function handler(req, res) {
       for (const ev of events || []) {
         const { data: regs } = await supabaseAdmin
           .from("registrations")
-          .select("id, user_id, guest_name, guest_phone, quantity, attendee_names, amount, paid, external, created_at, ticket_code, checked_in_at, source")
+          .select("id, user_id, guest_name, guest_phone, quantity, attendee_names, amount, paid, external, created_at, ticket_code, checked_in_at, source, reservation_expires_at, formula_id")
           .eq("event_id", ev.id)
           .is("reservation_expired_at", null)
           .or("paid.eq.true,external.eq.true")
@@ -327,17 +327,17 @@ export default async function handler(req, res) {
         const { data: firsts } = await supabaseAdmin.rpc("sc_first_timers", { p_event: ev.id });
         const firstSet = new Set((firsts || []).map((f) => f.registration_id));
         const participants = list.map((r) => {
-          const total = Math.round((Number(r.amount) || 0) * 100) / 100;
-          const paid = total > 0 && r.paid ? total : 0;
+          const pay = doorPayment(r, ev);
           return {
             name: r.guest_name || names[r.user_id] || "—",
             phone: r.guest_phone || null,
             quantity: r.quantity || 1,
             with: r.attendee_names || [],
             detail: opts[r.id] || [],
-            status: total === 0 ? "Gratuit" : r.paid ? "Réglé en prévente" : "À régler sur place",
-            paid,
-            due: total - paid,
+            status: pay.status,
+            paid: pay.paid,
+            due: pay.due,
+            unpaidLink: pay.unpaidLink,
             firstTime: firstSet.has(r.id),
             at: r.created_at,
             code: r.ticket_code,

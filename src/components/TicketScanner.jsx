@@ -53,7 +53,7 @@ export function CheckinResult({ r, onNext, nextLabel = "Scanner le billet suivan
             </div>
           )}
           <div style={{ fontSize: 15, marginTop: 6, fontWeight: 700 }}>
-            {p.due > 0 ? `💶 À encaisser sur place : ${euro(p.due)}` : `✅ ${p.status}`}
+            {p.due > 0 ? `💶 À encaisser sur place : ${euro(p.due)}${p.unpaidLink ? " (non payé en ligne, tarif sur place)" : ""}` : `✅ ${p.status}`}
           </div>
           {r.event && <div style={{ fontSize: 12.5, opacity: 0.9, marginTop: 6 }}>{r.event.title} · code {p.code}</div>}
         </div>
